@@ -261,7 +261,7 @@ export default function Sales() {
             await refreshData();
         } catch (error) {
             console.error('Error saving sale:', error);
-            alert('حدث خطأ أثناء الحفظ');
+            alert('حدث خطأ أثناء الحفظ: ' + (error?.message || error?.details || 'خطأ غير معروف'));
         }
     };
 
