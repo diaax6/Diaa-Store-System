@@ -76,8 +76,8 @@ export default function Products() {
             setEditingProduct(null);
             await refreshData();
         } catch (error) {
-            console.error(error);
-            alert('حدث خطأ أثناء الحفظ');
+            console.error('Product save error:', error);
+            alert('حدث خطأ أثناء الحفظ: ' + (error?.message || error?.details || 'خطأ غير معروف'));
         }
     };
 

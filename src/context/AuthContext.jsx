@@ -1,28 +1,44 @@
-import { createContext, useState, useContext, useEffect } from 'react';
+import { createContext, useState, useContext, useEffect, useRef } from 'react';
 import { authAPI } from '../services/api';
 
 const AuthContext = createContext();
+const USER_CACHE_KEY = 'service-hub_user';
 
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
+    const authChecked = useRef(false);
 
     // التحقق من التوكن عند فتح الموقع
     useEffect(() => {
+        if (authChecked.current) return;
+        authChecked.current = true;
+
         const checkUser = async () => {
             const token = localStorage.getItem('service-hub_token');
-            if (token) {
-                try {
-                    const userData = await authAPI.checkAuth(token);
-                    if (userData) {
-                        setUser(userData);
-                    } else {
-                        localStorage.removeItem('service-hub_token');
-                        setUser(null);
-                    }
-                } catch (error) {
-                    console.error("Auth check failed", error);
+            if (!token) { setLoading(false); return; }
+
+            // استخدم البيانات المحفوظة كـ fallback لو الشبكة مش شغالة
+            const cachedUser = localStorage.getItem(USER_CACHE_KEY);
+            let fallbackUser = null;
+            try { fallbackUser = cachedUser ? JSON.parse(cachedUser) : null; } catch { }
+
+            try {
+                const userData = await authAPI.checkAuth(token);
+                if (userData) {
+                    setUser(userData);
+                    localStorage.setItem(USER_CACHE_KEY, JSON.stringify(userData));
+                } else {
+                    // Token صريح غير صالح — يعني اتغير أو اتمسح من الداتابيز
                     localStorage.removeItem('service-hub_token');
+                    localStorage.removeItem(USER_CACHE_KEY);
+                    setUser(null);
+                }
+            } catch (error) {
+                // Network error — مش معناه إن التوكن غلط، ممكن مشكلة نت
+                console.error('Auth check network error:', error);
+                if (fallbackUser) {
+                    setUser(fallbackUser); // استخدم الكاش بدل ما نطرد اليوزر
                 }
             }
             setLoading(false);
@@ -34,6 +50,7 @@ export const AuthProvider = ({ children }) => {
         const result = await authAPI.login(username, password);
         if (result.status === 'success') {
             localStorage.setItem('service-hub_token', result.token);
+            localStorage.setItem(USER_CACHE_KEY, JSON.stringify(result.user));
             setUser(result.user);
             return { success: true };
         }
@@ -43,13 +60,10 @@ export const AuthProvider = ({ children }) => {
     const logout = async () => {
         const token = localStorage.getItem('service-hub_token');
         if (token) {
-            try {
-                await authAPI.logout(token);
-            } catch (error) {
-                console.error("Logout error", error);
-            }
+            try { await authAPI.logout(token); } catch { }
         }
         localStorage.removeItem('service-hub_token');
+        localStorage.removeItem(USER_CACHE_KEY);
         setUser(null);
     };
 
