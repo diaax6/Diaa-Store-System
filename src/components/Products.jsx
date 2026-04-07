@@ -5,7 +5,7 @@ import { productsAPI, accountsAPI } from '../services/api';
 
 export default function Products() {
     const { user, hasPermission } = useAuth();
-    const { products: ctxProducts, sections: ctxSections, accounts: ctxAccounts, refreshData } = useData();
+    const { products: ctxProducts, sections: ctxSections, accounts: ctxAccounts, refreshData, reorderProducts } = useData();
     const isAdmin = user?.role === 'admin' || hasPermission('all');
 
     const [products, setProducts] = useState([]);
@@ -14,13 +14,6 @@ export default function Products() {
     const [editingProduct, setEditingProduct] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [categoryFilter, setCategoryFilter] = useState('all');
-
-    // ترتيب المنتجات محفوظ محلياً
-    const SORT_KEY = 'service-hub_product_order';
-    const getSavedOrder = () => {
-        try { return JSON.parse(localStorage.getItem(SORT_KEY) || '{}'); } catch { return {}; }
-    };
-    const [sortOrderMap, setSortOrderMap] = useState(getSavedOrder);
 
     useEffect(() => {
         window.scrollTo(0, 0);
@@ -40,15 +33,8 @@ export default function Products() {
         return matchSearch && matchCategory;
     });
 
-    // ترتيب المنتجات حسب التصنيف ثم الترتيب المحفوظ
-    const sortedProducts = [...filteredProducts].sort((a, b) => {
-        const catA = (a.category || 'بدون تصنيف').toLowerCase();
-        const catB = (b.category || 'بدون تصنيف').toLowerCase();
-        if (catA !== catB) return catA.localeCompare(catB);
-        const orderA = sortOrderMap[a.id] ?? 999;
-        const orderB = sortOrderMap[b.id] ?? 999;
-        return orderA - orderB;
-    });
+    // المنتجات مرتبة من DataContext بالفعل
+    const sortedProducts = filteredProducts;
 
     // حساب الإحصائيات
     const stats = {
@@ -113,32 +99,7 @@ export default function Products() {
 
     // تحريك منتج لأعلى أو لأسفل
     const moveProduct = (productId, direction) => {
-        // جيب المنتجات في نفس التصنيف
-        const product = sortedProducts.find(p => p.id === productId);
-        if (!product) return;
-        const cat = product.category || 'بدون تصنيف';
-        const catProducts = sortedProducts.filter(p => (p.category || 'بدون تصنيف') === cat);
-        const idx = catProducts.findIndex(p => p.id === productId);
-        const swapIdx = direction === 'up' ? idx - 1 : idx + 1;
-        if (swapIdx < 0 || swapIdx >= catProducts.length) return;
-
-        // حدّث الترتيب محلياً
-        const newOrder = { ...sortOrderMap };
-        catProducts.forEach((p, i) => {
-            newOrder[p.id] = i;
-        });
-        // بدّل المواقع
-        newOrder[catProducts[idx].id] = swapIdx;
-        newOrder[catProducts[swapIdx].id] = idx;
-
-        localStorage.setItem(SORT_KEY, JSON.stringify(newOrder));
-        setSortOrderMap(newOrder);
-
-        // محاولة حفظ في الداتابيز كمان (اختياري)
-        productsAPI.updateSortOrder([
-            { id: catProducts[idx].id, sort_order: swapIdx },
-            { id: catProducts[swapIdx].id, sort_order: idx },
-        ]).catch(() => {});
+        reorderProducts(productId, direction);
     };
 
     // تجميع المنتجات حسب التصنيف

@@ -12,6 +12,20 @@ import {
 } from '../services/api';
 
 const DataContext = createContext();
+const SORT_KEY = 'service-hub_product_order';
+
+const getSavedOrder = () => {
+    try { return JSON.parse(localStorage.getItem(SORT_KEY) || '{}'); } catch { return {}; }
+};
+
+const sortProducts = (products, orderMap) => {
+    return [...products].sort((a, b) => {
+        const catA = (a.category || 'بدون تصنيف').toLowerCase();
+        const catB = (b.category || 'بدون تصنيف').toLowerCase();
+        if (catA !== catB) return catA.localeCompare(catB);
+        return (orderMap[a.id] ?? 999) - (orderMap[b.id] ?? 999);
+    });
+};
 
 export const DataProvider = ({ children }) => {
     const { user } = useAuth();
@@ -20,6 +34,7 @@ export const DataProvider = ({ children }) => {
     const [sales, setSales] = useState([]);
     const [accounts, setAccounts] = useState([]);
     const [expenses, setExpenses] = useState([]);
+    const [rawProducts, setRawProducts] = useState([]);
     const [products, setProducts] = useState([]);
     const [customers, setCustomers] = useState([]);
     const [wallets, setWallets] = useState([]);
@@ -27,6 +42,7 @@ export const DataProvider = ({ children }) => {
     const [sections, setSections] = useState([]);
     const [problems, setProblems] = useState([]);
     const [loading, setLoading] = useState(false);
+    const [productSortOrder, setProductSortOrder] = useState(getSavedOrder);
 
     // --- Stats State ---
     const [stats, setStats] = useState({
@@ -39,6 +55,38 @@ export const DataProvider = ({ children }) => {
     // --- Control States ---
     const [activeTab, setActiveTab] = useState('dashboard');
     const [renewalTarget, setRenewalTarget] = useState(null);
+
+    // إعادة ترتيب المنتجات عند تغيير الترتيب أو البيانات
+    useEffect(() => {
+        setProducts(sortProducts(rawProducts, productSortOrder));
+    }, [rawProducts, productSortOrder]);
+
+    // تحريك منتج — متاحة لكل الكومبوننتس
+    const reorderProducts = (productId, direction) => {
+        const sorted = sortProducts(rawProducts, productSortOrder);
+        const product = sorted.find(p => p.id === productId);
+        if (!product) return;
+
+        const cat = product.category || 'بدون تصنيف';
+        const catProducts = sorted.filter(p => (p.category || 'بدون تصنيف') === cat);
+        const idx = catProducts.findIndex(p => p.id === productId);
+        const swapIdx = direction === 'up' ? idx - 1 : idx + 1;
+        if (swapIdx < 0 || swapIdx >= catProducts.length) return;
+
+        const newOrder = { ...productSortOrder };
+        catProducts.forEach((p, i) => { newOrder[p.id] = i; });
+        newOrder[catProducts[idx].id] = swapIdx;
+        newOrder[catProducts[swapIdx].id] = idx;
+
+        localStorage.setItem(SORT_KEY, JSON.stringify(newOrder));
+        setProductSortOrder(newOrder);
+
+        // محاولة حفظ في الداتابيز (اختياري)
+        productsAPI.updateSortOrder([
+            { id: catProducts[idx].id, sort_order: swapIdx },
+            { id: catProducts[swapIdx].id, sort_order: idx },
+        ]).catch(() => {});
+    };
 
     // --- Refresh All Data ---
     const refreshData = useCallback(async () => {
@@ -71,19 +119,11 @@ export const DataProvider = ({ children }) => {
             setSales(salesData);
             setAccounts(accountsData);
             setExpenses(expensesData);
-            setProducts(productsData.map(p => ({
+            setRawProducts(productsData.map(p => ({
                 ...p,
                 inventoryProduct: p.inventory_product,
                 fulfillmentType: p.fulfillment_type,
-            })).sort((a, b) => {
-                // ترتيب حسب التصنيف ثم الترتيب المحفوظ محلياً
-                const catA = (a.category || 'بدون تصنيف').toLowerCase();
-                const catB = (b.category || 'بدون تصنيف').toLowerCase();
-                if (catA !== catB) return catA.localeCompare(catB);
-                let orderMap = {};
-                try { orderMap = JSON.parse(localStorage.getItem('service-hub_product_order') || '{}'); } catch {}
-                return (orderMap[a.id] ?? 999) - (orderMap[b.id] ?? 999);
-            }));
+            })));
             setCustomers(customersData);
             setWallets(walletsData);
             setTransactions(txnData);
@@ -118,7 +158,7 @@ export const DataProvider = ({ children }) => {
             sales, accounts, expenses, products, customers, wallets, transactions, sections, problems, stats,
             activeTab, setActiveTab,
             renewalTarget, setRenewalTarget,
-            refreshData,
+            refreshData, reorderProducts,
             loading
         }}>
             {children}
