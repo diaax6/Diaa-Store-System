@@ -75,7 +75,15 @@ export const DataProvider = ({ children }) => {
                 ...p,
                 inventoryProduct: p.inventory_product,
                 fulfillmentType: p.fulfillment_type,
-            })));
+            })).sort((a, b) => {
+                // ترتيب حسب التصنيف ثم الترتيب المحفوظ محلياً
+                const catA = (a.category || 'بدون تصنيف').toLowerCase();
+                const catB = (b.category || 'بدون تصنيف').toLowerCase();
+                if (catA !== catB) return catA.localeCompare(catB);
+                let orderMap = {};
+                try { orderMap = JSON.parse(localStorage.getItem('service-hub_product_order') || '{}'); } catch {}
+                return (orderMap[a.id] ?? 999) - (orderMap[b.id] ?? 999);
+            }));
             setCustomers(customersData);
             setWallets(walletsData);
             setTransactions(txnData);
