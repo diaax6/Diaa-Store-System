@@ -586,6 +586,7 @@ export const usersAPI = {
             // Update existing
             const updates = {
                 username: userData.username,
+                role: userData.role || 'moderator',
                 permissions: userData.permissions || [],
                 base_salary: userData.base_salary || 0,
                 vodafone_cash: userData.vodafone_cash || '',
@@ -602,7 +603,7 @@ export const usersAPI = {
             await supabase.from('users').insert({
                 username: userData.username,
                 password: hashedPassword,
-                role: 'moderator',
+                role: userData.role || 'moderator',
                 permissions: userData.permissions || [],
                 base_salary: userData.base_salary || 0,
                 vodafone_cash: userData.vodafone_cash || '',
