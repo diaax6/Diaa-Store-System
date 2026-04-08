@@ -39,12 +39,23 @@ export default function Dashboard() {
         });
         const topChannel = Object.entries(channelCounts).sort((a, b) => b[1] - a[1])[0];
 
-        // المصروفات
-        const totalExpenses = expenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
-        // إجمالي الربح = الإيرادات - المصروفات
-        const grossProfit = totalRevenue - totalExpenses;
-        // صافي الربح = المحصّل فعلياً - المصروفات
-        const netProfit = totalCollected - totalExpenses;
+        // المصروفات حسب التصنيف
+        const dailyExpensesList = expenses.filter(e => (e.expenseCategory || 'daily') === 'daily');
+        const stockExpensesList = expenses.filter(e => e.expenseCategory === 'stock');
+        const totalDailyExpenses = dailyExpensesList.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+        const totalStockExpenses = stockExpensesList.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+        const totalExpenses = totalDailyExpenses + totalStockExpenses;
+        
+        // إجمالي الربح = الإيرادات - المصروفات اليومية فقط
+        const grossProfit = totalRevenue - totalDailyExpenses;
+        // صافي الربح = المحصّل فعلياً - المصروفات اليومية
+        const netProfit = totalCollected - totalDailyExpenses;
+        
+        // حسابات اليوم
+        const dailyRevenue = dailySales.reduce((sum, s) => sum + (Number(s.finalPrice) || 0), 0);
+        const todayDailyExpensesList = dailyExpensesList.filter(e => new Date(e.date) >= startOfToday);
+        const todayDailyExpenses = todayDailyExpensesList.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+        const dailyProfit = dailyRevenue - todayDailyExpenses;
 
         return {
             totalSales: sales.length,
@@ -53,10 +64,14 @@ export default function Dashboard() {
             totalRemaining,
             totalDiscount,
             totalExpenses,
+            totalDailyExpenses,
+            totalStockExpenses,
             grossProfit,
             netProfit,
             dailyCount: dailySales.length,
-            dailyRevenue: dailySales.reduce((sum, s) => sum + (Number(s.finalPrice) || 0), 0),
+            dailyRevenue,
+            dailyProfit,
+            todayDailyExpenses,
             weeklyCount: weeklySales.length,
             weeklyRevenue: weeklySales.reduce((sum, s) => sum + (Number(s.finalPrice) || 0), 0),
             monthlyCount: monthlySales.length,
@@ -118,16 +133,17 @@ export default function Dashboard() {
                 <StatCard title="المحصّل" engTitle="Collected" value={`${stats.totalCollected.toLocaleString()} EGP`} gradient="bg-gradient-to-br from-cyan-500 to-blue-600" icon="fa-hand-holding-dollar" />
                 <StatCard title="المديونيات" engTitle="Outstanding" value={`${stats.totalRemaining.toLocaleString()} EGP`} gradient="bg-gradient-to-br from-red-500 to-rose-700" icon="fa-money-bill-transfer" />
 
-                <StatCard title="إجمالي المصروفات" engTitle="Total Expenses" value={`${stats.totalExpenses.toLocaleString()} EGP`} gradient="bg-gradient-to-br from-rose-600 to-pink-800" icon="fa-money-bill-transfer" />
-                <StatCard title="إجمالي الربح" engTitle="Gross Profit" value={`${stats.grossProfit.toLocaleString()} EGP`} subTitle="الإيرادات - المصروفات" gradient={`bg-gradient-to-br ${stats.grossProfit >= 0 ? 'from-emerald-600 to-green-800' : 'from-red-600 to-red-900'}`} icon="fa-chart-line" />
-                <StatCard title="صافي الربح" engTitle="Net Profit" value={`${stats.netProfit.toLocaleString()} EGP`} subTitle="المحصّل - المصروفات" gradient={`bg-gradient-to-br ${stats.netProfit >= 0 ? 'from-green-500 to-emerald-700' : 'from-red-700 to-rose-900'}`} icon="fa-coins" />
-                <StatCard title="المنتجات المتاحة" engTitle="Products" value={stats.totalProducts} gradient="bg-gradient-to-br from-slate-600 to-slate-800" icon="fa-boxes-stacked" />
+                <StatCard title="مصروفات يومية" engTitle="Daily Expenses" value={`${stats.totalDailyExpenses.toLocaleString()} EGP`} subTitle="إعلانات - اشتراكات - رواتب" gradient="bg-gradient-to-br from-amber-500 to-orange-600" icon="fa-clock" />
+                <StatCard title="مصروفات مخزون" engTitle="Stock Expenses" value={`${stats.totalStockExpenses.toLocaleString()} EGP`} subTitle="شراء استوك وحسابات" gradient="bg-gradient-to-br from-purple-600 to-violet-800" icon="fa-boxes-stacked" />
+                <StatCard title="إجمالي الربح" engTitle="Gross Profit" value={`${stats.grossProfit.toLocaleString()} EGP`} subTitle="الإيرادات - المصروفات اليومية" gradient={`bg-gradient-to-br ${stats.grossProfit >= 0 ? 'from-emerald-600 to-green-800' : 'from-red-600 to-red-900'}`} icon="fa-chart-line" />
+                <StatCard title="صافي الربح" engTitle="Net Profit" value={`${stats.netProfit.toLocaleString()} EGP`} subTitle="المحصّل - المصروفات اليومية" gradient={`bg-gradient-to-br ${stats.netProfit >= 0 ? 'from-green-500 to-emerald-700' : 'from-red-700 to-rose-900'}`} icon="fa-coins" />
 
+                <StatCard title="ربح اليوم" engTitle="Today's Profit" value={`${stats.dailyProfit.toLocaleString()} EGP`} subTitle={`إيرادات ${stats.dailyRevenue.toLocaleString()} - مصروفات ${stats.todayDailyExpenses.toLocaleString()}`} gradient={`bg-gradient-to-br ${stats.dailyProfit >= 0 ? 'from-teal-500 to-emerald-700' : 'from-red-600 to-rose-800'}`} icon="fa-sun" />
                 <StatCard title="مبيعات اليوم" engTitle="Today" value={stats.dailyCount} subTitle={`${stats.dailyRevenue.toLocaleString()} EGP`} gradient="bg-gradient-to-br from-violet-500 to-purple-700" icon="fa-calendar-day" />
                 <StatCard title="مبيعات الأسبوع" engTitle="This Week" value={stats.weeklyCount} subTitle={`${stats.weeklyRevenue.toLocaleString()} EGP`} gradient="bg-gradient-to-br from-fuchsia-500 to-pink-700" icon="fa-calendar-week" />
                 <StatCard title="مبيعات الشهر" engTitle="This Month" value={stats.monthlyCount} subTitle={`${stats.monthlyRevenue.toLocaleString()} EGP`} gradient="bg-gradient-to-br from-orange-500 to-amber-600" icon="fa-calendar-days" />
-                <StatCard title="إجمالي الخصومات" engTitle="Total Discounts" value={`${stats.totalDiscount.toLocaleString()} EGP`} gradient="bg-gradient-to-br from-amber-400 to-orange-500" icon="fa-percent" />
 
+                <StatCard title="المنتجات المتاحة" engTitle="Products" value={stats.totalProducts} gradient="bg-gradient-to-br from-slate-600 to-slate-800" icon="fa-boxes-stacked" />
                 <StatCard title="الأكثر مبيعاً" engTitle="Top Product" value={stats.topProduct} subTitle={`${stats.topProductCount} مبيعة`} gradient="bg-gradient-to-br from-lime-500 to-green-600" icon="fa-trophy" />
                 <StatCard title="قناة التواصل الأولى" engTitle="Top Channel" value={stats.topChannel} subTitle={`${stats.topChannelCount} عميل`} gradient="bg-gradient-to-br from-blue-500 to-indigo-600" icon="fa-comments" />
                 <StatCard title="نسبة التحصيل" engTitle="Collection Rate" value={`${stats.totalSales > 0 ? ((stats.paidCount / stats.totalSales) * 100).toFixed(0) : 0}%`} subTitle={`${stats.paidCount} مدفوع / ${stats.unpaidCount} معلق`} gradient="bg-gradient-to-br from-teal-500 to-cyan-700" icon="fa-chart-pie" />
@@ -186,6 +202,9 @@ export default function Dashboard() {
                                                 <span className="text-xs text-slate-400">{sale.productName}</span>
                                                 <span className="text-[10px] text-slate-300">•</span>
                                                 <span className="text-xs text-slate-400">{new Date(sale.date).toLocaleDateString('ar-EG')}</span>
+                                                {sale.saleType === 'workspace' && (
+                                                    <span className="text-[10px] bg-cyan-50 text-cyan-700 px-1.5 py-0.5 rounded font-bold border border-cyan-200">WS</span>
+                                                )}
                                             </div>
                                         </div>
                                     </div>

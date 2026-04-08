@@ -110,6 +110,8 @@ export default function Accounts() {
         const fd = new FormData(e.target);
         const productName = currentSection.name;
         const allowedUses = Number(fd.get('allowedUses') || 1);
+        const isWorkspace = fd.get('isWorkspace') === 'on';
+        const workspaceMembers = isWorkspace ? Number(fd.get('workspaceMembers') || 5) : 0;
 
         try {
             if (isBulkAdd) {
@@ -119,13 +121,13 @@ export default function Accounts() {
                     let email = line, password = '';
                     if (line.includes(':')) [email, password] = line.split(':');
                     else if (line.includes('|')) [email, password] = line.split('|');
-                    return { email: email.trim(), password: password ? password.trim() : '', twoFA: '', productName, allowed_uses: allowedUses, createdBy: user?.username || 'Admin' };
+                    return { email: email.trim(), password: password ? password.trim() : '', twoFA: '', productName, allowed_uses: isWorkspace ? workspaceMembers : allowedUses, createdBy: user?.username || 'Admin', isWorkspace, workspaceMembers };
                 });
                 await accountsAPI.createBulk(rows);
             } else {
                 const email = fd.get('email')?.trim();
                 if (!email) return;
-                await accountsAPI.create({ email, password: fd.get('password')?.trim() || '', twoFA: fd.get('twoFA')?.trim() || '', productName, allowed_uses: allowedUses, createdBy: user?.username || 'Admin' });
+                await accountsAPI.create({ email, password: fd.get('password')?.trim() || '', twoFA: fd.get('twoFA')?.trim() || '', productName, allowed_uses: isWorkspace ? workspaceMembers : allowedUses, createdBy: user?.username || 'Admin', isWorkspace, workspaceMembers });
             }
             setShowAddModal(false);
             setIsBulkAdd(false);
@@ -140,6 +142,7 @@ export default function Accounts() {
         e.preventDefault();
         const fd = new FormData(e.target);
         const newStatus = fd.get('status');
+        const isWorkspace = fd.get('isWorkspace') === 'on';
         try {
             await accountsAPI.update(editingAccount.id, {
                 email: fd.get('email').trim(),
@@ -147,7 +150,9 @@ export default function Accounts() {
                 twoFA: fd.get('twoFA')?.trim() || '',
                 status: newStatus,
                 allowed_uses: Number(fd.get('allowedUses') || 1),
-                current_uses: newStatus === 'available' ? 0 : Number(fd.get('currentUses') || editingAccount.current_uses)
+                current_uses: newStatus === 'available' ? 0 : Number(fd.get('currentUses') || editingAccount.current_uses),
+                isWorkspace: isWorkspace,
+                workspaceMembers: isWorkspace ? Number(fd.get('workspaceMembers') || 5) : 0,
             });
             setEditingAccount(null);
             await refreshData();
@@ -371,6 +376,12 @@ export default function Accounts() {
                                                             {acc.current_uses} / {acc.allowed_uses === -1 ? '∞' : acc.allowed_uses}
                                                         </span>
                                                     )}
+                                                    {acc.isWorkspace && (
+                                                        <span className="text-[10px] bg-cyan-50 text-cyan-700 px-2 py-0.5 rounded font-bold border border-cyan-200 flex items-center gap-1">
+                                                            <i className="fa-solid fa-users-rectangle text-[8px]"></i> Workspace
+                                                            {acc.workspaceMembers > 0 && <span>({acc.current_uses}/{acc.workspaceMembers} شخص)</span>}
+                                                        </span>
+                                                    )}
                                                 </div>
                                                 <div className="flex flex-col gap-1.5">
                                                     <div className="flex items-center gap-2">
@@ -516,6 +527,25 @@ export default function Accounts() {
                                 <input name="allowedUses" type="number" defaultValue="1" className="w-full bg-white border-2 border-slate-200 rounded-xl p-3.5 font-bold text-sm focus:ring-4 focus:ring-indigo-100 focus:border-indigo-600 outline-none transition-all" min="-1" />
                             </div>
 
+                            {/* Workspace Options */}
+                            <div className="bg-cyan-50/50 p-5 rounded-2xl border border-cyan-200 space-y-4">
+                                <div className="text-xs font-black text-cyan-600 uppercase tracking-widest flex items-center gap-1.5">
+                                    <i className="fa-solid fa-users-rectangle"></i> إعدادات Workspace (اختياري)
+                                </div>
+                                <label className="flex items-center gap-3 p-3 bg-white rounded-xl border border-cyan-100 cursor-pointer hover:bg-cyan-50 transition-colors">
+                                    <input type="checkbox" name="isWorkspace" className="w-5 h-5 text-cyan-600 rounded focus:ring-cyan-500 border-cyan-300" />
+                                    <span className="text-sm font-bold text-cyan-800">هذا الحساب Workspace (مجموعة عمل)</span>
+                                </label>
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-600 mb-1">عدد الأشخاص المطلوب للاكتمال</label>
+                                    <input name="workspaceMembers" type="number" defaultValue="5" min="1" className="w-full bg-white border-2 border-slate-200 rounded-xl p-3 font-bold text-sm focus:ring-4 focus:ring-cyan-100 focus:border-cyan-500 outline-none transition-all" />
+                                </div>
+                                <p className="text-[10px] text-cyan-600 font-medium">
+                                    <i className="fa-solid fa-info-circle ml-1"></i>
+                                    الحساب ميتعلمش "مكتمل" غير لما العدد المضاف يوصل للحد ده
+                                </p>
+                            </div>
+
                             <button type="submit" className={`w-full text-white py-3.5 rounded-xl font-bold shadow-lg transition-all flex items-center justify-center gap-2 ${isCodesSection ? 'bg-amber-600 hover:bg-amber-700 shadow-amber-200' : 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-200'}`}>
                                 <i className="fa-solid fa-check"></i> حفظ
                             </button>
@@ -564,6 +594,20 @@ export default function Accounts() {
                             <div>
                                 <label className="block text-sm font-extrabold text-slate-800 mb-2">عدد الاستخدامات الحالي</label>
                                 <input name="currentUses" type="number" defaultValue={editingAccount.current_uses} className="w-full bg-white border-2 border-slate-200 rounded-xl p-3.5 font-bold text-sm focus:ring-4 focus:ring-indigo-100 focus:border-indigo-600 outline-none transition-all bg-slate-50" min="0" />
+                            </div>
+                            {/* Workspace Options */}
+                            <div className="bg-cyan-50/50 p-5 rounded-2xl border border-cyan-200 space-y-4">
+                                <div className="text-xs font-black text-cyan-600 uppercase tracking-widest flex items-center gap-1.5">
+                                    <i className="fa-solid fa-users-rectangle"></i> إعدادات Workspace
+                                </div>
+                                <label className="flex items-center gap-3 p-3 bg-white rounded-xl border border-cyan-100 cursor-pointer hover:bg-cyan-50 transition-colors">
+                                    <input type="checkbox" name="isWorkspace" defaultChecked={editingAccount.isWorkspace} className="w-5 h-5 text-cyan-600 rounded focus:ring-cyan-500 border-cyan-300" />
+                                    <span className="text-sm font-bold text-cyan-800">هذا الحساب Workspace</span>
+                                </label>
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-600 mb-1">عدد الأشخاص المطلوب</label>
+                                    <input name="workspaceMembers" type="number" defaultValue={editingAccount.workspaceMembers || 5} min="1" className="w-full bg-white border-2 border-slate-200 rounded-xl p-3 font-bold text-sm focus:ring-4 focus:ring-cyan-100 focus:border-cyan-500 outline-none transition-all" />
+                                </div>
                             </div>
                             <div className="flex gap-3 pt-2">
                                 <button type="button" onClick={() => setEditingAccount(null)} className="flex-1 py-3 rounded-xl font-bold text-slate-600 bg-white border-2 border-slate-200 hover:bg-slate-50 transition">إلغاء</button>

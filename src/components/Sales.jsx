@@ -35,6 +35,10 @@ export default function Sales() {
     const [customerSearch, setCustomerSearch] = useState('');
     const formRef = useRef(null);
 
+    // Sale type state (personal / workspace)
+    const [saleType, setSaleType] = useState('personal');
+    const [workspaceEmail, setWorkspaceEmail] = useState('');
+
     const [searchTerm, setSearchTerm] = useState('');
     const [productFilters, setProductFilters] = useState([]); // array of selected product names
     const [statusFilter, setStatusFilter] = useState('all');
@@ -61,10 +65,14 @@ export default function Sales() {
                     setSelectedCustomerId('');
                 }
                 setContactChannel(editingSale.contactChannel || 'واتساب');
+                setSaleType(editingSale.saleType || 'personal');
+                setWorkspaceEmail(editingSale.workspaceEmail || '');
             } else {
                 setCustomerType('new');
                 setSelectedCustomerId('');
                 setContactChannel('واتساب');
+                setSaleType('personal');
+                setWorkspaceEmail('');
             }
             setCustomerSearch('');
         }
@@ -122,6 +130,8 @@ export default function Sales() {
                 ? true
                 : statusFilter === 'paid' ? s.isPaid
                 : statusFilter === 'unpaid' ? !s.isPaid
+                : statusFilter === 'activated' ? s.isActivated
+                : statusFilter === 'notActivated' ? !s.isActivated
                 : statusFilter === 'hasDiscount' ? s.discount > 0
                 : true;
             const term = searchTerm.toLowerCase();
@@ -234,6 +244,10 @@ export default function Sales() {
                 fromInventory: false,
                 assignedAccountEmail: '',
                 assignedAccountId: null,
+                saleType: saleType,
+                workspaceEmail: saleType === 'workspace' ? workspaceEmail : '',
+                isActivated: false,
+                customerPassword: formData.get('customerPassword')?.trim() || '',
             };
 
             if (editingSale) {
@@ -241,6 +255,10 @@ export default function Sales() {
                 data.fromInventory = editingSale.fromInventory;
                 data.assignedAccountEmail = editingSale.assignedAccountEmail;
                 data.assignedAccountId = editingSale.assignedAccountId;
+                data.saleType = saleType;
+                data.workspaceEmail = saleType === 'workspace' ? workspaceEmail : '';
+                data.isActivated = editingSale.isActivated;
+                data.customerPassword = formData.get('customerPassword')?.trim() || '';
                 await salesAPI.update(editingSale.id, data);
             } else {
                 // سحب من المخزون لو المنتج مربوط بالمخزون ونوعه from_stock
@@ -432,6 +450,27 @@ export default function Sales() {
         }
     };
 
+    const toggleActivated = async (id) => {
+        const sale = sales.find(s => s.id === id);
+        if (!sale) return;
+        try {
+            await salesAPI.toggleActivated(id, !sale.isActivated);
+            await refreshData();
+        } catch (error) {
+            console.error(error);
+        }
+    };
+
+    // Copy credentials to clipboard
+    const copyCredentials = (sale) => {
+        let text = sale.customerEmail || '';
+        if (sale.customerPassword) text += '\n' + sale.customerPassword;
+        navigator.clipboard.writeText(text).then(() => {
+            setCopiedId(sale.id);
+            setTimeout(() => setCopiedId(null), 2000);
+        });
+    };
+
     // ========= Export =========
     const exportExcel = () => {
         const ws = XLSX.utils.json_to_sheet(filteredSales.map(s => ({
@@ -492,8 +531,8 @@ export default function Sales() {
 
                     {/* Filters */}
                     <div className="flex flex-wrap gap-3 items-center">
-                        <div className="flex bg-white p-1.5 rounded-xl border border-slate-200 shadow-sm">
-                            {[{ id: 'all', label: 'الكل' }, { id: 'paid', label: 'مدفوع' }, { id: 'unpaid', label: 'غير مدفوع' }, { id: 'hasDiscount', label: 'خصومات' }].map(f => (
+                        <div className="flex bg-white p-1.5 rounded-xl border border-slate-200 shadow-sm flex-wrap">
+                            {[{ id: 'all', label: 'الكل' }, { id: 'paid', label: 'مدفوع' }, { id: 'unpaid', label: 'غير مدفوع' }, { id: 'activated', label: 'مفعّل' }, { id: 'notActivated', label: 'غير مفعّل' }, { id: 'hasDiscount', label: 'خصومات' }].map(f => (
                                 <button key={f.id} onClick={() => setStatusFilter(f.id)} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${statusFilter === f.id ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}>{f.label}</button>
                             ))}
                         </div>
@@ -543,6 +582,9 @@ export default function Sales() {
                                                 <span className={`text-[11px] px-2.5 py-0.5 rounded-full font-bold ${sale.isPaid ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
                                                     {sale.isPaid ? '✅ مدفوع' : '⏳ غير مدفوع'}
                                                 </span>
+                                                <span className={`text-[11px] px-2.5 py-0.5 rounded-full font-bold ${sale.isActivated ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'bg-amber-50 text-amber-700 border border-amber-200'}`}>
+                                                    {sale.isActivated ? '⚡ مُفعّل' : '⏸️ غير مفعّل'}
+                                                </span>
                                                 {sale.discount > 0 && (
                                                     <span className="text-[11px] px-2.5 py-0.5 rounded-full font-bold bg-orange-50 text-orange-700 border border-orange-200">
                                                         خصم {sale.discount} ج.م
@@ -550,9 +592,24 @@ export default function Sales() {
                                                 )}
                                             </div>
                                             {sale.customerEmail && (
-                                                <div className="flex items-center gap-1.5 text-xs text-indigo-600 font-mono mb-1">
-                                                    <i className="fa-solid fa-envelope text-indigo-400 text-[10px]"></i>
-                                                    {sale.customerEmail}
+                                                <div className="flex items-center gap-2 text-xs text-indigo-600 font-mono mb-1">
+                                                    <div className="flex items-center gap-1.5">
+                                                        <i className="fa-solid fa-envelope text-indigo-400 text-[10px]"></i>
+                                                        {sale.customerEmail}
+                                                    </div>
+                                                    {sale.customerPassword && (
+                                                        <span className="text-slate-400 font-bold">|</span>
+                                                    )}
+                                                    {sale.customerPassword && (
+                                                        <div className="flex items-center gap-1.5 text-purple-600">
+                                                            <i className="fa-solid fa-key text-purple-400 text-[10px]"></i>
+                                                            {sale.customerPassword}
+                                                        </div>
+                                                    )}
+                                                    <button onClick={() => copyCredentials(sale)} className={`flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-lg border transition-all ${copiedId === sale.id ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-slate-50 text-slate-400 border-slate-200 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200'}`} title="نسخ البيانات">
+                                                        <i className={`fa-solid ${copiedId === sale.id ? 'fa-check' : 'fa-copy'}`}></i>
+                                                        {copiedId === sale.id ? 'تم!' : 'نسخ'}
+                                                    </button>
                                                 </div>
                                             )}
                                             <div className="flex flex-wrap gap-2 text-sm text-slate-500 font-medium">
@@ -591,6 +648,15 @@ export default function Sales() {
                                                 })()}
                                             </div>
                                             {sale.notes && <p className="text-xs text-slate-400 mt-2 italic">📝 {sale.notes}</p>}
+                                            {sale.saleType === 'workspace' && sale.workspaceEmail && (
+                                                <div className="flex items-center gap-1.5 mt-2 text-xs text-cyan-700 bg-cyan-50 px-3 py-1.5 rounded-lg border border-cyan-200 font-bold w-fit">
+                                                    <i className="fa-solid fa-users-rectangle text-cyan-500"></i>
+                                                    <span>Workspace: {sale.workspaceEmail}</span>
+                                                </div>
+                                            )}
+                                            {sale.saleType === 'personal' && (
+                                                <span className="inline-flex items-center gap-1 mt-2 text-[10px] text-slate-400 bg-slate-50 px-2 py-1 rounded border border-slate-100 font-bold"><i className="fa-solid fa-user text-[8px]"></i> شخصي</span>
+                                            )}
                                         </div>
 
                                         {/* Price */}
@@ -618,6 +684,9 @@ export default function Sales() {
                                         <div className="flex md:flex-col gap-2">
                                             <button onClick={() => togglePaid(sale.id)} className={`w-9 h-9 flex items-center justify-center rounded-xl transition border ${sale.isPaid ? 'text-emerald-600 bg-emerald-50 border-emerald-100 hover:bg-emerald-100' : 'text-orange-600 bg-orange-50 border-orange-100 hover:bg-orange-100'}`} title={sale.isPaid ? 'تحويل لغير مدفوع' : 'تحويل لمدفوع'}>
                                                 <i className={`fa-solid ${sale.isPaid ? 'fa-check-double' : 'fa-clock'}`}></i>
+                                            </button>
+                                            <button onClick={() => toggleActivated(sale.id)} className={`w-9 h-9 flex items-center justify-center rounded-xl transition border ${sale.isActivated ? 'text-blue-600 bg-blue-50 border-blue-100 hover:bg-blue-100' : 'text-amber-600 bg-amber-50 border-amber-100 hover:bg-amber-100'}`} title={sale.isActivated ? 'إلغاء التفعيل' : 'تعليم كمفعّل'}>
+                                                <i className={`fa-solid ${sale.isActivated ? 'fa-bolt' : 'fa-pause'}`}></i>
                                             </button>
                                             <button onClick={() => openEditSale(sale)} className="w-9 h-9 flex items-center justify-center text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-xl transition border border-blue-100" title="تعديل"><i className="fa-solid fa-pen"></i></button>
                                             <button onClick={() => deleteSale(sale.id)} className="w-9 h-9 flex items-center justify-center text-red-600 bg-red-50 hover:bg-red-100 rounded-xl transition border border-red-100" title="حذف"><i className="fa-solid fa-trash"></i></button>
@@ -774,6 +843,11 @@ export default function Sales() {
                                         <label className="block text-sm font-extrabold text-slate-800 mb-2">إيميل العميل <span className="text-slate-400 font-medium">(اختياري)</span></label>
                                         <input name="customerEmail" type="email" defaultValue={editingSale?.customerEmail} className="w-full bg-white border-2 border-slate-200 rounded-xl p-3.5 font-bold text-sm focus:ring-4 focus:ring-indigo-100 focus:border-indigo-600 outline-none transition-all font-mono" placeholder="user@example.com" />
                                     </div>
+                                    <div>
+                                        <label className="block text-sm font-extrabold text-slate-800 mb-2">باسورد العميل <span className="text-slate-400 font-medium">(اختياري - لو التفعيل محتاج باسورد)</span></label>
+                                        <input name="customerPassword" type="text" defaultValue={editingSale?.customerPassword || ''} className="w-full bg-white border-2 border-purple-200 rounded-xl p-3.5 font-bold text-sm focus:ring-4 focus:ring-purple-100 focus:border-purple-600 outline-none transition-all font-mono dir-ltr text-left text-purple-700" placeholder="اكتب الباسورد لو محتاج" />
+                                        <p className="text-[10px] text-slate-400 mt-1 font-medium"><i className="fa-solid fa-info-circle ml-1 text-purple-300"></i> اكتب الباسورد لو التفعيل محتاجه، اتركه فاضي لو مش محتاج</p>
+                                    </div>
                                 </div>
 
                                 {/* الدفع */}
@@ -829,6 +903,37 @@ export default function Sales() {
                                 <div>
                                     <label className="block text-sm font-extrabold text-slate-800 mb-2">ملاحظات (اختياري)</label>
                                     <textarea name="notes" defaultValue={editingSale?.notes} className="w-full bg-white border-2 border-slate-200 rounded-xl p-3.5 font-bold text-sm focus:ring-4 focus:ring-indigo-100 focus:border-indigo-600 outline-none transition-all h-20 resize-none" placeholder="أي ملاحظات إضافية..."></textarea>
+                                </div>
+
+                                {/* نوع البيع: شخصي / Workspace */}
+                                <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                                    <div className="text-xs font-black text-cyan-600 uppercase tracking-widest mb-2"><i className="fa-solid fa-users-rectangle ml-1"></i> نوع الإيميل</div>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <button type="button" onClick={() => { setSaleType('personal'); setWorkspaceEmail(''); }}
+                                            className={`flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all ${saleType === 'personal' ? 'border-indigo-500 bg-indigo-50 shadow-sm' : 'border-slate-200 hover:border-indigo-200'}`}>
+                                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg ${saleType === 'personal' ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-500'}`}><i className="fa-solid fa-user"></i></div>
+                                            <span className="text-sm font-extrabold text-slate-700">شخصي</span>
+                                            <span className="text-[10px] text-slate-400 font-medium">إيميل العميل الشخصي</span>
+                                        </button>
+                                        <button type="button" onClick={() => setSaleType('workspace')}
+                                            className={`flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all ${saleType === 'workspace' ? 'border-cyan-500 bg-cyan-50 shadow-sm' : 'border-slate-200 hover:border-cyan-200'}`}>
+                                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg ${saleType === 'workspace' ? 'bg-cyan-600 text-white' : 'bg-slate-100 text-slate-500'}`}><i className="fa-solid fa-users-rectangle"></i></div>
+                                            <span className="text-sm font-extrabold text-slate-700">Workspace</span>
+                                            <span className="text-[10px] text-slate-400 font-medium">ضمن مجموعة عمل</span>
+                                        </button>
+                                    </div>
+                                    {saleType === 'workspace' && (
+                                        <div className="animate-fade-in">
+                                            <label className="block text-sm font-extrabold text-slate-800 mb-2">إيميل الـ Workspace <span className="text-red-400">*</span></label>
+                                            <input type="email" value={workspaceEmail} onChange={e => setWorkspaceEmail(e.target.value)}
+                                                className="w-full bg-white border-2 border-cyan-300 rounded-xl p-3.5 font-bold text-sm focus:ring-4 focus:ring-cyan-100 focus:border-cyan-600 outline-none transition-all font-mono dir-ltr text-right text-cyan-700"
+                                                placeholder="workspace@example.com" required />
+                                            <p className="text-[11px] text-slate-400 mt-2 font-medium">
+                                                <i className="fa-solid fa-info-circle ml-1 text-cyan-400"></i>
+                                                الإيميل اللي هيستخدم لتفعيل العميل على Workspace مشترك
+                                            </p>
+                                        </div>
+                                    )}
                                 </div>
                             </form>
                         </div>

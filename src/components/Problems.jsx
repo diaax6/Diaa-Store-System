@@ -11,6 +11,7 @@ export default function Problems () {
 
     const [showModal, setShowModal] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
+    const [statusFilter, setStatusFilter] = useState('all'); // all | open | resolved
 
     // State للقيم داخل المودال
     const [selectedSaleId, setSelectedSaleId] = useState('');
@@ -26,13 +27,27 @@ export default function Problems () {
         }
     }, [renewalTarget]);
 
+    // Stats
+    const stats = useMemo(() => {
+        const total = (problems || []).length;
+        const open = (problems || []).filter(p => !p.isResolved).length;
+        const resolved = (problems || []).filter(p => p.isResolved).length;
+        return { total, open, resolved };
+    }, [problems]);
+
     // دالة لفلترة المشاكل للعرض
     const filteredProblems = useMemo(() => {
-        return (problems || []).filter(p =>
-            (p.description || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-            (p.customerName && p.customerName.toLowerCase().includes(searchTerm.toLowerCase()))
-        );
-    }, [problems, searchTerm]);
+        return (problems || []).filter(p => {
+            const matchSearch =
+                (p.description || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                (p.customerName && p.customerName.toLowerCase().includes(searchTerm.toLowerCase()));
+            const matchStatus =
+                statusFilter === 'all' ||
+                (statusFilter === 'open' && !p.isResolved) ||
+                (statusFilter === 'resolved' && p.isResolved);
+            return matchSearch && matchStatus;
+        });
+    }, [problems, searchTerm, statusFilter]);
 
     // دالة لحفظ المشكلة
     const handleSubmit = async (e) => {
@@ -65,13 +80,56 @@ export default function Problems () {
         }
     };
 
+    // حذف مشكلة
+    const handleDelete = async (id) => {
+        if (!confirm("حذف هذه المشكلة نهائياً؟")) return;
+        try {
+            await problemsAPI.delete(id);
+            refreshData();
+        } catch (error) {
+            console.error(error);
+            alert("حدث خطأ أثناء الحذف");
+        }
+    };
+
+    // تعليم المشكلة كمحلولة
+    const handleResolve = async (id) => {
+        if (!confirm("تعليم المشكلة كـ 'تم الحل'؟")) return;
+        try {
+            await problemsAPI.markResolved(id);
+            refreshData();
+        } catch (error) {
+            console.error(error);
+            alert("حدث خطأ");
+        }
+    };
+
     // دالة لجلب تفاصيل الأوردر المختار عشان نعرف المنتج ونعرض بدائل مناسبة
     const selectedSaleDetails = useMemo(() => {
         return sales.find(s => s.id == selectedSaleId);
     }, [selectedSaleId, sales]);
 
     return (
-        <div className="space-y-8 animate-fade-in pb-20 font-sans text-slate-800">
+        <div className="space-y-6 animate-fade-in pb-20 font-sans text-slate-800">
+
+            {/* Stats */}
+            <div className="grid grid-cols-3 gap-4">
+                <div className="bg-gradient-to-br from-red-600 to-rose-700 rounded-2xl p-5 text-white shadow-lg relative overflow-hidden">
+                    <div className="absolute -left-4 -bottom-4 text-7xl opacity-10"><i className="fa-solid fa-triangle-exclamation"></i></div>
+                    <p className="text-red-200 text-xs font-bold mb-1">إجمالي المشاكل</p>
+                    <h3 className="text-3xl font-extrabold">{stats.total}</h3>
+                </div>
+                <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm relative overflow-hidden">
+                    <div className="absolute top-0 left-0 w-1.5 h-full bg-orange-500"></div>
+                    <p className="text-slate-500 text-xs font-bold mb-1 flex items-center gap-1"><i className="fa-solid fa-clock text-orange-500"></i> قيد المتابعة</p>
+                    <h3 className="text-3xl font-extrabold text-orange-600">{stats.open}</h3>
+                </div>
+                <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm relative overflow-hidden">
+                    <div className="absolute top-0 left-0 w-1.5 h-full bg-emerald-500"></div>
+                    <p className="text-slate-500 text-xs font-bold mb-1 flex items-center gap-1"><i className="fa-solid fa-check-circle text-emerald-500"></i> تم الحل</p>
+                    <h3 className="text-3xl font-extrabold text-emerald-600">{stats.resolved}</h3>
+                </div>
+            </div>
 
             {/* Header */}
             <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
@@ -79,7 +137,7 @@ export default function Problems () {
                     <h2 className="text-2xl font-extrabold text-slate-800">سجل المشاكل</h2>
                     <p className="text-slate-500 text-sm font-medium mt-1">متابعة وحل مشكلات العملاء</p>
                 </div>
-                <div className="flex gap-3 w-full md:w-auto">
+                <div className="flex gap-3 w-full md:w-auto flex-wrap">
                     <div className="relative w-full md:w-64">
                         <input
                             type="text"
@@ -97,11 +155,26 @@ export default function Problems () {
                             setDescription('');
                             setShowModal(true);
                         }}
-                        className="bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl text-sm px-6 py-3 shadow-lg shadow-red-200 transition-all flex items-center gap-2"
+                        className="bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl text-sm px-6 py-3 shadow-lg shadow-red-200 transition-all flex items-center gap-2 whitespace-nowrap"
                     >
                         <i className="fa-solid fa-triangle-exclamation"></i> تسجيل مشكلة
                     </button>
                 </div>
+            </div>
+
+            {/* Status Filters */}
+            <div className="flex bg-white p-1.5 rounded-xl border border-slate-200 shadow-sm w-full md:w-auto">
+                {[
+                    { id: 'all', label: 'الكل', icon: 'fa-layer-group', count: stats.total },
+                    { id: 'open', label: 'قيد المتابعة', icon: 'fa-clock', count: stats.open },
+                    { id: 'resolved', label: 'تم الحل', icon: 'fa-check-circle', count: stats.resolved },
+                ].map(f => (
+                    <button key={f.id} onClick={() => setStatusFilter(f.id)}
+                        className={`px-4 py-2.5 rounded-lg text-sm font-bold transition-all flex items-center gap-2 flex-1 justify-center ${statusFilter === f.id ? 'bg-red-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}>
+                        <i className={`fa-solid ${f.icon} text-xs`}></i>{f.label}
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-black ${statusFilter === f.id ? 'bg-white/20' : 'bg-slate-100'}`}>{f.count}</span>
+                    </button>
+                ))}
             </div>
 
             {/* Problems Grid */}
@@ -113,23 +186,56 @@ export default function Problems () {
                     </div>
                 ) : (
                     filteredProblems.map(prob => (
-                        <div key={prob.id} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-all relative overflow-hidden group">
-                            <div className="absolute right-0 top-0 bottom-0 w-1.5 bg-red-500"></div>
+                        <div key={prob.id} className={`bg-white p-5 rounded-2xl border shadow-sm hover:shadow-md transition-all relative overflow-hidden group ${prob.isResolved ? 'border-emerald-200 bg-emerald-50/30' : 'border-slate-200'}`}>
+                            <div className={`absolute right-0 top-0 bottom-0 w-1.5 ${prob.isResolved ? 'bg-emerald-500' : 'bg-red-500'}`}></div>
 
-                            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pl-4">
-                                <div>
-                                    <div className="flex items-center gap-2 mb-1">
+                            <div className="flex flex-col md:flex-row justify-between items-start gap-4 pl-4">
+                                <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2 mb-1 flex-wrap">
                                         <h4 className="font-bold text-lg text-slate-800">{prob.customerName || 'عميل غير معروف'}</h4>
                                         <span className="text-xs bg-slate-100 text-slate-500 px-2 py-0.5 rounded border border-slate-200 font-mono">{prob.phoneNumber}</span>
+                                        {prob.isResolved ? (
+                                            <span className="text-[10px] bg-emerald-100 text-emerald-700 px-2.5 py-0.5 rounded-full font-bold border border-emerald-200 flex items-center gap-1">
+                                                <i className="fa-solid fa-check-circle text-[8px]"></i> تم الحل
+                                            </span>
+                                        ) : (
+                                            <span className="text-[10px] bg-orange-100 text-orange-700 px-2.5 py-0.5 rounded-full font-bold border border-orange-200 flex items-center gap-1">
+                                                <i className="fa-solid fa-clock text-[8px]"></i> قيد المتابعة
+                                            </span>
+                                        )}
                                     </div>
                                     <p className="text-sm text-slate-500 font-medium mb-2 flex items-center gap-2">
                                         <span className="bg-red-50 text-red-700 px-2 py-0.5 rounded border border-red-100 text-xs font-bold">{prob.productName}</span>
                                         <span className="text-slate-300">•</span>
-                                        <span className="font-mono text-xs">{new Date(prob.date).toLocaleDateString('ar-EG')}</span>
+                                        <span className="font-mono text-xs">{new Date(prob.created_at || prob.date).toLocaleDateString('ar-EG')}</span>
+                                        {prob.isResolved && prob.resolvedAt && (
+                                            <>
+                                                <span className="text-slate-300">•</span>
+                                                <span className="text-[10px] text-emerald-600 font-bold">حُلت: {new Date(prob.resolvedAt).toLocaleDateString('ar-EG')}</span>
+                                            </>
+                                        )}
                                     </p>
                                     <p className="text-slate-700 bg-slate-50 p-3 rounded-xl border border-slate-100 text-sm leading-relaxed max-w-2xl">
                                         {prob.description}
                                     </p>
+                                </div>
+
+                                {/* Action Buttons */}
+                                <div className="flex md:flex-col gap-2 flex-shrink-0">
+                                    {!prob.isResolved && (
+                                        <button onClick={() => handleResolve(prob.id)}
+                                            className="flex items-center gap-2 px-4 py-2.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-xl font-bold text-xs hover:bg-emerald-100 transition-all shadow-sm"
+                                            title="تعليم كمحلولة">
+                                            <i className="fa-solid fa-check-circle"></i>
+                                            <span className="hidden md:inline">تم الحل</span>
+                                        </button>
+                                    )}
+                                    <button onClick={() => handleDelete(prob.id)}
+                                        className="flex items-center gap-2 px-4 py-2.5 bg-red-50 text-red-600 border border-red-200 rounded-xl font-bold text-xs hover:bg-red-100 transition-all shadow-sm"
+                                        title="حذف">
+                                        <i className="fa-solid fa-trash"></i>
+                                        <span className="hidden md:inline">حذف</span>
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -140,15 +246,15 @@ export default function Problems () {
             {/* Modal */}
             {showModal && (
                 <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
-                    <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl p-8 transform scale-100 transition-all flex flex-col max-h-[90vh]">
-                        <div className="flex justify-between items-center mb-6 border-b border-slate-100 pb-4">
-                            <h3 className="text-xl font-extrabold text-red-600 flex items-center gap-2">
+                    <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+                        <div className="p-6 bg-gradient-to-r from-red-600 to-rose-600 text-white flex justify-between items-center">
+                            <h3 className="text-xl font-bold flex items-center gap-2">
                                 <i className="fa-solid fa-triangle-exclamation"></i> تسجيل مشكلة جديدة
                             </h3>
-                            <button onClick={() => setShowModal(false)} className="bg-slate-100 p-2.5 rounded-full text-slate-500 hover:bg-slate-200 transition"><i className="fa-solid fa-xmark text-lg"></i></button>
+                            <button onClick={() => setShowModal(false)} className="bg-white/10 hover:bg-white/20 p-2 rounded-full transition"><i className="fa-solid fa-xmark text-lg"></i></button>
                         </div>
 
-                        <form onSubmit={handleSubmit} className="space-y-5 overflow-y-auto custom-scrollbar pr-2">
+                        <form onSubmit={handleSubmit} className="p-8 space-y-5 overflow-y-auto custom-scrollbar">
 
                             {/* 1. اختيار الأوردر */}
                             <div>
@@ -171,7 +277,7 @@ export default function Problems () {
                                 </div>
                             </div>
 
-                            {/* 2. اختيار التعويض (تم إضافة الفلتر هنا 🔥) */}
+                            {/* 2. اختيار التعويض */}
                             {selectedSaleId && (
                                 <div className="animate-fade-in">
                                     <label className="block text-sm font-extrabold text-slate-800 mb-2 ml-1">
@@ -184,20 +290,12 @@ export default function Problems () {
                                             onChange={(e) => setReplacementAccountId(e.target.value)}
                                         >
                                             <option value="">-- بدون تعويض (تسجيل المشكلة فقط) --</option>
-
-                                            {/* 🔥🔥🔥 الفلتر المعدل حسب الطلب 🔥🔥🔥 */}
                                             {accounts
                                                 .filter(a => {
-                                                    // 1. نفس المنتج
                                                     const isMatchingProduct = a.productName === selectedSaleDetails?.productName;
-                                                    // 2. الحالة متاح (available)
                                                     const isAvailable = a.status === 'available';
-                                                    // 3. التاريخ غير منتهي
                                                     const isExpired = a.expiry_date && new Date(a.expiry_date) < new Date();
-                                                    // 4. لم يتخطى الحد الأقصى (لغير الـ Lifetime)
                                                     const isLimitReached = a.allowed_uses != -1 && Number(a.current_uses) >= Number(a.allowed_uses);
-
-                                                    // تصفية صارمة: لازم يكون نفس المنتج + متاح + غير منتهي + فيه رصيد استخدام
                                                     return isMatchingProduct && isAvailable && !isExpired && !isLimitReached;
                                                 })
                                                 .map(a => (
@@ -244,7 +342,8 @@ export default function Problems () {
                 .custom-scrollbar::-webkit-scrollbar { height: 6px; width: 6px; }
                 .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
                 .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-            `}</style>
+            `}
+            </style>
         </div>
     );
 }

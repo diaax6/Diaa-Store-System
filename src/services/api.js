@@ -186,6 +186,9 @@ export const accountsAPI = {
             twoFA: a.two_fa,
             createdBy: a.created_by,
             createdAt: a.created_at,
+            isWorkspace: a.is_workspace || false,
+            workspaceMembers: a.workspace_members || 0,
+            workspaceCost: a.workspace_cost || 0,
         }));
     },
 
@@ -199,6 +202,9 @@ export const accountsAPI = {
             allowed_uses: account.allowed_uses,
             current_uses: account.current_uses || 0,
             created_by: account.createdBy || 'Admin',
+            is_workspace: account.isWorkspace || false,
+            workspace_members: account.workspaceMembers || 0,
+            workspace_cost: account.workspaceCost || 0,
         }).select().single();
         if (error) throw error;
         return data;
@@ -214,6 +220,9 @@ export const accountsAPI = {
             allowed_uses: a.allowed_uses,
             current_uses: 0,
             created_by: a.createdBy || 'Admin',
+            is_workspace: a.isWorkspace || false,
+            workspace_members: a.workspaceMembers || 0,
+            workspace_cost: a.workspaceCost || 0,
         }));
         const { error } = await supabase.from('accounts').insert(rows);
         if (error) throw error;
@@ -228,6 +237,9 @@ export const accountsAPI = {
         if (updates.allowed_uses !== undefined) dbUpdates.allowed_uses = updates.allowed_uses;
         if (updates.current_uses !== undefined) dbUpdates.current_uses = updates.current_uses;
         if (updates.productName !== undefined) dbUpdates.product_name = updates.productName;
+        if (updates.isWorkspace !== undefined) dbUpdates.is_workspace = updates.isWorkspace;
+        if (updates.workspaceMembers !== undefined) dbUpdates.workspace_members = updates.workspaceMembers;
+        if (updates.workspaceCost !== undefined) dbUpdates.workspace_cost = updates.workspaceCost;
 
         const { error } = await supabase.from('accounts').update(dbUpdates).eq('id', id);
         if (error) throw error;
@@ -348,6 +360,10 @@ export const salesAPI = {
             assignedAccountEmail: s.assigned_account_email,
             assignedAccountId: s.assigned_account_id,
             fromInventory: s.from_inventory,
+            saleType: s.sale_type || 'personal',
+            workspaceEmail: s.workspace_email || '',
+            isActivated: s.is_activated || false,
+            customerPassword: s.customer_password || '',
         }));
     },
 
@@ -374,6 +390,10 @@ export const salesAPI = {
             assigned_account_email: sale.assignedAccountEmail || '',
             assigned_account_id: sale.assignedAccountId || null,
             from_inventory: sale.fromInventory || false,
+            sale_type: sale.saleType || 'personal',
+            workspace_email: sale.workspaceEmail || '',
+            is_activated: sale.isActivated || false,
+            customer_password: sale.customerPassword || '',
         };
         // لو فيه تاريخ مخصوص (تسجيل بتاريخ قديم)
         if (sale.date) {
@@ -403,6 +423,10 @@ export const salesAPI = {
             wallet_id: sale.walletId || null,
             wallet_name: sale.walletName || '',
             notes: sale.notes || '',
+            sale_type: sale.saleType || 'personal',
+            workspace_email: sale.workspaceEmail || '',
+            is_activated: sale.isActivated !== undefined ? sale.isActivated : false,
+            customer_password: sale.customerPassword || '',
         }).eq('id', id);
         if (error) throw error;
     },
@@ -415,6 +439,12 @@ export const salesAPI = {
         await supabase.from('sales').update({
             is_paid: isPaid,
             remaining_amount: isPaid ? 0 : finalPrice
+        }).eq('id', id);
+    },
+
+    async toggleActivated(id, isActivated) {
+        await supabase.from('sales').update({
+            is_activated: isActivated,
         }).eq('id', id);
     }
 };
@@ -430,6 +460,7 @@ export const expensesAPI = {
             ...e,
             walletId: e.wallet_id,
             walletName: e.wallet_name,
+            expenseCategory: e.expense_category || 'daily',
         }));
     },
 
@@ -441,18 +472,21 @@ export const expensesAPI = {
             date: expense.date,
             wallet_id: expense.walletId || '',
             wallet_name: expense.walletName || '',
+            expense_category: expense.expenseCategory || 'daily',
         }).select().single();
         if (error) throw error;
         return data;
     },
 
     async update(id, expense) {
-        const { error } = await supabase.from('expenses').update({
+        const updates = {
             type: expense.type,
             amount: expense.amount,
             description: expense.description || '',
             date: expense.date,
-        }).eq('id', id);
+        };
+        if (expense.expenseCategory !== undefined) updates.expense_category = expense.expenseCategory;
+        const { error } = await supabase.from('expenses').update(updates).eq('id', id);
         if (error) throw error;
     },
 
@@ -702,6 +736,8 @@ export const problemsAPI = {
             customerName: p.customer_name,
             phoneNumber: p.phone_number,
             productName: p.product_name,
+            isResolved: p.is_resolved || false,
+            resolvedAt: p.resolved_at || null,
         }));
     },
 
@@ -713,8 +749,22 @@ export const problemsAPI = {
             product_name: problem.productName || '',
             description: problem.description,
             replacement_account_id: problem.replacementAccountId || null,
+            is_resolved: false,
         }).select().single();
         if (error) throw error;
         return data;
+    },
+
+    async markResolved(id) {
+        const { error } = await supabase.from('problems').update({
+            is_resolved: true,
+            resolved_at: new Date().toISOString(),
+        }).eq('id', id);
+        if (error) throw error;
+    },
+
+    async delete(id) {
+        const { error } = await supabase.from('problems').delete().eq('id', id);
+        if (error) throw error;
     },
 };
