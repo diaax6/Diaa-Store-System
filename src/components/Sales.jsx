@@ -401,16 +401,12 @@ export default function Sales() {
         <div className="space-y-6 animate-fade-in pb-24 font-sans text-slate-800">
 
             {/* Stats Cards */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="bg-gradient-to-br from-indigo-600 to-blue-700 rounded-2xl p-5 text-white shadow-lg">
                     <p className="text-indigo-200 text-sm font-bold mb-1">إجمالي المبيعات</p>
                     <h3 className="text-3xl font-extrabold">{stats.count}</h3>
                 </div>
-                <div className="bg-gradient-to-br from-amber-500 to-orange-600 rounded-2xl p-5 text-white shadow-lg">
-                    <p className="text-amber-100 text-sm font-bold mb-1">إيرادات المبيعات</p>
-                    <h3 className="text-2xl font-extrabold dir-ltr">{stats.totalRevenue.toLocaleString()} <span className="text-sm opacity-80">ج.م</span></h3>
-                    <p className="text-amber-100 text-[10px] font-bold mt-1">{stats.dailyRevenue.toLocaleString()} ج.م اليوم • {stats.dailyCount} أوردر</p>
-                </div>
+
                 <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm relative overflow-hidden">
                     <div className="absolute top-0 left-0 w-1.5 h-full bg-orange-500"></div>
                     <p className="text-slate-500 text-sm font-bold mb-1">تنبيهات التجديد</p>

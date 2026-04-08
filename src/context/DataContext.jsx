@@ -1,5 +1,6 @@
-import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from './AuthContext';
+import { supabase } from '../lib/supabase';
 import {
     productsAPI,
     salesAPI,
@@ -26,6 +27,20 @@ const sortProducts = (products, orderMap) => {
         return (orderMap[a.id] ?? 999) - (orderMap[b.id] ?? 999);
     });
 };
+
+// الجداول اللي هنراقبها في الوقت الحقيقي
+const REALTIME_TABLES = [
+    'sales',
+    'products',
+    'accounts',
+    'customers',
+    'wallets',
+    'wallet_transactions',
+    'expenses',
+    'inventory_sections',
+    'problems',
+    'attendance',
+];
 
 export const DataProvider = ({ children }) => {
     const { user } = useAuth();
@@ -55,6 +70,9 @@ export const DataProvider = ({ children }) => {
     // --- Control States ---
     const [activeTab, setActiveTab] = useState('dashboard');
     const [renewalTarget, setRenewalTarget] = useState(null);
+
+    // --- Realtime debounce ref ---
+    const realtimeTimerRef = useRef(null);
 
     // إعادة ترتيب المنتجات عند تغيير الترتيب أو البيانات
     useEffect(() => {
@@ -151,6 +169,51 @@ export const DataProvider = ({ children }) => {
     // Load data when user logs in
     useEffect(() => {
         refreshData();
+    }, [user, refreshData]);
+
+    // ============ SUPABASE REALTIME ============
+    // الاشتراك في التحديثات اللحظية لكل الجداول
+    useEffect(() => {
+        if (!user) return;
+
+        // Debounced refresh — عشان لو في تغييرات كتير في نفس الوقت ميعملش refresh كل مرة
+        const debouncedRefresh = () => {
+            if (realtimeTimerRef.current) clearTimeout(realtimeTimerRef.current);
+            realtimeTimerRef.current = setTimeout(() => {
+                refreshData();
+            }, 500); // انتظر 500ms بعد آخر تغيير قبل ما يعمل refresh
+        };
+
+        // إنشاء channel واحد يراقب كل الجداول
+        const channel = supabase.channel('realtime-all-tables');
+
+        // الاشتراك في كل جدول
+        REALTIME_TABLES.forEach(table => {
+            channel.on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table },
+                (payload) => {
+                    console.log(`🔄 Realtime update on [${table}]:`, payload.eventType);
+                    debouncedRefresh();
+                }
+            );
+        });
+
+        // تفعيل الاشتراك
+        channel.subscribe((status) => {
+            if (status === 'SUBSCRIBED') {
+                console.log('✅ Realtime subscribed to all tables');
+            } else if (status === 'CHANNEL_ERROR') {
+                console.warn('⚠️ Realtime channel error, will retry...');
+            }
+        });
+
+        // تنظيف عند الخروج
+        return () => {
+            if (realtimeTimerRef.current) clearTimeout(realtimeTimerRef.current);
+            supabase.removeChannel(channel);
+            console.log('🔌 Realtime unsubscribed');
+        };
     }, [user, refreshData]);
 
     return (
