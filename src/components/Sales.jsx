@@ -139,6 +139,7 @@ export default function Sales() {
         const totalRevenue = filteredSales.reduce((sum, s) => sum + (Number(s.finalPrice) || 0), 0);
         const totalCollected = filteredSales.filter(s => s.isPaid).reduce((sum, s) => sum + (Number(s.finalPrice) || 0), 0);
         const totalRemaining = filteredSales.filter(s => !s.isPaid).reduce((sum, s) => sum + (Number(s.remainingAmount) || Number(s.finalPrice) || 0), 0);
+        const totalDebtCount = filteredSales.filter(s => !s.isPaid && Number(s.remainingAmount) > 0).length;
         
         // Daily revenue
         const todayStr = new Date().toDateString();
@@ -146,8 +147,15 @@ export default function Sales() {
         const dailyRevenue = todaySales.reduce((sum, s) => sum + (Number(s.finalPrice) || 0), 0);
         const dailyCount = todaySales.length;
 
-        return { totalRevenue, totalCollected, totalRemaining, count: filteredSales.length, dailyRevenue, dailyCount };
-    }, [filteredSales]);
+        // Renewal alerts (expiring within 5 days or already expired)
+        const renewalAlerts = sales.filter(s => {
+            if (!s.expiryDate || s.renewal_stage === 'renewed') return false;
+            const daysLeft = Math.ceil((new Date(s.expiryDate) - new Date()) / 86400000);
+            return daysLeft <= 5;
+        }).length;
+
+        return { totalRevenue, totalCollected, totalRemaining, totalDebtCount, count: filteredSales.length, dailyRevenue, dailyCount, renewalAlerts };
+    }, [filteredSales, sales]);
 
 
 
@@ -168,7 +176,18 @@ export default function Sales() {
 
         // مدة الاشتراك من المنتج
         const productDuration = product ? (product.duration || 30) : 30;
-        const saleDate = editingSale ? (editingSale.date || new Date().toISOString()) : new Date().toISOString();
+        
+        // تاريخ البيع - لو المستخدم اختار تاريخ قديم يستخدمه، غير كده تاريخ اليوم
+        const customDateStr = formData.get('saleDate');
+        let saleDate;
+        if (editingSale) {
+            saleDate = editingSale.date || new Date().toISOString();
+        } else if (customDateStr) {
+            // المستخدم اختار تاريخ محدد
+            saleDate = new Date(customDateStr).toISOString();
+        } else {
+            saleDate = new Date().toISOString();
+        }
         const expiryDate = new Date(new Date(saleDate).getTime() + productDuration * 86400000).toISOString();
 
         // Customer handling
@@ -199,6 +218,7 @@ export default function Sales() {
                 finalPrice,
                 duration: productDuration,
                 expiryDate,
+                date: saleDate,
                 customerId: customerId || '',
                 customerName,
                 customerPhone,
@@ -381,27 +401,27 @@ export default function Sales() {
         <div className="space-y-6 animate-fade-in pb-24 font-sans text-slate-800">
 
             {/* Stats Cards */}
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="bg-gradient-to-br from-indigo-600 to-blue-700 rounded-2xl p-5 text-white shadow-lg">
                     <p className="text-indigo-200 text-sm font-bold mb-1">إجمالي المبيعات</p>
                     <h3 className="text-3xl font-extrabold">{stats.count}</h3>
                 </div>
                 <div className="bg-gradient-to-br from-amber-500 to-orange-600 rounded-2xl p-5 text-white shadow-lg">
-                    <p className="text-amber-100 text-sm font-bold mb-1">إيرادات اليوم</p>
-                    <h3 className="text-2xl font-extrabold dir-ltr">{stats.dailyRevenue.toLocaleString()} <span className="text-sm opacity-80">ج.م</span></h3>
-                    <p className="text-amber-100 text-[10px] font-bold mt-1">{stats.dailyCount} أوردر اليوم</p>
+                    <p className="text-amber-100 text-sm font-bold mb-1">إيرادات المبيعات</p>
+                    <h3 className="text-2xl font-extrabold dir-ltr">{stats.totalRevenue.toLocaleString()} <span className="text-sm opacity-80">ج.م</span></h3>
+                    <p className="text-amber-100 text-[10px] font-bold mt-1">{stats.dailyRevenue.toLocaleString()} ج.م اليوم • {stats.dailyCount} أوردر</p>
                 </div>
-                <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
-                    <p className="text-slate-500 text-sm font-bold mb-1">إجمالي الإيرادات</p>
-                    <h3 className="text-2xl font-extrabold text-slate-900 dir-ltr">{stats.totalRevenue.toLocaleString()} <span className="text-sm text-slate-400">ج.م</span></h3>
+                <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm relative overflow-hidden">
+                    <div className="absolute top-0 left-0 w-1.5 h-full bg-orange-500"></div>
+                    <p className="text-slate-500 text-sm font-bold mb-1">تنبيهات التجديد</p>
+                    <h3 className="text-3xl font-extrabold text-orange-600">{stats.renewalAlerts}</h3>
+                    <p className="text-slate-400 text-[10px] font-bold mt-1">اشتراكات قاربت أو انتهت</p>
                 </div>
-                <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
-                    <p className="text-slate-500 text-sm font-bold mb-1">المحصّل</p>
-                    <h3 className="text-2xl font-extrabold text-emerald-600 dir-ltr">{stats.totalCollected.toLocaleString()} <span className="text-sm text-emerald-300">ج.م</span></h3>
-                </div>
-                <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
+                <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm relative overflow-hidden">
+                    <div className="absolute top-0 left-0 w-1.5 h-full bg-red-500"></div>
                     <p className="text-slate-500 text-sm font-bold mb-1">المديونيات</p>
                     <h3 className="text-2xl font-extrabold text-red-600 dir-ltr">{stats.totalRemaining.toLocaleString()} <span className="text-sm text-red-300">ج.م</span></h3>
+                    <p className="text-slate-400 text-[10px] font-bold mt-1">{stats.totalDebtCount} عميل عليه مديونية</p>
                 </div>
             </div>
 
@@ -411,7 +431,7 @@ export default function Sales() {
                     <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col md:flex-row gap-4 items-center justify-between sticky top-2 z-30 bg-white/95 backdrop-blur-md">
                         <div className="relative w-full md:w-80">
                             <i className="fa-solid fa-search absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
-                            <input type="text" className="w-full bg-white border-2 border-slate-200 text-slate-900 text-sm font-semibold rounded-xl pr-10 p-3 focus:ring-4 focus:ring-indigo-100 focus:border-indigo-600 outline-none transition-all placeholder-slate-400" placeholder="بحث بالاسم أو الرقم أو المنتج..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+                            <input type="text" className="w-full bg-white border-2 border-slate-200 text-slate-900 text-sm font-semibold rounded-xl pr-10 p-3 focus:ring-4 focus:ring-indigo-100 focus:border-indigo-600 outline-none transition-all placeholder-slate-400" placeholder="بحث بالاسم أو الرقم أو الإيميل أو المنتج..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
                         </div>
                         <div className="flex gap-3 w-full md:w-auto">
                             <button onClick={exportExcel} className="bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 font-bold rounded-xl text-sm px-4 py-3 transition-all" title="تصدير Excel"><i className="fa-solid fa-file-excel"></i></button>
@@ -480,6 +500,12 @@ export default function Sales() {
                                                     </span>
                                                 )}
                                             </div>
+                                            {sale.customerEmail && (
+                                                <div className="flex items-center gap-1.5 text-xs text-indigo-600 font-mono mb-1">
+                                                    <i className="fa-solid fa-envelope text-indigo-400 text-[10px]"></i>
+                                                    {sale.customerEmail}
+                                                </div>
+                                            )}
                                             <div className="flex flex-wrap gap-2 text-sm text-slate-500 font-medium">
                                                 <span className="flex items-center gap-1.5 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100">
                                                     <i className="fa-solid fa-tag text-indigo-500"></i> {sale.productName}
@@ -730,6 +756,25 @@ export default function Sales() {
                                         </div>
                                     </div>
                                 </div>
+
+                                {/* تاريخ البيع (اختياري - للتسجيل بتاريخ قديم) */}
+                                {!editingSale && (
+                                    <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                                        <div className="text-xs font-black text-indigo-600 uppercase tracking-widest mb-2"><i className="fa-solid fa-calendar-alt ml-1"></i> تاريخ البيع</div>
+                                        <div>
+                                            <label className="block text-sm font-extrabold text-slate-800 mb-2">
+                                                تاريخ تسجيل البيع <span className="text-slate-400 font-medium">(اتركه فاضي = تاريخ اليوم)</span>
+                                            </label>
+                                            <input name="saleDate" type="datetime-local" 
+                                                className="w-full bg-white border-2 border-blue-200 rounded-xl p-3.5 font-bold text-sm focus:ring-4 focus:ring-blue-100 focus:border-blue-600 outline-none transition-all dir-ltr text-right" 
+                                            />
+                                            <p className="text-[11px] text-slate-400 mt-2 font-medium">
+                                                <i className="fa-solid fa-info-circle ml-1 text-blue-400"></i>
+                                                لو اخترت تاريخ قديم، الأيام اللي عدت هتتخصم من مدة الاشتراك تلقائياً
+                                            </p>
+                                        </div>
+                                    </div>
+                                )}
 
                                 {/* ملاحظات */}
                                 <div>

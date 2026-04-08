@@ -352,7 +352,7 @@ export const salesAPI = {
     },
 
     async create(sale) {
-        const { data, error } = await supabase.from('sales').insert({
+        const insertData = {
             product_name: sale.productName,
             original_price: sale.originalPrice,
             discount: sale.discount || 0,
@@ -374,7 +374,12 @@ export const salesAPI = {
             assigned_account_email: sale.assignedAccountEmail || '',
             assigned_account_id: sale.assignedAccountId || null,
             from_inventory: sale.fromInventory || false,
-        }).select().single();
+        };
+        // لو فيه تاريخ مخصوص (تسجيل بتاريخ قديم)
+        if (sale.date) {
+            insertData.date = sale.date;
+        }
+        const { data, error } = await supabase.from('sales').insert(insertData).select().single();
         if (error) throw error;
         return data;
     },
