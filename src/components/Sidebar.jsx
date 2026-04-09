@@ -9,6 +9,28 @@ export default function Sidebar ({ isOpen, onClose }) {
     const [showQuickPull, setShowQuickPull] = useState(false);
     const [pullResult, setPullResult] = useState(null);
     const [copiedField, setCopiedField] = useState(null);
+    const [isDark, setIsDark] = useState(() => {
+        if (typeof window !== 'undefined') {
+            return localStorage.getItem('sh_dark_mode') === 'true' || document.documentElement.classList.contains('dark');
+        }
+        return false;
+    });
+
+    // Apply dark mode on mount
+    useEffect(() => {
+        const saved = localStorage.getItem('sh_dark_mode');
+        if (saved === 'true') {
+            document.documentElement.classList.add('dark');
+            setIsDark(true);
+        }
+    }, []);
+
+    const toggleDarkMode = () => {
+        const newVal = !isDark;
+        setIsDark(newVal);
+        document.documentElement.classList.toggle('dark', newVal);
+        localStorage.setItem('sh_dark_mode', String(newVal));
+    };
 
     // التوجيه التلقائي للمودريتور
     useEffect(() => {
@@ -211,10 +233,14 @@ export default function Sidebar ({ isOpen, onClose }) {
                         <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center text-white font-bold text-xs shadow-lg">
                             {user.username.charAt(0).toUpperCase()}
                         </div>
-                        <div className="overflow-hidden">
+                        <div className="overflow-hidden flex-1">
                             <h4 className="text-xs font-bold text-white truncate">{user.username}</h4>
                             <span className="text-[10px] text-emerald-400 uppercase font-bold tracking-wider">{user.role}</span>
                         </div>
+                        {/* Dark Mode Toggle */}
+                        <button onClick={toggleDarkMode} className="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-yellow-400 transition-all border border-slate-700" title={isDark ? 'الوضع الفاتح' : 'الوضع المظلم'}>
+                            <i className={`fa-solid ${isDark ? 'fa-sun' : 'fa-moon'} text-sm`}></i>
+                        </button>
                     </div>
                     <button onClick={logout} className="w-full flex items-center justify-center gap-2 bg-slate-800 hover:bg-red-500/10 hover:text-red-400 text-slate-400 py-2.5 rounded-xl transition-all border border-slate-700 hover:border-red-500/50 font-bold text-xs">
                         <i className="fa-solid fa-right-from-bracket"></i> تسجيل خروج

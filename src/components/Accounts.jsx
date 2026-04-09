@@ -674,7 +674,7 @@ export default function Accounts() {
 
             {/* ===== CREATE SECTION MODAL ===== */}
             {showSectionModal && (
-                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[999] p-4 animate-fade-in">
                     <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden">
                         <div className="p-6 bg-gradient-to-r from-purple-700 to-indigo-600 text-white flex justify-between items-center">
                             <h3 className="text-xl font-bold flex items-center gap-2"><i className="fa-solid fa-folder-plus"></i> إنشاء سجل جديد</h3>
@@ -715,7 +715,7 @@ export default function Accounts() {
 
             {/* ===== ADD ITEM MODAL ===== */}
             {showAddModal && currentSection && (
-                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[999] p-4 animate-fade-in">
                     <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
                         <div className={`p-6 text-white flex justify-between items-center ${isCodesSection ? 'bg-gradient-to-r from-amber-600 to-orange-500' : 'bg-gradient-to-r from-purple-700 to-indigo-600'}`}>
                             <h3 className="text-xl font-bold flex items-center gap-2">
@@ -806,7 +806,7 @@ export default function Accounts() {
 
             {/* ===== EDIT MODAL ===== */}
             {editingAccount && (
-                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[999] p-4 animate-fade-in">
                     <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
                         <div className="p-6 bg-white border-b border-slate-100 flex justify-between items-center">
                             <h3 className="text-xl font-extrabold text-slate-800 flex items-center gap-2"><i className="fa-solid fa-pen-to-square text-blue-600"></i> تعديل</h3>
@@ -870,8 +870,8 @@ export default function Accounts() {
 
             {/* ===== PULLED RESULT MODAL ===== */}
             {pulledResult && (
-                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
-                    <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden animate-scale-in">
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[999] p-4 animate-fade-in" onClick={() => setPulledResult(null)}>
+                    <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden animate-scale-in max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
                         {pulledResult.empty ? (
                             <>
                                 <div className="p-6 bg-gradient-to-r from-red-600 to-orange-500 text-white text-center">
@@ -963,7 +963,7 @@ export default function Accounts() {
 
             {/* ===== ADD LINK MODAL ===== */}
             {showLinkModal && (
-                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[999] p-4 animate-fade-in">
                     <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden animate-scale-in">
                         <div className="p-6 bg-gradient-to-r from-violet-600 to-purple-600 text-white flex justify-between items-center">
                             <h3 className="text-xl font-bold flex items-center gap-2"><i className="fa-solid fa-link"></i> إضافة رابط سريع</h3>
