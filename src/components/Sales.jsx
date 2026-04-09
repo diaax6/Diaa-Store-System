@@ -123,6 +123,17 @@ export default function Sales() {
         );
     };
 
+    // Build duplicate email set (excluding renewals)
+    const duplicateEmails = useMemo(() => {
+        const emailCounts = {};
+        sales.forEach(s => {
+            if (!s.customerEmail || s.renewal_stage === 'renewed') return;
+            const key = s.customerEmail.toLowerCase().trim();
+            emailCounts[key] = (emailCounts[key] || 0) + 1;
+        });
+        return new Set(Object.keys(emailCounts).filter(k => emailCounts[k] > 1));
+    }, [sales]);
+
     const filteredSales = useMemo(() => {
         return sales.filter(s => {
             const matchProduct = productFilters.length === 0 || productFilters.includes(s.productName);
@@ -133,6 +144,7 @@ export default function Sales() {
                 : statusFilter === 'activated' ? s.isActivated
                 : statusFilter === 'notActivated' ? !s.isActivated
                 : statusFilter === 'hasDiscount' ? s.discount > 0
+                : statusFilter === 'duplicates' ? (s.customerEmail && duplicateEmails.has(s.customerEmail.toLowerCase().trim()) && s.renewal_stage !== 'renewed')
                 : true;
             const term = searchTerm.toLowerCase();
             const matchSearch = !term ||
@@ -143,7 +155,7 @@ export default function Sales() {
                 (s.notes && s.notes.toLowerCase().includes(term));
             return matchProduct && matchStatus && matchSearch;
         }).sort((a, b) => new Date(b.date) - new Date(a.date));
-    }, [sales, productFilters, statusFilter, searchTerm]);
+    }, [sales, productFilters, statusFilter, searchTerm, duplicateEmails]);
 
     const stats = useMemo(() => {
         const totalRevenue = filteredSales.reduce((sum, s) => sum + (Number(s.finalPrice) || 0), 0);
@@ -532,8 +544,8 @@ export default function Sales() {
                     {/* Filters */}
                     <div className="flex flex-wrap gap-3 items-center">
                         <div className="flex bg-white p-1.5 rounded-xl border border-slate-200 shadow-sm flex-wrap">
-                            {[{ id: 'all', label: 'الكل' }, { id: 'paid', label: 'مدفوع' }, { id: 'unpaid', label: 'غير مدفوع' }, { id: 'activated', label: 'مفعّل' }, { id: 'notActivated', label: 'غير مفعّل' }, { id: 'hasDiscount', label: 'خصومات' }].map(f => (
-                                <button key={f.id} onClick={() => setStatusFilter(f.id)} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${statusFilter === f.id ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}>{f.label}</button>
+                            {[{ id: 'all', label: 'الكل' }, { id: 'paid', label: 'مدفوع' }, { id: 'unpaid', label: 'غير مدفوع' }, { id: 'activated', label: 'مفعّل' }, { id: 'notActivated', label: 'غير مفعّل' }, { id: 'hasDiscount', label: 'خصومات' }, { id: 'duplicates', label: `مكرر (${duplicateEmails.size})` }].map(f => (
+                                <button key={f.id} onClick={() => setStatusFilter(f.id)} className={`px-3 md:px-4 py-2 rounded-lg text-xs md:text-sm font-bold transition-all ${statusFilter === f.id ? (f.id === 'duplicates' ? 'bg-red-600 text-white shadow-md' : 'bg-indigo-600 text-white shadow-md') : 'text-slate-500 hover:bg-slate-50'}`}>{f.label}</button>
                             ))}
                         </div>
                         {/* Product filter dropdown */}

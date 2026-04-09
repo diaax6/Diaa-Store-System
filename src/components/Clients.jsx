@@ -14,6 +14,7 @@ export default function Clients() {
     const [selectedClient, setSelectedClient] = useState(null);
     const [editingClient, setEditingClient] = useState(null);
     const [visibleCount, setVisibleCount] = useState(25);
+    const [showDuplicatesOnly, setShowDuplicatesOnly] = useState(false);
 
     useEffect(() => {
         setSales(ctxSales);
@@ -79,17 +80,67 @@ export default function Clients() {
         return result;
     }, [clientsList, sortOption]);
 
+    // Duplicate detection: clients with same email buying same product multiple times (excluding renewals)
+    const duplicateClientIds = useMemo(() => {
+        const emailProductCounts = {};
+        sales.forEach(s => {
+            if (!s.customerEmail || s.renewal_stage === 'renewed') return;
+            const key = `${s.customerEmail.toLowerCase().trim()}::${s.productName}`;
+            if (!emailProductCounts[key]) emailProductCounts[key] = new Set();
+            emailProductCounts[key].add(s.customerId);
+        });
+
+        // Also check same email across different customers
+        const emailCounts = {};
+        sales.forEach(s => {
+            if (!s.customerEmail || s.renewal_stage === 'renewed') return;
+            const email = s.customerEmail.toLowerCase().trim();
+            if (!emailCounts[email]) emailCounts[email] = new Set();
+            emailCounts[email].add(s.customerId);
+        });
+
+        const dupIds = new Set();
+        // Same email, same product, multiple sales
+        Object.values(emailProductCounts).forEach(ids => {
+            if (ids.size > 0) {
+                // check if same customer has multiple non-renewal sales for same product
+            }
+        });
+        // Same email across different customers
+        Object.entries(emailCounts).forEach(([email, ids]) => {
+            if (ids.size > 1) ids.forEach(id => dupIds.add(id));
+        });
+        // Same customer, same email, multiple non-renewal sales
+        customers.forEach(cust => {
+            if (!cust.email) return;
+            const custSales = sales.filter(s => s.customerId === cust.id && s.renewal_stage !== 'renewed');
+            const productCounts = {};
+            custSales.forEach(s => {
+                if (!s.productName) return;
+                productCounts[s.productName] = (productCounts[s.productName] || 0) + 1;
+            });
+            if (Object.values(productCounts).some(c => c > 1)) {
+                dupIds.add(cust.id);
+            }
+        });
+        return dupIds;
+    }, [sales, customers]);
+
     // Filter
     const filteredClients = useMemo(() => {
-        if (!searchTerm) return sortedClients;
+        let list = sortedClients;
+        if (showDuplicatesOnly) {
+            list = list.filter(c => duplicateClientIds.has(c.id));
+        }
+        if (!searchTerm) return list;
         const term = searchTerm.toLowerCase();
-        return sortedClients.filter(c =>
+        return list.filter(c =>
             (c.name && c.name.toLowerCase().includes(term)) ||
             (c.phone && c.phone.includes(term)) ||
             (c.email && c.email.toLowerCase().includes(term)) ||
             (c.id && c.id.toLowerCase().includes(term))
         );
-    }, [sortedClients, searchTerm]);
+    }, [sortedClients, searchTerm, showDuplicatesOnly, duplicateClientIds]);
 
     const visibleClients = filteredClients.slice(0, visibleCount);
 
@@ -201,7 +252,11 @@ export default function Clients() {
                     <i className="fa-solid fa-search absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
                     <input type="text" className="w-full bg-white border-2 border-slate-200 text-slate-900 text-sm font-semibold rounded-xl pr-10 p-3 focus:ring-4 focus:ring-indigo-100 focus:border-indigo-600 outline-none transition-all placeholder-slate-400" placeholder="بحث بالاسم أو الرقم أو الإيميل أو ID..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
                 </div>
-                <div className="flex gap-3 w-full md:w-auto">
+                <div className="flex gap-2 md:gap-3 w-full md:w-auto flex-wrap">
+                    <button onClick={() => setShowDuplicatesOnly(!showDuplicatesOnly)}
+                        className={`px-4 py-2.5 rounded-xl text-xs md:text-sm font-bold transition-all flex items-center gap-2 border ${showDuplicatesOnly ? 'bg-red-600 text-white border-red-600 shadow-md' : 'bg-white text-slate-600 border-slate-200 hover:bg-red-50 hover:text-red-600 hover:border-red-200'}`}>
+                        <i className="fa-solid fa-clone"></i> المكرر ({duplicateClientIds.size})
+                    </button>
                     <select value={sortOption} onChange={e => setSortOption(e.target.value)} className="bg-white border-2 border-slate-200 text-slate-700 text-sm font-bold rounded-xl p-3 focus:ring-4 focus:ring-indigo-100 focus:border-indigo-600 outline-none transition-all">
                         <option value="ordersCount">🔥 الأكثر طلباً</option>
                         <option value="totalSpent">💰 الأكثر إنفاقاً</option>
