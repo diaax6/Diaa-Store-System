@@ -32,8 +32,8 @@ const MainLayout = () => {
 
       <Sidebar isOpen={isSidebarOpen} onClose={() => setSidebarOpen(false)} />
 
-      <main className="flex-1 lg:mr-64 p-4 lg:p-8 transition-all duration-300 w-full">
-        <div className="max-w-7xl mx-auto space-y-6">
+      <main className="flex-1 lg:mr-64 p-3 md:p-4 lg:p-8 transition-all duration-300 w-full">
+        <div className="max-w-7xl mx-auto space-y-4 md:space-y-6">
 
           {/* Header للموبايل */}
           <div className="flex justify-between items-center mb-6 lg:hidden bg-white p-4 rounded-xl shadow-sm border border-slate-100">

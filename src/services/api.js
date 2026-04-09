@@ -768,3 +768,34 @@ export const problemsAPI = {
         if (error) throw error;
     },
 };
+
+// ============ QUICK LINKS ============
+export const quickLinksAPI = {
+    async getAll() {
+        const { data } = await supabase
+            .from('quick_links')
+            .select('*')
+            .order('created_at', { ascending: true });
+        return (data || []).map(l => ({
+            id: l.id,
+            label: l.label,
+            url: l.url,
+            createdBy: l.created_by,
+            createdAt: l.created_at,
+        }));
+    },
+
+    async create(link) {
+        const { error } = await supabase.from('quick_links').insert({
+            label: link.label,
+            url: link.url,
+            created_by: link.createdBy || 'Admin',
+        });
+        if (error) throw error;
+    },
+
+    async delete(id) {
+        const { error } = await supabase.from('quick_links').delete().eq('id', id);
+        if (error) throw error;
+    },
+};

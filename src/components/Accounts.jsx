@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
-import { accountsAPI, sectionsAPI } from '../services/api';
+import { accountsAPI, sectionsAPI, quickLinksAPI } from '../services/api';
 
 export default function Accounts() {
     const { user } = useAuth();
@@ -26,32 +26,33 @@ export default function Accounts() {
 
     useEffect(() => { window.scrollTo(0, 0); }, []);
 
-    // Load quick links from localStorage
-    useEffect(() => {
+    // Load quick links from Supabase
+    const refreshQuickLinks = async () => {
         try {
-            const saved = localStorage.getItem('sh_quick_links');
-            if (saved) setQuickLinks(JSON.parse(saved));
+            const links = await quickLinksAPI.getAll();
+            setQuickLinks(links);
         } catch (e) { console.error(e); }
-    }, []);
-
-    const saveQuickLinks = (links) => {
-        setQuickLinks(links);
-        localStorage.setItem('sh_quick_links', JSON.stringify(links));
     };
+    useEffect(() => { refreshQuickLinks(); }, []);
 
-    const handleAddLink = (e) => {
+    const handleAddLink = async (e) => {
         e.preventDefault();
         const fd = new FormData(e.target);
         const label = fd.get('linkLabel')?.trim();
         const url = fd.get('linkUrl')?.trim();
         if (!label || !url) return;
-        const newLink = { id: Date.now(), label, url };
-        saveQuickLinks([...quickLinks, newLink]);
-        setShowLinkModal(false);
+        try {
+            await quickLinksAPI.create({ label, url, createdBy: user?.username || 'Admin' });
+            setShowLinkModal(false);
+            await refreshQuickLinks();
+        } catch (err) { console.error(err); alert('حدث خطأ'); }
     };
 
-    const deleteLink = (id) => {
-        saveQuickLinks(quickLinks.filter(l => l.id !== id));
+    const deleteLink = async (id) => {
+        try {
+            await quickLinksAPI.delete(id);
+            await refreshQuickLinks();
+        } catch (err) { console.error(err); }
     };
 
     // Sync from context
@@ -290,114 +291,124 @@ export default function Accounts() {
         const avail = sectionAvailable[sec.name] || 0;
         const linkedProds = linkedProductsMap[sec.name] || [];
         const isCodes = sec.type === 'codes';
+        const pct = count > 0 ? Math.round((avail / count) * 100) : 0;
         return (
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-xl hover:border-indigo-200 transition-all overflow-hidden group relative">
-                {/* Quick Pull Button - Top Left */}
-                <button
-                    onClick={(e) => { e.stopPropagation(); handlePullNext(sec.name); }}
-                    className={`absolute top-3 left-14 z-10 w-9 h-9 flex items-center justify-center rounded-xl font-bold text-sm transition-all shadow-sm border ${avail > 0 ? 'bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-100' : 'bg-slate-50 text-slate-300 border-slate-200 cursor-not-allowed'}`}
-                    title={`سحب من ${sec.name}`}
-                    disabled={avail === 0}
-                >
-                    <i className="fa-solid fa-bolt"></i>
-                </button>
-                {/* Delete Button */}
-                <button onClick={(e) => { e.stopPropagation(); deleteSection(sec); }} className="absolute top-3 left-3 w-9 h-9 flex items-center justify-center rounded-xl text-red-400 hover:text-red-600 hover:bg-red-50 transition z-10 border border-red-100" title="حذف القسم">
-                    <i className="fa-solid fa-trash text-xs"></i>
-                </button>
-
-                <div onClick={() => { setSelectedSection(sec.id); setSearchTerm(''); setFilterStatus('all'); setVisibleCount(20); }} className="cursor-pointer p-5 flex flex-col h-full">
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-lg transition-all group flex flex-col">
+                {/* Header */}
+                <div onClick={() => { setSelectedSection(sec.id); setSearchTerm(''); setFilterStatus('all'); setVisibleCount(20); }} className="cursor-pointer p-4 pb-3">
                     <div className="flex items-center gap-3 mb-3">
-                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-xl group-hover:scale-110 transition-all shadow-sm ${isCodes ? 'bg-amber-50 text-amber-600 group-hover:bg-amber-600 group-hover:text-white' : 'bg-indigo-50 text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white'}`}>
+                        <div className={`w-11 h-11 rounded-xl flex items-center justify-center text-lg flex-shrink-0 ${isCodes ? 'bg-amber-100 text-amber-600' : 'bg-indigo-100 text-indigo-600'}`}>
                             <i className={`fa-solid ${isCodes ? 'fa-key' : 'fa-user-shield'}`}></i>
                         </div>
-                        <div className="flex-1 min-w-0">
-                            <h4 className="font-extrabold text-lg text-slate-800 truncate">{sec.name}</h4>
-                            <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
-                                <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${isCodes ? 'bg-amber-50 text-amber-600 border border-amber-200' : 'bg-indigo-50 text-indigo-600 border border-indigo-200'}`}>
-                                    {isCodes ? 'أكواد' : 'حسابات'}
+                        <div className="min-w-0 flex-1">
+                            <h4 className="font-bold text-base text-slate-800 leading-tight break-words">{sec.name}</h4>
+                            <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold inline-block mt-1 ${isCodes ? 'bg-amber-50 text-amber-600' : 'bg-indigo-50 text-indigo-600'}`}>
+                                {isCodes ? 'أكواد' : 'حسابات'}
+                            </span>
+                        </div>
+                    </div>
+
+                    {/* Stats Row */}
+                    <div className="grid grid-cols-2 gap-2 mb-3">
+                        <div className="bg-slate-50 rounded-lg p-2 text-center">
+                            <p className="text-[10px] text-slate-400 font-bold">إجمالي</p>
+                            <p className="text-lg font-black text-slate-700">{count}</p>
+                        </div>
+                        <div className="bg-emerald-50 rounded-lg p-2 text-center">
+                            <p className="text-[10px] text-emerald-500 font-bold">متاح</p>
+                            <p className="text-lg font-black text-emerald-600">{avail}</p>
+                        </div>
+                    </div>
+
+                    {/* Progress Bar */}
+                    <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                        <div className="bg-emerald-500 h-1.5 rounded-full transition-all duration-500" style={{ width: `${pct}%` }}></div>
+                    </div>
+
+                    {/* Linked Products */}
+                    {linkedProds.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-2">
+                            {linkedProds.map(pn => (
+                                <span key={pn} className="text-[9px] px-1.5 py-0.5 rounded bg-purple-50 text-purple-600 font-bold">
+                                    <i className="fa-solid fa-link text-[7px] ml-0.5"></i> {pn}
                                 </span>
-                                {linkedProds.length > 0 && linkedProds.map(pn => (
-                                    <span key={pn} className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-purple-50 text-purple-600 border border-purple-200">
-                                        <i className="fa-solid fa-link text-[8px] ml-0.5"></i> {pn}
-                                    </span>
-                                ))}
-                            </div>
+                            ))}
                         </div>
-                    </div>
+                    )}
+                </div>
 
-                    <div className="mt-auto space-y-2">
-                        {/* Progress Bar */}
-                        <div className="bg-slate-50 rounded-xl p-3 border border-slate-100">
-                            <div className="flex justify-between text-xs font-bold text-slate-500 mb-2">
-                                <span>إجمالي: {count}</span>
-                                <span className="text-emerald-600">متاح: {avail}</span>
-                            </div>
-                            <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
-                                <div className="bg-emerald-500 h-2 rounded-full transition-all duration-500" style={{ width: count > 0 ? `${(avail / count) * 100}%` : '0%' }}></div>
-                            </div>
-                        </div>
-
-                        <button className={`w-full py-2.5 rounded-xl border-2 font-bold text-sm transition-colors ${isCodes ? 'border-amber-100 text-amber-700 group-hover:bg-amber-50' : 'border-indigo-100 text-indigo-700 group-hover:bg-indigo-50'}`}>
-                            الدخول للسجل <i className="fa-solid fa-arrow-left mr-1"></i>
-                        </button>
-                    </div>
+                {/* Action Buttons Footer */}
+                <div className="border-t border-slate-100 p-3 mt-auto flex gap-2">
+                    <button onClick={() => { setSelectedSection(sec.id); setSearchTerm(''); setFilterStatus('all'); setVisibleCount(20); }}
+                        className={`flex-1 py-2 rounded-xl text-xs font-bold transition-colors ${isCodes ? 'bg-amber-50 text-amber-700 hover:bg-amber-100' : 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100'}`}>
+                        <i className="fa-solid fa-folder-open ml-1 text-[10px]"></i> فتح
+                    </button>
+                    <button onClick={(e) => { e.stopPropagation(); handlePullNext(sec.name); }}
+                        disabled={avail === 0}
+                        className={`py-2 px-3 rounded-xl text-xs font-bold transition-colors ${avail > 0 ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100' : 'bg-slate-50 text-slate-300 cursor-not-allowed'}`}
+                        title="سحب">
+                        <i className="fa-solid fa-bolt"></i>
+                    </button>
+                    <button onClick={(e) => { e.stopPropagation(); deleteSection(sec); }}
+                        className="py-2 px-3 rounded-xl text-xs font-bold bg-red-50 text-red-400 hover:text-red-600 hover:bg-red-100 transition-colors" title="حذف">
+                        <i className="fa-solid fa-trash text-[10px]"></i>
+                    </button>
                 </div>
             </div>
         );
     };
 
     return (
-        <div className="space-y-6 animate-fade-in pb-24 font-sans text-slate-800">
+        <div className="space-y-4 md:space-y-6 animate-fade-in pb-24 font-sans text-slate-800">
 
             {!selectedSection ? (
                 <>
                     {/* ============ OVERVIEW ============ */}
                     {/* Global Stats */}
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <div className="bg-gradient-to-br from-purple-600 to-indigo-700 rounded-2xl p-5 text-white shadow-lg relative overflow-hidden">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4">
+                        <div className="bg-gradient-to-br from-purple-600 to-indigo-700 rounded-2xl p-3 md:p-5 text-white shadow-lg relative overflow-hidden">
                             <div className="absolute -left-4 -bottom-4 text-7xl opacity-10"><i className="fa-solid fa-boxes-stacked"></i></div>
-                            <p className="text-purple-200 text-xs font-bold mb-1">إجمالي المخزون</p>
-                            <h3 className="text-3xl font-extrabold">{globalStats.total}</h3>
+                            <p className="text-purple-200 text-[10px] md:text-xs font-bold mb-1">إجمالي المخزون</p>
+                            <h3 className="text-2xl md:text-3xl font-extrabold">{globalStats.total}</h3>
                         </div>
-                        <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm relative overflow-hidden">
-                            <div className="absolute top-0 left-0 w-1.5 h-full bg-emerald-500"></div>
-                            <p className="text-slate-500 text-xs font-bold mb-1 flex items-center gap-1"><i className="fa-solid fa-check-circle text-emerald-500 text-[10px]"></i> متاح للسحب</p>
-                            <h3 className="text-3xl font-extrabold text-emerald-600">{globalStats.available}</h3>
+                        <div className="bg-white rounded-2xl p-3 md:p-5 border border-slate-200 shadow-sm relative overflow-hidden">
+                            <div className="absolute top-0 left-0 w-1 md:w-1.5 h-full bg-emerald-500"></div>
+                            <p className="text-slate-500 text-[10px] md:text-xs font-bold mb-1 flex items-center gap-1"><i className="fa-solid fa-check-circle text-emerald-500 text-[10px]"></i> متاح</p>
+                            <h3 className="text-2xl md:text-3xl font-extrabold text-emerald-600">{globalStats.available}</h3>
                         </div>
-                        <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm relative overflow-hidden">
-                            <div className="absolute top-0 left-0 w-1.5 h-full bg-orange-500"></div>
-                            <p className="text-slate-500 text-xs font-bold mb-1 flex items-center gap-1"><i className="fa-solid fa-circle-dot text-orange-500 text-[10px]"></i> مستخدم</p>
-                            <h3 className="text-3xl font-extrabold text-orange-600">{globalStats.used}</h3>
+                        <div className="bg-white rounded-2xl p-3 md:p-5 border border-slate-200 shadow-sm relative overflow-hidden">
+                            <div className="absolute top-0 left-0 w-1 md:w-1.5 h-full bg-orange-500"></div>
+                            <p className="text-slate-500 text-[10px] md:text-xs font-bold mb-1 flex items-center gap-1"><i className="fa-solid fa-circle-dot text-orange-500 text-[10px]"></i> مستخدم</p>
+                            <h3 className="text-2xl md:text-3xl font-extrabold text-orange-600">{globalStats.used}</h3>
                         </div>
-                        <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm relative overflow-hidden">
-                            <div className="absolute top-0 left-0 w-1.5 h-full bg-slate-400"></div>
-                            <p className="text-slate-500 text-xs font-bold mb-1 flex items-center gap-1"><i className="fa-solid fa-circle-check text-slate-400 text-[10px]"></i> مكتمل</p>
-                            <h3 className="text-3xl font-extrabold text-slate-400">{globalStats.full}</h3>
+                        <div className="bg-white rounded-2xl p-3 md:p-5 border border-slate-200 shadow-sm relative overflow-hidden">
+                            <div className="absolute top-0 left-0 w-1 md:w-1.5 h-full bg-slate-400"></div>
+                            <p className="text-slate-500 text-[10px] md:text-xs font-bold mb-1 flex items-center gap-1"><i className="fa-solid fa-circle-check text-slate-400 text-[10px]"></i> مكتمل</p>
+                            <h3 className="text-2xl md:text-3xl font-extrabold text-slate-400">{globalStats.full}</h3>
                         </div>
                     </div>
 
                     {/* Quick Pull Bar */}
                     {sections.length > 0 && (
-                        <div className="bg-gradient-to-r from-emerald-600 to-teal-600 rounded-2xl p-5 shadow-lg">
-                            <div className="flex items-center gap-2 text-white mb-3">
-                                <i className="fa-solid fa-bolt text-lg"></i>
-                                <h3 className="text-lg font-extrabold">سحب سريع</h3>
-                                <span className="text-emerald-200 text-xs font-medium mr-2">اسحب من أي سجل بدون ما تدخله</span>
+                        <div className="bg-gradient-to-r from-emerald-600 to-teal-600 rounded-2xl p-3 md:p-5 shadow-lg">
+                            <div className="flex items-center gap-2 text-white mb-2 md:mb-3">
+                                <i className="fa-solid fa-bolt text-base md:text-lg"></i>
+                                <h3 className="text-sm md:text-lg font-extrabold">سحب سريع</h3>
+                                <span className="text-emerald-200 text-[10px] md:text-xs font-medium mr-2 hidden sm:inline">اسحب من أي سجل بدون ما تدخله</span>
                             </div>
-                            <div className="flex flex-wrap gap-2">
+                            <div className="flex flex-wrap gap-1.5 md:gap-2">
                                 {sections.map(sec => {
                                     const avail = sectionAvailable[sec.name] || 0;
                                     const isCodes = sec.type === 'codes';
                                     return (
                                         <button key={sec.id} onClick={() => handlePullNext(sec.name)}
                                             disabled={avail === 0}
-                                            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all border ${avail > 0
+                                            className={`flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-2 md:py-2.5 rounded-xl text-xs md:text-sm font-bold transition-all border ${avail > 0
                                                 ? 'bg-white/15 text-white border-white/20 hover:bg-white/25 active:scale-95'
                                                 : 'bg-white/5 text-white/30 border-white/10 cursor-not-allowed'}`}>
-                                            <i className={`fa-solid ${isCodes ? 'fa-key' : 'fa-user-shield'} text-xs`}></i>
-                                            <span>{sec.name}</span>
-                                            <span className={`text-[10px] px-2 py-0.5 rounded-full font-black ${avail > 0 ? 'bg-white/20' : 'bg-white/5'}`}>{avail}</span>
+                                            <i className={`fa-solid ${isCodes ? 'fa-key' : 'fa-user-shield'} text-[10px] md:text-xs`}></i>
+                                            <span className="truncate max-w-[80px] md:max-w-none">{sec.name}</span>
+                                            <span className={`text-[9px] md:text-[10px] px-1.5 py-0.5 rounded-full font-black ${avail > 0 ? 'bg-white/20' : 'bg-white/5'}`}>{avail}</span>
                                         </button>
                                     );
                                 })}
@@ -483,7 +494,7 @@ export default function Accounts() {
                                 <h3 className="text-lg font-extrabold text-slate-800">الحسابات</h3>
                                 <span className="text-xs px-2.5 py-0.5 bg-indigo-50 text-indigo-600 rounded-full font-bold border border-indigo-100">{accountSections.length}</span>
                             </div>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                            <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2 md:gap-4">
                                 {accountSections.map(sec => <SectionCard key={sec.id} sec={sec} />)}
                             </div>
                         </div>
@@ -497,7 +508,7 @@ export default function Accounts() {
                                 <h3 className="text-lg font-extrabold text-slate-800">الأكواد</h3>
                                 <span className="text-xs px-2.5 py-0.5 bg-amber-50 text-amber-600 rounded-full font-bold border border-amber-100">{codeSections.length}</span>
                             </div>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                            <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2 md:gap-4">
                                 {codeSections.map(sec => <SectionCard key={sec.id} sec={sec} />)}
                             </div>
                         </div>
