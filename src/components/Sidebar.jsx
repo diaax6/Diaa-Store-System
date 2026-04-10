@@ -154,6 +154,13 @@ export default function Sidebar ({ isOpen, onClose }) {
                     )}
 
                     {(hasPermission('all') || user.role === 'admin') && (
+                        <button onClick={() => { setActiveTab('employees'); onClose(); }} className={`w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-200 ${activeTab === 'employees' ? 'bg-violet-600 text-white font-bold' : 'text-slate-400 hover:bg-slate-800 hover:text-white font-medium'}`}>
+                            <i className="fa-solid fa-id-card-clip w-5 text-center"></i>
+                            <span className="text-sm">الموظفين</span>
+                        </button>
+                    )}
+
+                    {(hasPermission('all') || user.role === 'admin') && (
                         <button onClick={() => { setActiveTab('botSettings'); onClose(); }} className={`w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-200 ${activeTab === 'botSettings' ? 'bg-blue-600 text-white font-bold' : 'text-slate-400 hover:bg-slate-800 hover:text-white font-medium'}`}>
                             <i className="fa-brands fa-telegram w-5 text-center"></i>
                             <span className="text-sm">إعدادات البوت</span>

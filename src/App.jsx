@@ -17,6 +17,7 @@ import Wallets from './components/Wallets';
 import Users from './components/Users';
 import Products from './components/Products';
 import BotSettings from './components/BotSettings';
+import Employees from './components/Employees';
 
 const MainLayout = () => {
   const { user } = useAuth();
@@ -61,6 +62,7 @@ const MainLayout = () => {
           {activeTab === 'problems' && checkPerm('problems') && <Problems />}
           {activeTab === 'users' && (checkPerm('all') || user.role === 'admin') && <Users />}
           {activeTab === 'botSettings' && (checkPerm('all') || user.role === 'admin') && <BotSettings />}
+          {activeTab === 'employees' && (checkPerm('all') || user.role === 'admin') && <Employees />}
 
         </div>
       </main>

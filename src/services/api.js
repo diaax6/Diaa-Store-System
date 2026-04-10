@@ -809,3 +809,60 @@ export const quickLinksAPI = {
         if (error) throw error;
     },
 };
+
+// ============ EMPLOYEES ============
+export const employeesAPI = {
+    async getAll() {
+        const { data } = await supabase
+            .from('employees')
+            .select('*')
+            .order('created_at', { ascending: false });
+        return (data || []).map(e => ({
+            ...e,
+            baseSalary: e.base_salary,
+            absenceDays: e.absence_days,
+            absenceDeductionPerDay: e.absence_deduction_per_day,
+            isActive: e.is_active,
+            joinDate: e.join_date,
+        }));
+    },
+
+    async create(emp) {
+        const { data, error } = await supabase.from('employees').insert({
+            name: emp.name,
+            phone: emp.phone || '',
+            role: emp.role || '',
+            base_salary: emp.baseSalary || 0,
+            bonus: emp.bonus || 0,
+            deductions: emp.deductions || 0,
+            absence_days: emp.absenceDays || 0,
+            absence_deduction_per_day: emp.absenceDeductionPerDay || 0,
+            notes: emp.notes || '',
+            is_active: emp.isActive !== false,
+            join_date: emp.joinDate || new Date().toISOString().split('T')[0],
+        }).select().single();
+        if (error) throw error;
+        return data;
+    },
+
+    async update(id, emp) {
+        const { error } = await supabase.from('employees').update({
+            name: emp.name,
+            phone: emp.phone || '',
+            role: emp.role || '',
+            base_salary: emp.baseSalary || 0,
+            bonus: emp.bonus || 0,
+            deductions: emp.deductions || 0,
+            absence_days: emp.absenceDays || 0,
+            absence_deduction_per_day: emp.absenceDeductionPerDay || 0,
+            notes: emp.notes || '',
+            is_active: emp.isActive !== false,
+        }).eq('id', id);
+        if (error) throw error;
+    },
+
+    async delete(id) {
+        const { error } = await supabase.from('employees').delete().eq('id', id);
+        if (error) throw error;
+    },
+};
