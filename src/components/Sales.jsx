@@ -194,8 +194,9 @@ export default function Sales() {
         const walletId = formData.get('walletId') || '';
         const remainingAmount = Number(formData.get('remainingAmount') || 0);
 
-        // Wallet is REQUIRED when any money is paid
-        if (!walletId && (isPaid || (!isPaid && remainingAmount < finalPrice && remainingAmount > 0))) {
+        // Wallet is REQUIRED when customer has paid anything
+        const hasPaidSomething = isPaid || (!isPaid && remainingAmount > 0 && remainingAmount < finalPrice);
+        if (!walletId && hasPaidSomething) {
             alert('يجب اختيار المحفظة عند الدفع (كامل أو جزئي)');
             return;
         }
@@ -511,33 +512,38 @@ export default function Sales() {
 
     // ========= Render =========
     return (
-        <div className="space-y-6 animate-fade-in pb-24 font-sans text-slate-800">
+        <div className="space-y-5 animate-fade-in pb-24 font-sans text-slate-800">
 
             {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="bg-gradient-to-br from-indigo-600 to-blue-700 rounded-2xl p-5 text-white shadow-lg">
-                    <p className="text-indigo-200 text-sm font-bold mb-1">إجمالي المبيعات</p>
-                    <h3 className="text-3xl font-extrabold">{stats.count}</h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div className="bg-gradient-to-br from-indigo-600 to-blue-700 rounded-2xl p-4 text-white shadow-lg shadow-indigo-200/50">
+                    <div className="flex items-center gap-2 mb-2"><div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center"><i className="fa-solid fa-receipt text-sm"></i></div></div>
+                    <h3 className="text-2xl font-black">{stats.count}</h3>
+                    <p className="text-indigo-200 text-[11px] font-bold mt-0.5">إجمالي الأوردرات</p>
                 </div>
-
-                <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm relative overflow-hidden">
-                    <div className="absolute top-0 left-0 w-1.5 h-full bg-orange-500"></div>
-                    <p className="text-slate-500 text-sm font-bold mb-1">تنبيهات التجديد</p>
-                    <h3 className="text-3xl font-extrabold text-orange-600">{stats.renewalAlerts}</h3>
-                    <p className="text-slate-400 text-[10px] font-bold mt-1">اشتراكات قاربت أو انتهت</p>
+                <div className="bg-gradient-to-br from-emerald-600 to-teal-700 rounded-2xl p-4 text-white shadow-lg shadow-emerald-200/50">
+                    <div className="flex items-center gap-2 mb-2"><div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center"><i className="fa-solid fa-coins text-sm"></i></div></div>
+                    <h3 className="text-2xl font-black dir-ltr">{stats.dailyRevenue.toLocaleString()}<span className="text-emerald-200 text-xs"> ج.م</span></h3>
+                    <p className="text-emerald-200 text-[11px] font-bold mt-0.5">إيراد اليوم ({stats.dailyCount})</p>
                 </div>
-                <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm relative overflow-hidden">
-                    <div className="absolute top-0 left-0 w-1.5 h-full bg-red-500"></div>
-                    <p className="text-slate-500 text-sm font-bold mb-1">المديونيات</p>
-                    <h3 className="text-2xl font-extrabold text-red-600 dir-ltr">{stats.totalRemaining.toLocaleString()} <span className="text-sm text-red-300">ج.م</span></h3>
-                    <p className="text-slate-400 text-[10px] font-bold mt-1">{stats.totalDebtCount} عميل عليه مديونية</p>
+                <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm relative overflow-hidden">
+                    <div className="absolute top-0 left-0 w-1 h-full bg-orange-500"></div>
+                    <div className="flex items-center gap-2 mb-2"><div className="w-8 h-8 bg-orange-50 rounded-lg flex items-center justify-center"><i className="fa-solid fa-bell text-orange-500 text-sm"></i></div></div>
+                    <h3 className="text-2xl font-black text-orange-600">{stats.renewalAlerts}</h3>
+                    <p className="text-slate-400 text-[11px] font-bold mt-0.5">تنبيهات التجديد</p>
+                </div>
+                <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm relative overflow-hidden">
+                    <div className="absolute top-0 left-0 w-1 h-full bg-red-500"></div>
+                    <div className="flex items-center gap-2 mb-2"><div className="w-8 h-8 bg-red-50 rounded-lg flex items-center justify-center"><i className="fa-solid fa-hand-holding-dollar text-red-500 text-sm"></i></div></div>
+                    <h3 className="text-xl font-black text-red-600 dir-ltr">{stats.totalRemaining.toLocaleString()}<span className="text-red-300 text-xs"> ج.م</span></h3>
+                    <p className="text-slate-400 text-[11px] font-bold mt-0.5">مديونيات ({stats.totalDebtCount})</p>
                 </div>
             </div>
 
             {/* ============ SALES LIST ============ */}
                 <div className="space-y-5">
                     {/* Toolbar */}
-                    <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col md:flex-row gap-4 items-center justify-between sticky top-2 z-30 bg-white/95 backdrop-blur-md">
+                    <div className="bg-white/95 backdrop-blur-xl p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col md:flex-row gap-3 items-center justify-between sticky top-2 z-30">
                         <div className="relative w-full md:w-80">
                             <i className="fa-solid fa-search absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
                             <input type="text" className="w-full bg-white border-2 border-slate-200 text-slate-900 text-sm font-semibold rounded-xl pr-10 p-3 focus:ring-4 focus:ring-indigo-100 focus:border-indigo-600 outline-none transition-all placeholder-slate-400" placeholder="بحث بالاسم أو الرقم أو الإيميل أو المنتج..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
@@ -583,82 +589,86 @@ export default function Sales() {
                     </div>
 
                     {/* Sales List */}
-                    <div className="space-y-4">
+                    <div className="space-y-3">
                         {filteredSales.length === 0 ? (
                             <div className="flex flex-col items-center justify-center py-20 bg-white rounded-3xl border-2 border-dashed border-slate-200 text-slate-400">
                                 <i className="fa-regular fa-folder-open text-5xl mb-4 opacity-30"></i>
                                 <p className="font-bold text-lg">لا توجد مبيعات</p>
                             </div>
                         ) : (
-                            filteredSales.slice(0, visibleCount).map(sale => (
-                                <div key={sale.id} className="group bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-xl hover:border-indigo-200 transition-all duration-300 overflow-hidden relative">
-                                    <div className={`absolute top-0 bottom-0 right-0 w-1 ${sale.isPaid ? 'bg-emerald-500' : 'bg-red-500'}`}></div>
+                            filteredSales.slice(0, visibleCount).map(sale => {
+                                const daysLeft = sale.expiryDate ? Math.ceil((new Date(sale.expiryDate) - new Date()) / 86400000) : null;
+                                const isExpired = daysLeft !== null && daysLeft <= 0;
+                                const isSoon = daysLeft !== null && daysLeft > 0 && daysLeft <= 5;
+                                return (
+                                <div key={sale.id} className="bg-white rounded-2xl border border-slate-200/80 shadow-sm hover:shadow-lg transition-all duration-200 overflow-hidden">
+                                    {/* Header: colored top bar */}
+                                    <div className={`h-1 ${sale.isPaid && sale.isActivated ? 'bg-gradient-to-r from-emerald-400 to-teal-400' : sale.isPaid ? 'bg-gradient-to-r from-emerald-400 to-blue-400' : 'bg-gradient-to-r from-red-400 to-orange-400'}`}></div>
                                     
-                                    <div className="p-4 md:p-5">
-                                        {/* Top row: Name + status badges + price */}
-                                        <div className="flex items-start justify-between gap-3 mb-3">
+                                    <div className="p-4">
+                                        {/* Row 1: Avatar + Name + Price */}
+                                        <div className="flex items-center gap-3 mb-3">
+                                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-white font-black text-sm flex-shrink-0 shadow-sm ${sale.isPaid ? 'bg-gradient-to-br from-emerald-500 to-teal-600' : 'bg-gradient-to-br from-red-500 to-orange-600'}`}>
+                                                {(sale.customerName || sale.customerEmail || 'ع').charAt(0).toUpperCase()}
+                                            </div>
                                             <div className="flex-1 min-w-0">
-                                                <div className="flex items-center gap-2 flex-wrap mb-1">
-                                                    <h3 className="text-base font-black text-slate-800 truncate">{sale.customerName || sale.customerEmail || 'عميل'}</h3>
+                                                <div className="flex items-center gap-2">
+                                                    <h3 className="font-extrabold text-sm text-slate-800 truncate">{sale.customerName || sale.customerEmail || 'عميل'}</h3>
                                                     {sale.customerPhone && <span className="text-[10px] text-slate-400 font-mono dir-ltr hidden sm:inline">{sale.customerPhone}</span>}
                                                 </div>
-                                                <div className="flex items-center gap-1.5 flex-wrap">
-                                                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${sale.isPaid ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-red-50 text-red-600 border border-red-200'}`}>{sale.isPaid ? '✅ مدفوع' : '⏳ غير مدفوع'}</span>
-                                                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${sale.isActivated ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'bg-amber-50 text-amber-700 border border-amber-200'}`}>{sale.isActivated ? '⚡ مفعّل' : '⏸️ غير مفعّل'}</span>
-                                                    {sale.discount > 0 && <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-orange-50 text-orange-600 border border-orange-200">خصم {sale.discount}</span>}
+                                                <div className="flex items-center gap-1 mt-0.5 flex-wrap">
+                                                    <span className={`inline-flex items-center gap-0.5 text-[9px] px-1.5 py-0.5 rounded font-bold ${sale.isPaid ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-600'}`}>{sale.isPaid ? '✓ مدفوع' : '○ غير مدفوع'}</span>
+                                                    <span className={`inline-flex items-center gap-0.5 text-[9px] px-1.5 py-0.5 rounded font-bold ${sale.isActivated ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'}`}>{sale.isActivated ? '⚡ مفعّل' : '○ غير مفعّل'}</span>
+                                                    {sale.discount > 0 && <span className="text-[9px] px-1.5 py-0.5 rounded font-bold bg-orange-100 text-orange-700">-{sale.discount}</span>}
                                                 </div>
                                             </div>
                                             <div className="text-left flex-shrink-0">
-                                                <div className="text-xl font-black text-slate-800 dir-ltr">{Number(sale.finalPrice).toLocaleString()} <span className="text-xs text-slate-400">ج.م</span></div>
-                                                {sale.discount > 0 && <div className="text-[10px] text-slate-400 line-through dir-ltr">{Number(sale.originalPrice).toLocaleString()}</div>}
-                                                {!sale.isPaid && sale.remainingAmount > 0 && <div className="text-[10px] font-bold text-red-600 bg-red-50 px-1.5 py-0.5 rounded mt-0.5 border border-red-100">متبقي: {sale.remainingAmount}</div>}
+                                                <div className="text-lg font-black text-slate-800 dir-ltr leading-tight">{Number(sale.finalPrice).toLocaleString()}</div>
+                                                <div className="text-[10px] text-slate-400 font-bold text-center">ج.م</div>
+                                                {!sale.isPaid && sale.remainingAmount > 0 && <div className="text-[9px] font-bold text-red-600 bg-red-50 px-1.5 py-0.5 rounded text-center mt-0.5">متبقي {sale.remainingAmount}</div>}
                                             </div>
                                         </div>
 
-                                        {/* Email + password row */}
-                                        {sale.customerEmail && (
-                                            <div className="flex items-center gap-2 text-xs text-indigo-600 font-mono mb-2">
-                                                <div className="flex items-center gap-1"><i className="fa-solid fa-envelope text-indigo-400 text-[10px]"></i>{sale.customerEmail}</div>
-                                                {sale.customerPassword && <><span className="text-slate-300">|</span><div className="flex items-center gap-1 text-purple-600"><i className="fa-solid fa-key text-purple-400 text-[10px]"></i>{sale.customerPassword}</div></>}
-                                                <button onClick={() => copyCredentials(sale)} className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md border transition ${copiedId === sale.id ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-slate-50 text-slate-400 border-slate-200 hover:text-indigo-600'}`}><i className={`fa-solid ${copiedId === sale.id ? 'fa-check' : 'fa-copy'}`}></i></button>
+                                        {/* Row 2: Email + Password (if exists) */}
+                                        {(sale.customerEmail || sale.customerPassword) && (
+                                            <div className="bg-slate-50 rounded-lg px-3 py-2 mb-2.5 flex items-center gap-2 text-xs font-mono overflow-x-auto">
+                                                {sale.customerEmail && <span className="text-indigo-600 flex items-center gap-1 flex-shrink-0"><i className="fa-solid fa-at text-[9px] text-indigo-400"></i>{sale.customerEmail}</span>}
+                                                {sale.customerPassword && <><span className="text-slate-300">|</span><span className="text-purple-600 flex items-center gap-1 flex-shrink-0"><i className="fa-solid fa-key text-[9px] text-purple-400"></i>{sale.customerPassword}</span></>}
+                                                <button onClick={() => copyCredentials(sale)} className={`ml-auto flex-shrink-0 w-6 h-6 rounded flex items-center justify-center transition ${copiedId === sale.id ? 'bg-emerald-100 text-emerald-600' : 'hover:bg-indigo-100 text-slate-400 hover:text-indigo-600'}`}><i className={`fa-solid text-[10px] ${copiedId === sale.id ? 'fa-check' : 'fa-copy'}`}></i></button>
                                             </div>
                                         )}
 
-                                        {/* Tags row */}
-                                        <div className="flex flex-wrap gap-1.5 text-[11px] mb-2">
-                                            <span className="flex items-center gap-1 bg-slate-50 px-2 py-1 rounded-lg border border-slate-100 font-bold text-slate-600"><i className="fa-solid fa-tag text-indigo-400 text-[9px]"></i>{sale.productName}</span>
-                                            <span className="flex items-center gap-1 bg-slate-50 px-2 py-1 rounded-lg border border-slate-100 font-bold text-slate-600"><i className={`fa-brands text-[9px] ${sale.contactChannel === 'واتساب' ? 'fa-whatsapp text-green-600' : sale.contactChannel === 'ماسنجر' ? 'fa-facebook-messenger text-blue-600' : 'fa-telegram text-sky-500'}`}></i>{sale.contactChannel}</span>
-                                            {sale.paymentMethod && <span className="flex items-center gap-1 bg-emerald-50 text-emerald-700 px-2 py-1 rounded-lg border border-emerald-100 font-bold"><i className="fa-solid fa-wallet text-[9px]"></i>{sale.paymentMethod}</span>}
-                                            {sale.fromInventory && sale.assignedAccountEmail && (
-                                                <button onClick={() => showAccountDetails(sale)} className="flex items-center gap-1 bg-purple-50 text-purple-700 px-2 py-1 rounded-lg border border-purple-200 font-bold hover:bg-purple-100 transition cursor-pointer"><i className="fa-solid fa-server text-[9px]"></i>{sale.assignedAccountEmail}</button>
-                                            )}
-                                            {sale.duration && <span className="flex items-center gap-1 bg-blue-50 text-blue-700 px-2 py-1 rounded-lg border border-blue-100 font-bold"><i className="fa-solid fa-calendar-days text-[9px]"></i>{sale.duration} يوم</span>}
-                                            {sale.expiryDate && (() => {
-                                                const daysLeft = Math.ceil((new Date(sale.expiryDate) - new Date()) / 86400000);
-                                                const isExpired = daysLeft <= 0;
-                                                const isSoon = daysLeft > 0 && daysLeft <= 5;
-                                                return <span className={`flex items-center gap-1 px-2 py-1 rounded-lg font-bold border ${isExpired ? 'bg-red-50 text-red-700 border-red-200' : isSoon ? 'bg-orange-50 text-orange-700 border-orange-200' : 'bg-teal-50 text-teal-700 border-teal-100'}`}><i className={`fa-solid text-[9px] ${isExpired ? 'fa-circle-exclamation' : isSoon ? 'fa-clock' : 'fa-check-circle'}`}></i>{isExpired ? `منتهي ${Math.abs(daysLeft)}ي` : `${daysLeft}ي متبقي`}</span>;
-                                            })()}
-                                            {sale.saleType === 'workspace' && sale.workspaceEmail && <span className="flex items-center gap-1 bg-cyan-50 text-cyan-700 px-2 py-1 rounded-lg border border-cyan-200 font-bold"><i className="fa-solid fa-users-rectangle text-[9px]"></i>WS: {sale.workspaceEmail}</span>}
+                                        {/* Row 3: Info chips */}
+                                        <div className="flex flex-wrap gap-1 mb-2.5">
+                                            <span className="inline-flex items-center gap-1 bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded text-[10px] font-bold"><i className="fa-solid fa-box text-[8px]"></i>{sale.productName}</span>
+                                            <span className="inline-flex items-center gap-1 bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-[10px] font-bold"><i className={`fa-brands text-[8px] ${sale.contactChannel === 'واتساب' ? 'fa-whatsapp text-green-600' : sale.contactChannel === 'ماسنجر' ? 'fa-facebook-messenger text-blue-600' : 'fa-telegram text-sky-500'}`}></i>{sale.contactChannel}</span>
+                                            {sale.paymentMethod && <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded text-[10px] font-bold"><i className="fa-solid fa-wallet text-[8px]"></i>{sale.paymentMethod}</span>}
+                                            {sale.fromInventory && sale.assignedAccountEmail && <button onClick={() => showAccountDetails(sale)} className="inline-flex items-center gap-1 bg-purple-50 text-purple-700 px-2 py-0.5 rounded text-[10px] font-bold hover:bg-purple-100 transition"><i className="fa-solid fa-server text-[8px]"></i>{sale.assignedAccountEmail}</button>}
+                                            {sale.duration && <span className="inline-flex items-center gap-1 bg-blue-50 text-blue-700 px-2 py-0.5 rounded text-[10px] font-bold"><i className="fa-solid fa-hourglass-half text-[8px]"></i>{sale.duration}ي</span>}
+                                            {daysLeft !== null && <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold ${isExpired ? 'bg-red-100 text-red-700' : isSoon ? 'bg-orange-100 text-orange-700' : 'bg-teal-50 text-teal-700'}`}><i className={`fa-solid text-[8px] ${isExpired ? 'fa-triangle-exclamation' : 'fa-clock'}`}></i>{isExpired ? `منتهي ${Math.abs(daysLeft)}ي` : `${daysLeft}ي`}</span>}
+                                            {sale.saleType === 'workspace' && sale.workspaceEmail && <span className="inline-flex items-center gap-1 bg-cyan-50 text-cyan-700 px-2 py-0.5 rounded text-[10px] font-bold"><i className="fa-solid fa-users text-[8px]"></i>{sale.workspaceEmail}</span>}
                                         </div>
-                                        {sale.notes && <p className="text-[10px] text-slate-400 mb-2 italic">📝 {sale.notes}</p>}
+                                        {sale.notes && <p className="text-[10px] text-slate-400 mb-2 leading-relaxed"><i className="fa-solid fa-sticky-note text-[8px] ml-1"></i>{sale.notes}</p>}
 
-                                        {/* Bottom: date + mod + actions */}
+                                        {/* Row 4: Footer */}
                                         <div className="flex items-center justify-between pt-2 border-t border-slate-100">
-                                            <div className="flex items-center gap-2 text-[10px] text-slate-400">
-                                                <span className="font-mono dir-ltr">{new Date(sale.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })} {new Date(sale.date).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</span>
-                                                <span className="text-indigo-500 font-bold"><i className="fa-solid fa-user-check text-[8px] ml-0.5"></i>{sale.moderator}</span>
+                                            <div className="flex items-center gap-1.5 text-[10px] text-slate-400">
+                                                <i className="fa-regular fa-calendar text-[8px]"></i>
+                                                <span className="font-mono dir-ltr">{new Date(sale.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}</span>
+                                                <span className="font-mono dir-ltr">{new Date(sale.date).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</span>
+                                                <span className="text-slate-300">|</span>
+                                                <span className="text-indigo-500 font-bold">{sale.moderator}</span>
                                             </div>
-                                            <div className="flex gap-1">
-                                                <button onClick={() => togglePaid(sale.id)} className={`px-2.5 py-1.5 rounded-lg text-[10px] font-bold transition border flex items-center gap-1 ${sale.isPaid ? 'text-emerald-600 bg-emerald-50 border-emerald-100 hover:bg-emerald-100' : 'text-orange-600 bg-orange-50 border-orange-100 hover:bg-orange-100'}`} title={sale.isPaid ? 'تحويل لغير مدفوع' : 'تحويل لمدفوع'}><i className={`fa-solid ${sale.isPaid ? 'fa-check-double' : 'fa-clock'}`}></i><span className="hidden sm:inline">{sale.isPaid ? 'مدفوع' : 'معلق'}</span></button>
-                                                <button onClick={() => toggleActivated(sale.id)} className={`px-2.5 py-1.5 rounded-lg text-[10px] font-bold transition border flex items-center gap-1 ${sale.isActivated ? 'text-blue-600 bg-blue-50 border-blue-100 hover:bg-blue-100' : 'text-amber-600 bg-amber-50 border-amber-100 hover:bg-amber-100'}`} title={sale.isActivated ? 'إلغاء التفعيل' : 'تفعيل'}><i className={`fa-solid ${sale.isActivated ? 'fa-bolt' : 'fa-pause'}`}></i><span className="hidden sm:inline">{sale.isActivated ? 'مفعّل' : 'تفعيل'}</span></button>
-                                                <button onClick={() => openEditSale(sale)} className="px-2.5 py-1.5 rounded-lg text-[10px] font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-100 transition flex items-center gap-1"><i className="fa-solid fa-pen"></i><span className="hidden sm:inline">تعديل</span></button>
-                                                <button onClick={() => deleteSale(sale.id)} className="px-2.5 py-1.5 rounded-lg text-[10px] font-bold text-red-600 bg-red-50 hover:bg-red-100 border border-red-100 transition"><i className="fa-solid fa-trash"></i></button>
+                                            <div className="flex items-center gap-1">
+                                                <button onClick={() => togglePaid(sale.id)} className={`w-7 h-7 rounded-lg flex items-center justify-center transition text-xs ${sale.isPaid ? 'bg-emerald-100 text-emerald-600 hover:bg-emerald-200' : 'bg-orange-100 text-orange-600 hover:bg-orange-200'}`} title={sale.isPaid ? 'إلغاء الدفع' : 'تأكيد الدفع'}><i className={`fa-solid ${sale.isPaid ? 'fa-check-double' : 'fa-coins'}`}></i></button>
+                                                <button onClick={() => toggleActivated(sale.id)} className={`w-7 h-7 rounded-lg flex items-center justify-center transition text-xs ${sale.isActivated ? 'bg-blue-100 text-blue-600 hover:bg-blue-200' : 'bg-amber-100 text-amber-600 hover:bg-amber-200'}`} title={sale.isActivated ? 'إلغاء التفعيل' : 'تفعيل'}><i className={`fa-solid ${sale.isActivated ? 'fa-bolt' : 'fa-power-off'}`}></i></button>
+                                                <button onClick={() => openEditSale(sale)} className="w-7 h-7 rounded-lg flex items-center justify-center bg-slate-100 text-slate-500 hover:bg-blue-100 hover:text-blue-600 transition text-xs" title="تعديل"><i className="fa-solid fa-pen-to-square"></i></button>
+                                                <button onClick={() => deleteSale(sale.id)} className="w-7 h-7 rounded-lg flex items-center justify-center bg-slate-100 text-slate-500 hover:bg-red-100 hover:text-red-600 transition text-xs" title="حذف"><i className="fa-solid fa-trash-can"></i></button>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
-                            ))
+                                );})
                         )}
                     </div>
 
