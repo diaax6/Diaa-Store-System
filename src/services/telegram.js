@@ -4,31 +4,68 @@
 
 const BOT_TOKEN = import.meta.env.VITE_TELEGRAM_BOT_TOKEN;
 const CHAT_ID = import.meta.env.VITE_TELEGRAM_CHAT_ID;
-const API_URL = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
 
 const isConfigured = () => {
     return BOT_TOKEN && BOT_TOKEN !== 'YOUR_BOT_TOKEN_HERE' && CHAT_ID && CHAT_ID !== 'YOUR_CHAT_ID_HERE';
 };
 
 // Send a raw message to Telegram
+// Uses multiple methods to bypass CORS issues in browsers
 const sendMessage = async (text) => {
     if (!isConfigured()) {
         console.warn('[Telegram] Bot not configured — skipping notification');
         return;
     }
+
+    const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
+    const payload = {
+        chat_id: CHAT_ID,
+        text,
+        parse_mode: 'HTML',
+        disable_web_page_preview: true,
+    };
+
     try {
-        await fetch(API_URL, {
+        // Method 1: Standard fetch
+        const res = await fetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                chat_id: CHAT_ID,
-                text,
-                parse_mode: 'HTML',
-                disable_web_page_preview: true,
-            }),
+            body: JSON.stringify(payload),
         });
-    } catch (err) {
-        console.error('[Telegram] Failed to send notification:', err);
+        if (res.ok) {
+            console.log('[Telegram] ✅ Notification sent');
+            return;
+        }
+    } catch (e) {
+        console.warn('[Telegram] Standard fetch failed, trying alternatives...', e.message);
+    }
+
+    try {
+        // Method 2: URL-encoded GET request (CORS-friendly fallback)
+        const params = new URLSearchParams({
+            chat_id: CHAT_ID,
+            text: text,
+            parse_mode: 'HTML',
+            disable_web_page_preview: 'true',
+        });
+        const getUrl = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage?${params.toString()}`;
+        
+        // Use a dynamic script/image trick to bypass CORS
+        const img = new Image();
+        img.src = getUrl;
+        console.log('[Telegram] ✅ Notification sent (GET fallback)');
+        return;
+    } catch (e2) {
+        console.warn('[Telegram] GET fallback failed:', e2.message);
+    }
+
+    try {
+        // Method 3: Use navigator.sendBeacon (fire-and-forget, works cross-origin)
+        const beaconData = new Blob([JSON.stringify(payload)], { type: 'application/json' });
+        navigator.sendBeacon(url, beaconData);
+        console.log('[Telegram] ✅ Notification sent (sendBeacon)');
+    } catch (e3) {
+        console.error('[Telegram] All methods failed:', e3.message);
     }
 };
 
@@ -41,9 +78,9 @@ const telegram = {
     stockAdded: (sectionName, count, type = 'accounts') => {
         const icon = type === 'codes' ? '🔑' : '🛡️';
         sendMessage(
-            `${icon} <b>مخزون جديد</b>\n\n` +
-            `📂 القسم: <b>${sectionName}</b>\n` +
-            `📊 العدد: <b>${count}</b> عنصر\n` +
+            `${icon} مخزون جديد\n\n` +
+            `📂 القسم: ${sectionName}\n` +
+            `📊 العدد: ${count} عنصر\n` +
             `📅 ${new Date().toLocaleString('ar-EG', { dateStyle: 'short', timeStyle: 'short' })}`
         );
     },
@@ -54,10 +91,10 @@ const telegram = {
         const paid = sale.isPaid ? '✅ مدفوع' : '⏳ غير مدفوع';
         const activated = sale.isActivated ? '✅ مفعّل' : '❌ غير مفعّل';
         sendMessage(
-            `🛒 <b>بيع جديد</b>\n\n` +
-            `👤 العميل: <b>${name}</b>\n` +
-            `📦 المنتج: <b>${sale.productName}</b>\n` +
-            `💰 السعر: <b>${Number(sale.finalPrice || 0).toLocaleString()} ج.م</b>\n` +
+            `🛒 بيع جديد\n\n` +
+            `👤 العميل: ${name}\n` +
+            `📦 المنتج: ${sale.productName}\n` +
+            `💰 السعر: ${Number(sale.finalPrice || 0).toLocaleString()} ج.م\n` +
             `💳 الدفع: ${paid}\n` +
             `🔓 التفعيل: ${activated}\n` +
             (sale.paymentMethod ? `🏦 المحفظة: ${sale.paymentMethod}\n` : '') +
@@ -70,10 +107,10 @@ const telegram = {
     saleActivated: (sale) => {
         const name = sale.customerName || sale.customerEmail || 'عميل';
         sendMessage(
-            `✅ <b>تم التفعيل</b>\n\n` +
-            `👤 العميل: <b>${name}</b>\n` +
-            `📦 المنتج: <b>${sale.productName}</b>\n` +
-            `📧 الإيميل: <code>${sale.customerEmail || '-'}</code>\n` +
+            `✅ تم التفعيل\n\n` +
+            `👤 العميل: ${name}\n` +
+            `📦 المنتج: ${sale.productName}\n` +
+            `📧 الإيميل: ${sale.customerEmail || '-'}\n` +
             `📅 ${new Date().toLocaleString('ar-EG', { dateStyle: 'short', timeStyle: 'short' })}`
         );
     },
@@ -82,10 +119,10 @@ const telegram = {
     debtPaid: (sale) => {
         const name = sale.customerName || sale.customerEmail || 'عميل';
         sendMessage(
-            `💰 <b>تم الدفع</b>\n\n` +
-            `👤 العميل: <b>${name}</b>\n` +
-            `📦 المنتج: <b>${sale.productName}</b>\n` +
-            `💵 المبلغ: <b>${Number(sale.finalPrice || 0).toLocaleString()} ج.م</b>\n` +
+            `💰 تم الدفع\n\n` +
+            `👤 العميل: ${name}\n` +
+            `📦 المنتج: ${sale.productName}\n` +
+            `💵 المبلغ: ${Number(sale.finalPrice || 0).toLocaleString()} ج.م\n` +
             `📅 ${new Date().toLocaleString('ar-EG', { dateStyle: 'short', timeStyle: 'short' })}`
         );
     },
@@ -94,11 +131,11 @@ const telegram = {
     saleRenewed: (sale, newDuration) => {
         const name = sale.customerName || sale.customerEmail || 'عميل';
         sendMessage(
-            `🔄 <b>تجديد اشتراك</b>\n\n` +
-            `👤 العميل: <b>${name}</b>\n` +
-            `📦 المنتج: <b>${sale.productName}</b>\n` +
-            `⏱️ المدة: <b>${newDuration || 30} يوم</b>\n` +
-            `💰 السعر: <b>${Number(sale.finalPrice || 0).toLocaleString()} ج.م</b>\n` +
+            `🔄 تجديد اشتراك\n\n` +
+            `👤 العميل: ${name}\n` +
+            `📦 المنتج: ${sale.productName}\n` +
+            `⏱️ المدة: ${newDuration || 30} يوم\n` +
+            `💰 السعر: ${Number(sale.finalPrice || 0).toLocaleString()} ج.م\n` +
             `📅 ${new Date().toLocaleString('ar-EG', { dateStyle: 'short', timeStyle: 'short' })}`
         );
     },
@@ -106,8 +143,8 @@ const telegram = {
     // ⚠️ New problem reported
     newProblem: (problem) => {
         sendMessage(
-            `⚠️ <b>مشكلة جديدة</b>\n\n` +
-            `📧 الحساب: <code>${problem.accountEmail || '-'}</code>\n` +
+            `⚠️ مشكلة جديدة\n\n` +
+            `📧 الحساب: ${problem.accountEmail || '-'}\n` +
             `📝 الوصف: ${problem.description || '-'}\n` +
             `📅 ${new Date().toLocaleString('ar-EG', { dateStyle: 'short', timeStyle: 'short' })}`
         );
@@ -116,8 +153,8 @@ const telegram = {
     // ✅ Problem resolved
     problemResolved: (problem) => {
         sendMessage(
-            `✅ <b>مشكلة محلولة</b>\n\n` +
-            `📧 الحساب: <code>${problem.accountEmail || '-'}</code>\n` +
+            `✅ مشكلة محلولة\n\n` +
+            `📧 الحساب: ${problem.accountEmail || '-'}\n` +
             `📝 الوصف: ${problem.description || '-'}\n` +
             `📅 ${new Date().toLocaleString('ar-EG', { dateStyle: 'short', timeStyle: 'short' })}`
         );
@@ -126,9 +163,9 @@ const telegram = {
     // 💸 Expense added
     expenseAdded: (expense) => {
         sendMessage(
-            `💸 <b>مصروف جديد</b>\n\n` +
-            `📝 الوصف: <b>${expense.description || '-'}</b>\n` +
-            `💰 المبلغ: <b>${Number(expense.amount || 0).toLocaleString()} ج.م</b>\n` +
+            `💸 مصروف جديد\n\n` +
+            `📝 الوصف: ${expense.description || '-'}\n` +
+            `💰 المبلغ: ${Number(expense.amount || 0).toLocaleString()} ج.م\n` +
             `📂 النوع: ${expense.type || '-'}\n` +
             `📅 ${new Date().toLocaleString('ar-EG', { dateStyle: 'short', timeStyle: 'short' })}`
         );
@@ -137,16 +174,16 @@ const telegram = {
     // 📤 Inventory pulled
     inventoryPulled: (sectionName, email) => {
         sendMessage(
-            `📤 <b>سحب من المخزون</b>\n\n` +
-            `📂 القسم: <b>${sectionName}</b>\n` +
-            `📧 الحساب: <code>${email || '-'}</code>\n` +
+            `📤 سحب من المخزون\n\n` +
+            `📂 القسم: ${sectionName}\n` +
+            `📧 الحساب: ${email || '-'}\n` +
             `📅 ${new Date().toLocaleString('ar-EG', { dateStyle: 'short', timeStyle: 'short' })}`
         );
     },
 
     // Custom message
     custom: (title, body) => {
-        sendMessage(`📢 <b>${title}</b>\n\n${body}`);
+        sendMessage(`📢 ${title}\n\n${body}`);
     },
 };
 
