@@ -3,6 +3,7 @@ import { employeesAPI, salaryPaymentsAPI, employeeActionsAPI } from '../services
 
 const DAY_NAMES = { saturday: 'السبت', sunday: 'الأحد', monday: 'الاثنين', tuesday: 'الثلاثاء', wednesday: 'الأربعاء', thursday: 'الخميس', friday: 'الجمعة' };
 const DAY_EN = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
+const PAY_CYCLES = { weekly: 'أسبوعي', biweekly: 'نصف شهري', monthly: 'شهري' };
 
 export default function Employees() {
     useEffect(() => { window.scrollTo(0, 0); }, []);
@@ -22,8 +23,9 @@ export default function Employees() {
     const [quickAction, setQuickAction] = useState(null); // {type: 'deduction'|'absence'|'bonus'|'pay', emp}
     const [quickAmount, setQuickAmount] = useState('');
     const [quickDesc, setQuickDesc] = useState('');
+    const [quickDate, setQuickDate] = useState(new Date().toISOString().split('T')[0]);
 
-    const emptyForm = { name: '', phone: '', role: '', baseSalary: 0, bonus: 0, deductions: 0, absenceDays: 0, absenceDeductionPerDay: 0, notes: '', joinDate: new Date().toISOString().split('T')[0], payDay: 'thursday' };
+    const emptyForm = { name: '', phone: '', role: '', baseSalary: 0, bonus: 0, deductions: 0, absenceDays: 0, absenceDeductionPerDay: 0, notes: '', joinDate: new Date().toISOString().split('T')[0], payDay: 'thursday', payCycle: 'weekly' };
     const [form, setForm] = useState(emptyForm);
 
     const loadData = async () => {
@@ -42,7 +44,7 @@ export default function Employees() {
     const openAdd = () => { setEditingEmp(null); setForm(emptyForm); setShowModal(true); };
     const openEdit = (emp) => {
         setEditingEmp(emp);
-        setForm({ name: emp.name, phone: emp.phone||'', role: emp.role||'', baseSalary: emp.baseSalary||0, bonus: emp.bonus||0, deductions: emp.deductions||0, absenceDays: emp.absenceDays||0, absenceDeductionPerDay: emp.absenceDeductionPerDay||0, notes: emp.notes||'', joinDate: emp.joinDate||'', payDay: emp.payDay||'thursday' });
+        setForm({ name: emp.name, phone: emp.phone||'', role: emp.role||'', baseSalary: emp.baseSalary||0, bonus: emp.bonus||0, deductions: emp.deductions||0, absenceDays: emp.absenceDays||0, absenceDeductionPerDay: emp.absenceDeductionPerDay||0, notes: emp.notes||'', joinDate: emp.joinDate||'', payDay: emp.payDay||'thursday', payCycle: emp.payCycle||'weekly' });
         setShowModal(true);
     };
 
@@ -74,19 +76,21 @@ export default function Employees() {
 
         try {
             if (type === 'pay') {
-                await salaryPaymentsAPI.create({ employeeId: emp.id, amount, notes: quickDesc });
+                await salaryPaymentsAPI.create({ employeeId: emp.id, amount, notes: quickDesc, paymentDate: quickDate });
             } else if (type === 'deduction') {
-                await employeeActionsAPI.create({ employeeId: emp.id, actionType: 'deduction', amount, description: quickDesc || 'خصم' });
+                if (!quickDesc.trim()) return alert('أدخل سبب الخصم');
+                await employeeActionsAPI.create({ employeeId: emp.id, actionType: 'deduction', amount, description: quickDesc, actionDate: quickDate });
                 await employeesAPI.update(emp.id, { deductions: (emp.deductions || 0) + amount });
             } else if (type === 'absence') {
                 const days = Number(quickAmount) || 1;
-                await employeeActionsAPI.create({ employeeId: emp.id, actionType: 'absence', amount: days, description: quickDesc || 'غياب' });
+                await employeeActionsAPI.create({ employeeId: emp.id, actionType: 'absence', amount: days, description: quickDesc || 'غياب', actionDate: quickDate });
                 await employeesAPI.update(emp.id, { absenceDays: (emp.absenceDays || 0) + days });
             } else if (type === 'bonus') {
-                await employeeActionsAPI.create({ employeeId: emp.id, actionType: 'bonus', amount, description: quickDesc || 'مكافأة' });
+                if (!quickDesc.trim()) return alert('أدخل سبب المكافأة');
+                await employeeActionsAPI.create({ employeeId: emp.id, actionType: 'bonus', amount, description: quickDesc, actionDate: quickDate });
                 await employeesAPI.update(emp.id, { bonus: (emp.bonus || 0) + amount });
             }
-            setQuickAction(null); setQuickAmount(''); setQuickDesc('');
+            setQuickAction(null); setQuickAmount(''); setQuickDesc(''); setQuickDate(new Date().toISOString().split('T')[0]);
             await loadData();
         } catch (err) { console.error(err); alert('حدث خطأ'); }
     };
@@ -236,7 +240,7 @@ export default function Employees() {
                                     <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-sm shadow-sm ${emp.isActive ? 'bg-gradient-to-br from-purple-600 to-violet-700' : 'bg-slate-400'}`}>{emp.name?.charAt(0).toUpperCase()}</div>
                                     <div className="min-w-0">
                                         <h3 className="font-extrabold text-sm text-slate-800 truncate">{emp.name}</h3>
-                                        <p className="text-[10px] text-slate-400">{emp.role || '-'} • قبض: {DAY_NAMES[emp.payDay] || emp.payDay}</p>
+                                        <p className="text-[10px] text-slate-400">{emp.role || '-'} • {PAY_CYCLES[emp.payCycle] || 'أسبوعي'} • {DAY_NAMES[emp.payDay] || emp.payDay}</p>
                                     </div>
                                 </div>
                                 <div className="flex flex-col items-end gap-1">
@@ -253,10 +257,10 @@ export default function Employees() {
 
                             {/* Quick Action Buttons */}
                             <div className="flex gap-1.5 pt-2 border-t border-slate-100" onClick={e => e.stopPropagation()}>
-                                <button onClick={() => { setQuickAction({type:'pay',emp}); setQuickAmount(''); }} className="flex-1 py-1.5 rounded-lg text-[10px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-100 transition flex items-center justify-center gap-1"><i className="fa-solid fa-money-bill-wave"></i> قبّض</button>
-                                <button onClick={() => { setQuickAction({type:'deduction',emp}); setQuickAmount(''); }} className="flex-1 py-1.5 rounded-lg text-[10px] font-bold text-red-600 bg-red-50 hover:bg-red-100 border border-red-100 transition flex items-center justify-center gap-1"><i className="fa-solid fa-minus-circle"></i> خصم</button>
-                                <button onClick={() => { setQuickAction({type:'absence',emp}); setQuickAmount('1'); }} className="flex-1 py-1.5 rounded-lg text-[10px] font-bold text-orange-600 bg-orange-50 hover:bg-orange-100 border border-orange-100 transition flex items-center justify-center gap-1"><i className="fa-solid fa-calendar-xmark"></i> غياب</button>
-                                <button onClick={() => { setQuickAction({type:'bonus',emp}); setQuickAmount(''); }} className="flex-1 py-1.5 rounded-lg text-[10px] font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-100 transition flex items-center justify-center gap-1"><i className="fa-solid fa-gift"></i> مكافأة</button>
+                                <button onClick={() => { setQuickAction({type:'pay',emp}); setQuickAmount(''); setQuickDate(new Date().toISOString().split('T')[0]); }} className="flex-1 py-1.5 rounded-lg text-[10px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-100 transition flex items-center justify-center gap-1"><i className="fa-solid fa-money-bill-wave"></i> قبّض</button>
+                                <button onClick={() => { setQuickAction({type:'deduction',emp}); setQuickAmount(''); setQuickDate(new Date().toISOString().split('T')[0]); }} className="flex-1 py-1.5 rounded-lg text-[10px] font-bold text-red-600 bg-red-50 hover:bg-red-100 border border-red-100 transition flex items-center justify-center gap-1"><i className="fa-solid fa-minus-circle"></i> خصم</button>
+                                <button onClick={() => { setQuickAction({type:'absence',emp}); setQuickAmount('1'); setQuickDate(new Date().toISOString().split('T')[0]); }} className="flex-1 py-1.5 rounded-lg text-[10px] font-bold text-orange-600 bg-orange-50 hover:bg-orange-100 border border-orange-100 transition flex items-center justify-center gap-1"><i className="fa-solid fa-calendar-xmark"></i> غياب</button>
+                                <button onClick={() => { setQuickAction({type:'bonus',emp}); setQuickAmount(''); setQuickDate(new Date().toISOString().split('T')[0]); }} className="flex-1 py-1.5 rounded-lg text-[10px] font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-100 transition flex items-center justify-center gap-1"><i className="fa-solid fa-gift"></i> مكافأة</button>
                             </div>
                         </div>
                     );
@@ -284,8 +288,12 @@ export default function Employees() {
                                     <input type="number" min="0" value={quickAmount} onChange={e => setQuickAmount(e.target.value)} className="w-full bg-white border-2 border-slate-200 rounded-xl p-3 font-bold text-lg focus:ring-4 focus:ring-purple-100 focus:border-purple-600 outline-none transition-all dir-ltr text-right" placeholder={c.placeholder} autoFocus />
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-extrabold text-slate-800 mb-1.5">ملاحظة (اختياري)</label>
-                                    <input type="text" value={quickDesc} onChange={e => setQuickDesc(e.target.value)} className="w-full bg-white border-2 border-slate-200 rounded-xl p-3 font-bold text-sm focus:ring-4 focus:ring-purple-100 focus:border-purple-600 outline-none transition-all" placeholder="سبب..." />
+                                    <label className="block text-sm font-extrabold text-slate-800 mb-1.5">{quickAction.type === 'deduction' || quickAction.type === 'bonus' ? 'السبب *' : 'ملاحظة (اختياري)'}</label>
+                                    <input type="text" value={quickDesc} onChange={e => setQuickDesc(e.target.value)} className="w-full bg-white border-2 border-slate-200 rounded-xl p-3 font-bold text-sm focus:ring-4 focus:ring-purple-100 focus:border-purple-600 outline-none transition-all" placeholder={quickAction.type === 'deduction' ? 'سبب الخصم...' : quickAction.type === 'bonus' ? 'سبب المكافأة...' : 'ملاحظة...'} required={quickAction.type === 'deduction' || quickAction.type === 'bonus'} />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-extrabold text-slate-800 mb-1.5">التاريخ</label>
+                                    <input type="date" value={quickDate} onChange={e => setQuickDate(e.target.value)} className="w-full bg-white border-2 border-slate-200 rounded-xl p-3 font-bold text-sm focus:ring-4 focus:ring-purple-100 focus:border-purple-600 outline-none transition-all" />
                                 </div>
                                 <div className="flex gap-3">
                                     <button onClick={() => setQuickAction(null)} className="flex-1 py-3 rounded-xl font-bold text-slate-600 bg-white border-2 border-slate-200 hover:bg-slate-50 transition">إلغاء</button>
@@ -398,6 +406,13 @@ export default function Employees() {
                                 <div><label className="block text-xs font-extrabold text-slate-800 mb-1">يوم القبض</label>
                                     <select value={form.payDay} onChange={e => handleChange('payDay',e.target.value)} className="w-full border-2 border-slate-200 rounded-xl p-2.5 font-bold text-sm focus:border-purple-600 outline-none">
                                         {Object.entries(DAY_NAMES).map(([k,v]) => <option key={k} value={k}>{v}</option>)}
+                                    </select>
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                                <div><label className="block text-xs font-extrabold text-slate-800 mb-1">مدة القبض</label>
+                                    <select value={form.payCycle} onChange={e => handleChange('payCycle',e.target.value)} className="w-full border-2 border-slate-200 rounded-xl p-2.5 font-bold text-sm focus:border-purple-600 outline-none">
+                                        {Object.entries(PAY_CYCLES).map(([k,v]) => <option key={k} value={k}>{v}</option>)}
                                     </select>
                                 </div>
                             </div>

@@ -15,6 +15,8 @@ const PERMISSIONS_LIST = [
     { id: 'wallets', label: 'المحافظ', icon: 'fa-vault', desc: 'إدارة المحافظ والحركات المالية' },
     { id: 'renewals', label: 'التنبيهات', icon: 'fa-bell', desc: 'تنبيهات التجديد والمديونيات' },
     { id: 'problems', label: 'المشاكل', icon: 'fa-triangle-exclamation', desc: 'تسجيل ومتابعة مشاكل العملاء' },
+    { id: 'employees', label: 'الموظفين', icon: 'fa-id-card-clip', desc: 'إدارة الموظفين والمرتبات والقبض' },
+    { id: 'botSettings', label: 'إعدادات البوت', icon: 'fa-robot', desc: 'التحكم في إشعارات بوت تليجرام' },
     { id: 'manage_attendance', label: 'إدارة الحضور والرواتب', icon: 'fa-user-clock', desc: 'عرض حضور الموظفين وحساب الرواتب' },
 ];
 
