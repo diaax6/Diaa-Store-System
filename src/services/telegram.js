@@ -1,72 +1,77 @@
 // ==========================================
 // Telegram Bot Notification Service
+// Supports multiple chat IDs (comma-separated)
 // ==========================================
 
 const BOT_TOKEN = import.meta.env.VITE_TELEGRAM_BOT_TOKEN;
-const CHAT_ID = import.meta.env.VITE_TELEGRAM_CHAT_ID;
+const CHAT_IDS_RAW = import.meta.env.VITE_TELEGRAM_CHAT_ID || '';
+
+// Parse comma-separated chat IDs
+const CHAT_IDS = CHAT_IDS_RAW.split(',').map(id => id.trim()).filter(Boolean);
 
 const isConfigured = () => {
-    return BOT_TOKEN && BOT_TOKEN !== 'YOUR_BOT_TOKEN_HERE' && CHAT_ID && CHAT_ID !== 'YOUR_CHAT_ID_HERE';
+    return BOT_TOKEN && BOT_TOKEN !== 'YOUR_BOT_TOKEN_HERE' && CHAT_IDS.length > 0;
 };
 
-// Send a raw message to Telegram
-// Uses multiple methods to bypass CORS issues in browsers
-const sendMessage = async (text) => {
-    if (!isConfigured()) {
-        console.warn('[Telegram] Bot not configured — skipping notification');
-        return;
-    }
-
+// Send to a single chat ID
+const sendToChat = async (chatId, text) => {
     const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
     const payload = {
-        chat_id: CHAT_ID,
+        chat_id: chatId,
         text,
         parse_mode: 'HTML',
         disable_web_page_preview: true,
     };
 
     try {
-        // Method 1: Standard fetch
         const res = await fetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload),
         });
-        if (res.ok) {
-            console.log('[Telegram] ✅ Notification sent');
-            return;
-        }
+        if (res.ok) return true;
     } catch (e) {
-        console.warn('[Telegram] Standard fetch failed, trying alternatives...', e.message);
+        // Fetch failed (likely CORS)
     }
 
     try {
-        // Method 2: URL-encoded GET request (CORS-friendly fallback)
+        // Fallback: GET request with URL params
         const params = new URLSearchParams({
-            chat_id: CHAT_ID,
+            chat_id: chatId,
             text: text,
             parse_mode: 'HTML',
             disable_web_page_preview: 'true',
         });
-        const getUrl = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage?${params.toString()}`;
-        
-        // Use a dynamic script/image trick to bypass CORS
         const img = new Image();
-        img.src = getUrl;
-        console.log('[Telegram] ✅ Notification sent (GET fallback)');
-        return;
+        img.src = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage?${params.toString()}`;
+        return true;
     } catch (e2) {
-        console.warn('[Telegram] GET fallback failed:', e2.message);
+        // GET fallback failed
     }
 
     try {
-        // Method 3: Use navigator.sendBeacon (fire-and-forget, works cross-origin)
+        // Fallback 2: sendBeacon
         const beaconData = new Blob([JSON.stringify(payload)], { type: 'application/json' });
         navigator.sendBeacon(url, beaconData);
-        console.log('[Telegram] ✅ Notification sent (sendBeacon)');
+        return true;
     } catch (e3) {
-        console.error('[Telegram] All methods failed:', e3.message);
+        console.error(`[Telegram] Failed to send to ${chatId}`);
     }
+
+    return false;
+};
+
+// Send message to ALL configured chat IDs
+const sendMessage = async (text) => {
+    if (!isConfigured()) {
+        console.warn('[Telegram] Bot not configured — skipping');
+        return;
+    }
+
+    for (const chatId of CHAT_IDS) {
+        await sendToChat(chatId, text);
+    }
+    console.log(`[Telegram] ✅ Sent to ${CHAT_IDS.length} chat(s)`);
 };
 
 // ==========================================
@@ -74,18 +79,15 @@ const sendMessage = async (text) => {
 // ==========================================
 
 const telegram = {
-    // 📦 Stock / Inventory added
-    stockAdded: (sectionName, count, type = 'accounts') => {
-        const icon = type === 'codes' ? '🔑' : '🛡️';
+    stockAdded: (sectionName, count) => {
         sendMessage(
-            `${icon} مخزون جديد\n\n` +
+            `📦 مخزون جديد\n\n` +
             `📂 القسم: ${sectionName}\n` +
             `📊 العدد: ${count} عنصر\n` +
             `📅 ${new Date().toLocaleString('ar-EG', { dateStyle: 'short', timeStyle: 'short' })}`
         );
     },
 
-    // 🆕 New sale created
     newSale: (sale) => {
         const name = sale.customerName || sale.customerEmail || 'عميل';
         const paid = sale.isPaid ? '✅ مدفوع' : '⏳ غير مدفوع';
@@ -103,7 +105,6 @@ const telegram = {
         );
     },
 
-    // ✅ Sale activated
     saleActivated: (sale) => {
         const name = sale.customerName || sale.customerEmail || 'عميل';
         sendMessage(
@@ -115,7 +116,6 @@ const telegram = {
         );
     },
 
-    // 💰 Debt paid
     debtPaid: (sale) => {
         const name = sale.customerName || sale.customerEmail || 'عميل';
         sendMessage(
@@ -127,7 +127,6 @@ const telegram = {
         );
     },
 
-    // 🔄 Sale renewed
     saleRenewed: (sale, newDuration) => {
         const name = sale.customerName || sale.customerEmail || 'عميل';
         sendMessage(
@@ -140,7 +139,6 @@ const telegram = {
         );
     },
 
-    // ⚠️ New problem reported
     newProblem: (problem) => {
         sendMessage(
             `⚠️ مشكلة جديدة\n\n` +
@@ -150,7 +148,6 @@ const telegram = {
         );
     },
 
-    // ✅ Problem resolved
     problemResolved: (problem) => {
         sendMessage(
             `✅ مشكلة محلولة\n\n` +
@@ -160,7 +157,6 @@ const telegram = {
         );
     },
 
-    // 💸 Expense added
     expenseAdded: (expense) => {
         sendMessage(
             `💸 مصروف جديد\n\n` +
@@ -171,7 +167,6 @@ const telegram = {
         );
     },
 
-    // 📤 Inventory pulled
     inventoryPulled: (sectionName, email) => {
         sendMessage(
             `📤 سحب من المخزون\n\n` +
@@ -181,7 +176,6 @@ const telegram = {
         );
     },
 
-    // Custom message
     custom: (title, body) => {
         sendMessage(`📢 ${title}\n\n${body}`);
     },
