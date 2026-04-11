@@ -90,7 +90,7 @@ export default function Users () {
     const handleSave = async (e) => {
         e.preventDefault();
         const formData = new FormData(e.target);
-        const permissions = (selectedRole === 'admin' || selectedRole === 'director')
+        const permissions = (selectedRole === 'admin')
             ? ['all']
             : PERMISSIONS_LIST.filter(p => formData.get(`perm_${p.id}`) === 'on').map(p => p.id);
 
@@ -466,8 +466,8 @@ export default function Users () {
                                     </div>
                                 </div>
 
-                                {/* Permissions — Only for Moderator */}
-                                {selectedRole === 'moderator' && (
+                                {/* Permissions — For Moderator & Director */}
+                                {(selectedRole === 'moderator' || selectedRole === 'director') && (
                                     <div className="pt-2">
                                         <label className="label-style mb-3 block">
                                             تحديد الصلاحيات
@@ -533,17 +533,15 @@ export default function Users () {
                                     </div>
                                 )}
 
-                                {/* Admin/Director Notice */}
-                                {(selectedRole === 'admin' || selectedRole === 'director') && (
-                                    <div className={`border-2 rounded-2xl p-4 flex items-center gap-3 ${selectedRole === 'admin' ? 'bg-purple-50 border-purple-200' : 'bg-amber-50 border-amber-200'}`}>
-                                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-white flex-shrink-0 ${selectedRole === 'admin' ? 'bg-purple-500' : 'bg-amber-500'}`}>
-                                            <i className={`fa-solid ${selectedRole === 'admin' ? 'fa-shield-halved' : 'fa-crown'}`}></i>
+                                {/* Admin Notice */}
+                                {selectedRole === 'admin' && (
+                                    <div className="bg-purple-50 border-2 border-purple-200 rounded-2xl p-4 flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white flex-shrink-0 bg-purple-500">
+                                            <i className="fa-solid fa-shield-halved"></i>
                                         </div>
                                         <div>
-                                            <p className={`text-sm font-bold ${selectedRole === 'admin' ? 'text-purple-700' : 'text-amber-700'}`}>صلاحية كاملة</p>
-                                            <p className={`text-xs font-medium ${selectedRole === 'admin' ? 'text-purple-500' : 'text-amber-500'}`}>
-                                                {selectedRole === 'admin' ? 'الأدمن' : 'الدايركتور'} لديه وصول كامل لجميع الأقسام والإعدادات تلقائياً
-                                            </p>
+                                            <p className="text-sm font-bold text-purple-700">صلاحية كاملة</p>
+                                            <p className="text-xs font-medium text-purple-500">الأدمن لديه وصول كامل لجميع الأقسام والإعدادات تلقائياً</p>
                                         </div>
                                     </div>
                                 )}

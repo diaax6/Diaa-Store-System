@@ -61,9 +61,9 @@ const MainLayout = () => {
           {activeTab === 'shifts' && checkPerm('shifts') && <Shifts />}
           {activeTab === 'wallets' && checkPerm('wallets') && <Wallets />}
           {activeTab === 'problems' && checkPerm('problems') && <Problems />}
-          {activeTab === 'users' && (checkPerm('all') || user.role === 'admin' || user.role === 'director') && <Users />}
-          {activeTab === 'botSettings' && (checkPerm('botSettings') || checkPerm('all') || user.role === 'admin' || user.role === 'director') && <BotSettings />}
-          {activeTab === 'employees' && (checkPerm('employees') || checkPerm('all') || user.role === 'admin' || user.role === 'director') && <Employees />}
+          {activeTab === 'users' && (checkPerm('all') || user.role === 'admin') && <Users />}
+          {activeTab === 'botSettings' && (checkPerm('botSettings') || checkPerm('all') || user.role === 'admin') && <BotSettings />}
+          {activeTab === 'employees' && (checkPerm('employees') || checkPerm('all') || user.role === 'admin') && <Employees />}
 
         </div>
       </main>

@@ -11,7 +11,7 @@ export default function Dashboard() {
     const { hasPermission, user } = useAuth();
 
     // Check if user can view daily profit
-    const canViewDailyProfit = user?.role === 'admin' || user?.role === 'director' || hasPermission('view_daily_profit');
+    const canViewDailyProfit = user?.role === 'admin' || hasPermission('view_daily_profit');
 
     // --- الإحصائيات ---
     const stats = useMemo(() => {

@@ -9,7 +9,7 @@ import { useConfirm } from './ConfirmDialog';
 export default function Sales() {
     const { user, hasPermission } = useAuth();
     const { products, sales: ctxSales, wallets: ctxWallets, customers: ctxCustomers, accounts: ctxAccounts, refreshData } = useData();
-    const isAdmin = user?.role === 'admin' || user?.role === 'director' || hasPermission('all');
+    const isAdmin = user?.role === 'admin' || hasPermission('all');
     const { showConfirm, showAlert } = useConfirm();
 
     // ========= States =========

@@ -7,7 +7,7 @@ import { useConfirm } from './ConfirmDialog';
 export default function Products() {
     const { user, hasPermission } = useAuth();
     const { products: ctxProducts, sections: ctxSections, accounts: ctxAccounts, refreshData, reorderProducts } = useData();
-    const isAdmin = user?.role === 'admin' || user?.role === 'director' || hasPermission('all');
+    const isAdmin = user?.role === 'admin' || hasPermission('all');
     const { showConfirm, showAlert } = useConfirm();
 
     const [products, setProducts] = useState([]);
