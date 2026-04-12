@@ -13,7 +13,7 @@ import {
 } from '../services/api';
 
 const DataContext = createContext();
-const SORT_KEY = 'service-hub_product_order';
+const SORT_KEY = 'diaa-store_product_order';
 
 const getSavedOrder = () => {
     try { return JSON.parse(localStorage.getItem(SORT_KEY) || '{}'); } catch { return {}; }
@@ -229,7 +229,7 @@ export const DataProvider = ({ children }) => {
 
         // ========= Channel 2: Broadcast (client-to-client sync) =========
         // self: false — عشان اللي بيبث ميستقبلش رسالته التانية ومتعملش loop
-        const syncChannel = supabase.channel('service-hub-sync', {
+        const syncChannel = supabase.channel('diaa-store-sync', {
             config: { broadcast: { self: false } }
         });
         syncChannel.on('broadcast', { event: 'data_changed' }, () => {

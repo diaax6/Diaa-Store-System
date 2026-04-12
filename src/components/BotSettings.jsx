@@ -161,7 +161,7 @@ export default function BotSettings() {
                         <p className="font-bold mb-1">ملاحظات مهمة</p>
                         <ul className="space-y-1 text-blue-700">
                             <li>• الإعدادات تتحفظ على <strong>هذا الجهاز فقط</strong> — كل جهاز ليه إعداداته</li>
-                            <li>• الإشعارات بتوصل لجروب <strong>Service Hub Alert</strong> على تليجرام</li>
+                            <li>• الإشعارات بتوصل لجروب <strong>Diaa Store Alert</strong> على تليجرام</li>
                             <li>• لو إشعار معيّن متوقف ← النشاط بيتنفذ عادي بس مش بيبعت للبوت</li>
                             <li>• استخدم زر "اختبار البوت" للتأكد إن التوصيل شغال</li>
                         </ul>

@@ -11,14 +11,14 @@ export default function Sidebar ({ isOpen, onClose }) {
     const [copiedField, setCopiedField] = useState(null);
     const [isDark, setIsDark] = useState(() => {
         if (typeof window !== 'undefined') {
-            return localStorage.getItem('sh_dark_mode') === 'true' || document.documentElement.classList.contains('dark');
+            return localStorage.getItem('ds_dark_mode') === 'true' || document.documentElement.classList.contains('dark');
         }
         return false;
     });
 
     // Apply dark mode on mount
     useEffect(() => {
-        const saved = localStorage.getItem('sh_dark_mode');
+        const saved = localStorage.getItem('ds_dark_mode');
         if (saved === 'true') {
             document.documentElement.classList.add('dark');
             setIsDark(true);
@@ -29,7 +29,7 @@ export default function Sidebar ({ isOpen, onClose }) {
         const newVal = !isDark;
         setIsDark(newVal);
         document.documentElement.classList.toggle('dark', newVal);
-        localStorage.setItem('sh_dark_mode', String(newVal));
+        localStorage.setItem('ds_dark_mode', String(newVal));
     };
 
     // التوجيه التلقائي للمودريتور
@@ -119,7 +119,7 @@ export default function Sidebar ({ isOpen, onClose }) {
                             <i className="fa-solid fa-layer-group text-xl"></i>
                         </div>
                         <div className="overflow-hidden">
-                            <h1 className="text-lg font-black tracking-tight truncate">Service Hub</h1>
+                            <h1 className="text-lg font-black tracking-tight truncate">Diaa Store</h1>
                             <p className="text-[10px] text-slate-400 font-bold">إدارة الاشتراكات</p>
                         </div>
                     </div>

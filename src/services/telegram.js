@@ -9,7 +9,7 @@ const BOT_TOKEN = import.meta.env.VITE_TELEGRAM_BOT_TOKEN || '';
 // PRIMARY: Always send to group. Hardcoded as failsafe.
 const GROUP_CHAT_ID = import.meta.env.VITE_TELEGRAM_CHAT_ID || '-1003933804380';
 
-const PREFS_KEY = 'sh_telegram_prefs';
+const PREFS_KEY = 'ds_telegram_prefs';
 
 const DEFAULT_PREFS = {
     newSale: true,
@@ -149,7 +149,7 @@ const telegram = {
     testConnection: async () => {
         if (!isConfigured()) return { ok: false, error: 'Bot not configured' };
         const text =
-            `🔔 <b>Service Hub</b>\n` +
+            `🔔 <b>Diaa Store</b>\n` +
             `${LINE}\n` +
             `✅ البوت متصل ويعمل بنجاح!\n\n` +
             `📡 Connection test passed\n` +

@@ -42,7 +42,7 @@ const MainLayout = () => {
           <div className="flex justify-between items-center mb-6 lg:hidden bg-white p-4 rounded-xl shadow-sm border border-slate-100">
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white"><i className="fa-solid fa-layer-group"></i></div>
-              <h2 className="text-lg font-black text-slate-800">Service Hub</h2>
+              <h2 className="text-lg font-black text-slate-800">Diaa Store</h2>
             </div>
             <button onClick={() => setSidebarOpen(true)} className="p-2.5 bg-slate-50 text-slate-600 rounded-lg border border-slate-200 hover:bg-slate-100 transition">
               <i className="fa-solid fa-bars text-xl"></i>

@@ -2,7 +2,7 @@ import { createContext, useState, useContext, useEffect, useRef } from 'react';
 import { authAPI } from '../services/api';
 
 const AuthContext = createContext();
-const USER_CACHE_KEY = 'service-hub_user';
+const USER_CACHE_KEY = 'diaa-store_user';
 
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
@@ -15,7 +15,7 @@ export const AuthProvider = ({ children }) => {
         authChecked.current = true;
 
         const checkUser = async () => {
-            const token = localStorage.getItem('service-hub_token');
+            const token = localStorage.getItem('diaa-store_token');
             if (!token) { setLoading(false); return; }
 
             // استخدم البيانات المحفوظة كـ fallback لو الشبكة مش شغالة
@@ -30,7 +30,7 @@ export const AuthProvider = ({ children }) => {
                     localStorage.setItem(USER_CACHE_KEY, JSON.stringify(userData));
                 } else {
                     // Token صريح غير صالح — يعني اتغير أو اتمسح من الداتابيز
-                    localStorage.removeItem('service-hub_token');
+                    localStorage.removeItem('diaa-store_token');
                     localStorage.removeItem(USER_CACHE_KEY);
                     setUser(null);
                 }
@@ -49,7 +49,7 @@ export const AuthProvider = ({ children }) => {
     const login = async (username, password) => {
         const result = await authAPI.login(username, password);
         if (result.status === 'success') {
-            localStorage.setItem('service-hub_token', result.token);
+            localStorage.setItem('diaa-store_token', result.token);
             localStorage.setItem(USER_CACHE_KEY, JSON.stringify(result.user));
             setUser(result.user);
             return { success: true };
@@ -58,11 +58,11 @@ export const AuthProvider = ({ children }) => {
     };
 
     const logout = async () => {
-        const token = localStorage.getItem('service-hub_token');
+        const token = localStorage.getItem('diaa-store_token');
         if (token) {
             try { await authAPI.logout(token); } catch { }
         }
-        localStorage.removeItem('service-hub_token');
+        localStorage.removeItem('diaa-store_token');
         localStorage.removeItem(USER_CACHE_KEY);
         setUser(null);
     };

@@ -57,7 +57,7 @@ export default function Login () {
                                 value={creds.username}
                                 onChange={e => setCreds({ ...creds, username: e.target.value })}
                                 required
-                                placeholder="admin@servicehub.com"
+                                placeholder="admin@diaastore.com"
                             />
                             <i className="fa-solid fa-envelope absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"></i>
                         </div>
@@ -90,7 +90,7 @@ export default function Login () {
                 </form>
 
                 <div className="mt-8 text-center text-xs text-slate-400 font-medium relative z-10">
-                    Service Hub v2.0 — Online
+                    Diaa Store v2.0 — Online
                 </div>
             </div>
 
