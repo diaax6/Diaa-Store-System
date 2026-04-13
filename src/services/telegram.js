@@ -7,7 +7,7 @@
 
 const BOT_TOKEN = import.meta.env.VITE_TELEGRAM_BOT_TOKEN || '';
 // PRIMARY: Always send to group. Hardcoded as failsafe.
-const GROUP_CHAT_ID = import.meta.env.VITE_TELEGRAM_CHAT_ID || '-1003933804380';
+const GROUP_CHAT_ID = import.meta.env.VITE_TELEGRAM_CHAT_ID || '-1003976824578';
 
 const PREFS_KEY = 'ds_telegram_prefs';
 
