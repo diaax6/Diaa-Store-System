@@ -112,20 +112,21 @@ export default function Dashboard() {
 
             {/* --- شريط التذكير --- */}
             <div className="flex justify-center -mb-4 relative z-10">
-                <div className="bg-white border-2 border-emerald-100 text-emerald-800 px-8 py-3 rounded-full shadow-lg shadow-emerald-50 transform hover:-translate-y-1 transition-all duration-300 flex items-center gap-3 group">
-                    <div className="bg-emerald-100 p-2 rounded-full text-emerald-600 group-hover:rotate-12 transition-transform"><i className="fa-solid fa-kaaba"></i></div>
-                    <p className="font-bold text-lg tracking-wide animate-pulse">اللهم صلِّ وسلم على نبينا محمد</p>
-                    <div className="bg-emerald-100 p-2 rounded-full text-emerald-600 group-hover:-rotate-12 transition-transform"><i className="fa-solid fa-mosque"></i></div>
+                <div className="bg-white border border-emerald-200 text-emerald-800 px-8 py-3 rounded-2xl shadow-lg shadow-emerald-50 transform hover:-translate-y-1 transition-all duration-300 flex items-center gap-3 group">
+                    <div className="bg-gradient-to-br from-emerald-100 to-teal-100 p-2.5 rounded-xl text-emerald-600 group-hover:rotate-12 transition-transform"><i className="fa-solid fa-kaaba text-sm"></i></div>
+                    <p className="font-bold text-base tracking-wide animate-pulse">اللهم صلِّ وسلم على نبينا محمد</p>
+                    <div className="bg-gradient-to-br from-emerald-100 to-teal-100 p-2.5 rounded-xl text-emerald-600 group-hover:-rotate-12 transition-transform"><i className="fa-solid fa-mosque text-sm"></i></div>
                 </div>
             </div>
 
             {/* --- Header --- */}
-            <div className="bg-white p-6 pt-10 rounded-2xl shadow-sm border border-slate-100 relative overflow-hidden">
-                <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500"></div>
-                <div className="flex items-center gap-3">
-                    <div className="bg-indigo-50 p-2.5 rounded-lg text-indigo-600"><i className="fa-solid fa-chart-line text-xl"></i></div>
+            <div className="bg-white p-6 pt-10 rounded-2xl shadow-sm border border-slate-200 relative overflow-hidden">
+                <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-indigo-500 via-violet-500 to-purple-500"></div>
+                <div className="absolute top-0 right-0 w-32 h-32 rounded-full bg-indigo-50 -translate-y-1/2 translate-x-1/2 opacity-50 blur-2xl"></div>
+                <div className="flex items-center gap-3 relative z-10">
+                    <div className="bg-gradient-to-br from-indigo-100 to-violet-100 p-3 rounded-xl text-indigo-600"><i className="fa-solid fa-chart-line text-xl"></i></div>
                     <div>
-                        <h2 className="text-xl font-bold text-slate-800">لوحة التحكم</h2>
+                        <h2 className="text-xl font-extrabold text-slate-800">لوحة التحكم</h2>
                         <p className="text-xs text-slate-400 font-bold">نظرة عامة على أداء المبيعات</p>
                     </div>
                 </div>
@@ -239,22 +240,23 @@ export default function Dashboard() {
 }
 
 const StatCard = ({ title, engTitle, value, subTitle, gradient, icon }) => (
-    <div className={`p-6 rounded-2xl text-white shadow-lg shadow-indigo-100 relative overflow-hidden ${gradient} transition transform hover:-translate-y-1 hover:shadow-xl group min-h-[150px] flex flex-col justify-between border border-white/10`}>
-        <div className="absolute -left-4 -bottom-4 text-9xl opacity-10 group-hover:scale-110 transition-transform duration-500 rotate-12">
+    <div className={`p-5 rounded-2xl text-white relative overflow-hidden ${gradient} transition-all duration-300 transform hover:-translate-y-1.5 hover:scale-[1.02] group min-h-[140px] flex flex-col justify-between border border-white/10`} style={{ boxShadow: '0 4px 20px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.15)' }}>
+        <div className="absolute -left-6 -bottom-6 text-[80px] opacity-[0.08] group-hover:opacity-[0.12] group-hover:scale-110 transition-all duration-500 rotate-12">
             <i className={`fa-solid ${icon}`}></i>
         </div>
+        <div className="absolute top-0 right-0 w-24 h-24 rounded-full bg-white/5 -translate-y-1/2 translate-x-1/2 blur-xl"></div>
         <div className="relative z-10 flex justify-between items-start">
             <div>
-                <h3 className="text-lg font-extrabold tracking-wide">{title}</h3>
-                <p className="text-[10px] uppercase opacity-70 font-sans tracking-widest">{engTitle}</p>
+                <h3 className="text-sm font-extrabold tracking-wide leading-tight">{title}</h3>
+                <p className="text-[9px] uppercase opacity-50 font-sans tracking-widest mt-0.5">{engTitle}</p>
             </div>
-            <div className="bg-white/20 p-2 rounded-lg backdrop-blur-sm shadow-inner">
-                <i className={`fa-solid ${icon} text-lg`}></i>
+            <div className="bg-white/15 backdrop-blur-sm p-2 rounded-xl shadow-inner border border-white/10">
+                <i className={`fa-solid ${icon} text-base`}></i>
             </div>
         </div>
-        <div className="relative z-10 mt-4">
-            <p className="text-3xl font-black dir-ltr drop-shadow-md tracking-tight">{value}</p>
-            {subTitle && <p className="text-[10px] opacity-90 mt-1 font-medium bg-black/20 w-fit px-2 py-0.5 rounded">{subTitle}</p>}
+        <div className="relative z-10 mt-3">
+            <p className="text-2xl font-black dir-ltr tracking-tight leading-none" style={{ textShadow: '0 2px 4px rgba(0,0,0,0.2)' }}>{value}</p>
+            {subTitle && <p className="text-[9px] opacity-80 mt-1.5 font-semibold bg-black/15 backdrop-blur-sm w-fit px-2.5 py-0.5 rounded-full border border-white/5">{subTitle}</p>}
         </div>
     </div>
 );
