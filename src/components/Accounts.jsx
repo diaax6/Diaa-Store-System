@@ -271,7 +271,7 @@ export default function Accounts() {
         const targetName = sectionName || currentSection?.name;
         if (!targetName) return;
         try {
-            const result = await accountsAPI.pullNext(targetName);
+            const result = await accountsAPI.pullNext(targetName, user?.username || 'Admin');
             if (result.empty) {
                 setPulledResult({ empty: true, sectionName: targetName });
             } else {

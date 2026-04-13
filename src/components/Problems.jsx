@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { problemsAPI } from '../services/api';
 import { useConfirm } from './ConfirmDialog';
@@ -8,7 +9,9 @@ export default function Problems () {
         window.scrollTo(0, 0);
     }, []);
 
+    const { user } = useAuth();
     const { problems, sales, accounts, refreshData, renewalTarget, setRenewalTarget } = useData();
+    const currentUser = user?.username || 'Admin';
 
     const [showModal, setShowModal] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
@@ -68,6 +71,7 @@ export default function Problems () {
                 productName: sale?.productName || '',
                 description,
                 replacementAccountId: replacementAccountId || null,
+                actionBy: currentUser,
             });
 
             await showAlert({ title: 'تم بنجاح', message: 'تم تسجيل المشكلة بنجاح ✅', type: 'success' });
@@ -112,7 +116,8 @@ export default function Problems () {
         });
         if (!confirmed) return;
         try {
-            await problemsAPI.markResolved(id);
+            const prob = problems.find(p => p.id === id);
+            await problemsAPI.markResolved(id, prob ? { customerName: prob.customerName, description: prob.description, actionBy: currentUser } : null);
             refreshData();
         } catch (error) {
             console.error(error);

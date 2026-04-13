@@ -68,7 +68,7 @@ export default function Sidebar ({ isOpen, onClose }) {
     // Quick pull handler
     const handleQuickPull = async (sectionName) => {
         try {
-            const result = await accountsAPI.pullNext(sectionName);
+            const result = await accountsAPI.pullNext(sectionName, user?.username || 'Admin');
             if (result.empty) {
                 setPullResult({ empty: true, name: sectionName });
             } else {

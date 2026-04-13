@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo } from 'react';
+import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { expensesAPI, walletsAPI } from '../services/api';
 import { useConfirm } from './ConfirmDialog';
@@ -6,7 +7,9 @@ import { useConfirm } from './ConfirmDialog';
 export default function Expenses () {
     useEffect(() => { window.scrollTo(0, 0); }, []);
 
+    const { user } = useAuth();
     const { expenses: ctxExpenses, wallets: ctxWallets, accounts: ctxAccounts, sales: ctxSales, refreshData } = useData();
+    const currentUser = user?.username || 'Admin';
 
     const [expenses, setExpenses] = useState([]);
     const [wallets, setWallets] = useState([]);
@@ -90,6 +93,7 @@ export default function Expenses () {
         data.expenseCategory = data.expenseCategory || 'daily';
 
         try {
+            data.actionBy = currentUser;
             await expensesAPI.create(data);
             await showAlert({ title: 'تم بنجاح', message: 'تم تسجيل المصروف وخصمه من المحفظة ✅', type: 'success' });
             setShowAddModal(false);

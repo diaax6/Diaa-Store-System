@@ -488,7 +488,7 @@ export default function Sales() {
         if (!sale) return;
         try {
             const newPaid = !sale.isPaid;
-            await salesAPI.togglePaid(id, newPaid, sale.finalPrice, newPaid ? sale : null);
+            await salesAPI.togglePaid(id, newPaid, sale.finalPrice, newPaid ? sale : null, user?.username || 'Admin');
             await refreshData();
         } catch (error) {
             console.error(error);

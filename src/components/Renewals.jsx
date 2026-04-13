@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
+import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { salesAPI, walletsAPI } from '../services/api';
 import telegram from '../services/telegram';
@@ -7,7 +8,9 @@ import { useConfirm } from './ConfirmDialog';
 export default function Renewals() {
     useEffect(() => { window.scrollTo(0, 0); }, []);
 
+    const { user } = useAuth();
     const { sales: ctxSales, products, wallets, refreshData } = useData();
+    const currentUser = user?.username || 'Admin';
 
     const [sales, setSales] = useState([]);
     const [activeTab, setActiveTab] = useState('renewals');
@@ -116,7 +119,7 @@ export default function Renewals() {
                 await walletsAPI.deposit(alertItem.walletId, price, `تجديد سريع — ${alertItem.productName} — ${alertItem.customerName || alertItem.customerEmail}`, 'تجديد', 'System');
             }
 
-            telegram.saleRenewed(alertItem, duration);
+            telegram.saleRenewed(alertItem, duration, currentUser);
             setQuickRenewing(null);
             await refreshData();
         } catch (error) {
@@ -171,7 +174,7 @@ export default function Renewals() {
                 await walletsAPI.deposit(walletId, finalPrice, `تجديد — ${newSale.productName} — ${newSale.customerName || newSale.customerEmail}`, 'تجديد', 'System');
             }
 
-            telegram.saleRenewed({ ...sale, ...newSale }, duration);
+            telegram.saleRenewed({ ...sale, ...newSale }, duration, currentUser);
             setShowRenewModal(null);
             await refreshData();
         } catch (error) {
@@ -184,7 +187,7 @@ export default function Renewals() {
     const markPaid = async (id) => {
         const sale = alerts.unpaid.find(s => s.id === id);
         try {
-            await salesAPI.togglePaid(id, true, 0, sale || null);
+            await salesAPI.togglePaid(id, true, 0, sale || null, currentUser);
             await refreshData();
         } catch (error) {
             console.error(error);

@@ -329,9 +329,10 @@ const telegram = {
     // ============================
     // DEBT PAID
     // ============================
-    debtPaid: (sale) => {
+    debtPaid: (sale, actionBy) => {
         const name = sale.customerName || sale.customerEmail || 'عميل';
         const price = Number(sale.finalPrice || 0).toLocaleString();
+        const by = actionBy || sale.moderator || 'Admin';
 
         const text =
             `💰  <b>تم الدفع</b>  •  <code>PAYMENT RECEIVED</code>\n` +
@@ -343,7 +344,8 @@ const telegram = {
             `   💵  المبلغ:  <b>${price} EGP</b>\n` +
             (sale.paymentMethod ? `   🏦  المحفظة:  ${sale.paymentMethod}\n` : '') +
             `\n${DOT_LINE}\n\n` +
-            `   ✅  <b>تم الدفع بالكامل</b>\n\n` +
+            `   ✅  <b>تم الدفع بالكامل</b>\n` +
+            `   👨‍💼  بواسطة:  <b>${by}</b>\n\n` +
             `   📅  ${dateOnly()}  •  🕐 ${timeOnly()}\n\n` +
             `${THIN_LINE}\n` +
             `   💎  <i>Diaa Store</i>`;
@@ -354,9 +356,10 @@ const telegram = {
     // ============================
     // SALE RENEWED
     // ============================
-    saleRenewed: (sale, duration) => {
+    saleRenewed: (sale, duration, actionBy) => {
         const name = sale.customerName || sale.customerEmail || 'عميل';
         const price = Number(sale.finalPrice || 0).toLocaleString();
+        const by = actionBy || sale.moderator || 'Admin';
 
         const text =
             `🔄  <b>تجديد اشتراك</b>  •  <code>RENEWAL</code>\n` +
@@ -368,7 +371,8 @@ const telegram = {
             `   ⏱  المدة:  <b>${duration || 30} يوم</b>\n` +
             `   💰  السعر:  <b>${price} EGP</b>\n` +
             `\n${DOT_LINE}\n\n` +
-            `   ✅  <b>تم التجديد بنجاح</b>\n\n` +
+            `   ✅  <b>تم التجديد بنجاح</b>\n` +
+            `   👨‍💼  بواسطة:  <b>${by}</b>\n\n` +
             `   📅  ${dateOnly()}  •  🕐 ${timeOnly()}\n\n` +
             `${THIN_LINE}\n` +
             `   💎  <i>Diaa Store</i>`;
@@ -379,14 +383,16 @@ const telegram = {
     // ============================
     // STOCK ADDED
     // ============================
-    stockAdded: (sectionName, count) => {
+    stockAdded: (sectionName, count, actionBy) => {
+        const by = actionBy || 'Admin';
         const text =
             `📦  <b>تحديث المخزون</b>  •  <code>STOCK UPDATE</code>\n` +
             `${THIN_LINE}\n\n` +
             `   📂  القسم:  <b>${sectionName}</b>\n` +
             `   📊  الكمية:  <b>+${count}</b> عنصر\n\n` +
             `${DOT_LINE}\n\n` +
-            `   ✅  <b>تم إضافة المخزون</b>\n\n` +
+            `   ✅  <b>تم إضافة المخزون</b>\n` +
+            `   👨‍💼  بواسطة:  <b>${by}</b>\n\n` +
             `   📅  ${dateOnly()}  •  🕐 ${timeOnly()}\n\n` +
             `${THIN_LINE}\n` +
             `   💎  <i>Diaa Store</i>`;
@@ -397,14 +403,16 @@ const telegram = {
     // ============================
     // INVENTORY PULLED
     // ============================
-    inventoryPulled: (sectionName, email) => {
+    inventoryPulled: (sectionName, email, actionBy) => {
+        const by = actionBy || 'Admin';
         const text =
             `📤  <b>سحب من المخزون</b>  •  <code>INVENTORY PULL</code>\n` +
             `${THIN_LINE}\n\n` +
             `   📂  القسم:  <b>${sectionName}</b>\n` +
             `   📧  الحساب:  <code>${email || '-'}</code>\n\n` +
             `${DOT_LINE}\n\n` +
-            `   ✅  <b>تم السحب من المخزون</b>\n\n` +
+            `   ✅  <b>تم السحب من المخزون</b>\n` +
+            `   👨‍💼  بواسطة:  <b>${by}</b>\n\n` +
             `   📅  ${dateOnly()}  •  🕐 ${timeOnly()}\n\n` +
             `${THIN_LINE}\n` +
             `   💎  <i>Diaa Store</i>`;
@@ -415,14 +423,16 @@ const telegram = {
     // ============================
     // NEW PROBLEM
     // ============================
-    newProblem: (problem) => {
+    newProblem: (problem, actionBy) => {
+        const by = actionBy || 'Admin';
         const text =
             `⚠️  <b>مشكلة جديدة</b>  •  <code>NEW PROBLEM</code>\n` +
             `${THIN_LINE}\n\n` +
             `   👤  العميل:  <b>${problem.accountEmail || '-'}</b>\n` +
             `   📝  الوصف:  ${problem.description || '-'}\n\n` +
             `${DOT_LINE}\n\n` +
-            `   🔴  <b>الحالة:  ▸ قيد المعالجة ◂</b>\n\n` +
+            `   🔴  <b>الحالة:  ▸ قيد المعالجة ◂</b>\n` +
+            `   👨‍💼  سجّلها:  <b>${by}</b>\n\n` +
             `   📅  ${dateOnly()}  •  🕐 ${timeOnly()}\n\n` +
             `${THIN_LINE}\n` +
             `   💎  <i>Diaa Store</i>`;
@@ -433,14 +443,16 @@ const telegram = {
     // ============================
     // PROBLEM RESOLVED
     // ============================
-    problemResolved: (problem) => {
+    problemResolved: (problem, actionBy) => {
+        const by = actionBy || 'Admin';
         const text =
             `🟢  <b>تم حل المشكلة</b>  •  <code>RESOLVED</code>\n` +
             `${THIN_LINE}\n\n` +
             `   👤  العميل:  <b>${problem.accountEmail || '-'}</b>\n` +
             `   📝  الوصف:  ${problem.description || '-'}\n\n` +
             `${DOT_LINE}\n\n` +
-            `   ✅  <b>الحالة:  ▸ تم الحل ◂</b>\n\n` +
+            `   ✅  <b>الحالة:  ▸ تم الحل ◂</b>\n` +
+            `   👨‍💼  حلّها:  <b>${by}</b>\n\n` +
             `   📅  ${dateOnly()}  •  🕐 ${timeOnly()}\n\n` +
             `${THIN_LINE}\n` +
             `   💎  <i>Diaa Store</i>`;
@@ -451,7 +463,8 @@ const telegram = {
     // ============================
     // NEW EXPENSE
     // ============================
-    expenseAdded: (expense) => {
+    expenseAdded: (expense, actionBy) => {
+        const by = actionBy || 'Admin';
         const text =
             `💸  <b>مصروف جديد</b>  •  <code>NEW EXPENSE</code>\n` +
             `${THIN_LINE}\n\n` +
@@ -459,6 +472,7 @@ const telegram = {
             `   💰  المبلغ:  <b>${Number(expense.amount || 0).toLocaleString()} EGP</b>\n` +
             `   📂  النوع:  ${expense.type || '-'}\n\n` +
             `${DOT_LINE}\n\n` +
+            `   👨‍💼  بواسطة:  <b>${by}</b>\n` +
             `   📅  ${dateOnly()}  •  🕐 ${timeOnly()}\n\n` +
             `${THIN_LINE}\n` +
             `   💎  <i>Diaa Store</i>`;

@@ -208,7 +208,7 @@ export const accountsAPI = {
             workspace_cost: account.workspaceCost || 0,
         }).select().single();
         if (error) throw error;
-        telegram.stockAdded(account.productName, 1, account.isWorkspace ? 'accounts' : 'accounts');
+        telegram.stockAdded(account.productName, 1, account.createdBy || 'Admin');
         return data;
     },
 
@@ -228,7 +228,7 @@ export const accountsAPI = {
         }));
         const { error } = await supabase.from('accounts').insert(rows);
         if (error) throw error;
-        telegram.stockAdded(accounts[0]?.productName || 'غير محدد', rows.length);
+        telegram.stockAdded(accounts[0]?.productName || 'غير محدد', rows.length, accounts[0]?.createdBy || 'Admin');
     },
 
     async update(id, updates) {
@@ -252,7 +252,7 @@ export const accountsAPI = {
         await supabase.from('accounts').delete().eq('id', id);
     },
 
-    async pullNext(sectionName) {
+    async pullNext(sectionName, actionBy) {
         // Get next available account for a section
         const { data } = await supabase
             .from('accounts')
@@ -283,7 +283,7 @@ export const accountsAPI = {
             productName: target.product_name,
             twoFA: target.two_fa,
         };
-        telegram.inventoryPulled(sectionName, target.email);
+        telegram.inventoryPulled(sectionName, target.email, actionBy);
         return result;
     }
 };
@@ -459,12 +459,12 @@ export const salesAPI = {
         await supabase.from('sales').delete().eq('id', id);
     },
 
-    async togglePaid(id, isPaid, finalPrice, saleInfo) {
+    async togglePaid(id, isPaid, finalPrice, saleInfo, actionBy) {
         await supabase.from('sales').update({
             is_paid: isPaid,
             remaining_amount: isPaid ? 0 : finalPrice
         }).eq('id', id);
-        if (isPaid && saleInfo) telegram.debtPaid(saleInfo);
+        if (isPaid && saleInfo) telegram.debtPaid(saleInfo, actionBy);
     },
 
     async toggleActivated(id, isActivated, saleInfo, activatedBy) {
@@ -531,6 +531,7 @@ export const expensesAPI = {
             expense_category: expense.expenseCategory || 'daily',
         }).select().single();
         if (error) throw error;
+        telegram.expenseAdded(expense, expense.actionBy);
         return data;
     },
 
@@ -810,7 +811,7 @@ export const problemsAPI = {
             is_resolved: false,
         }).select().single();
         if (error) throw error;
-        telegram.newProblem({ accountEmail: problem.customerName, description: problem.description });
+        telegram.newProblem({ accountEmail: problem.customerName, description: problem.description }, problem.actionBy);
         return data;
     },
 
@@ -820,7 +821,7 @@ export const problemsAPI = {
             resolved_at: new Date().toISOString(),
         }).eq('id', id);
         if (error) throw error;
-        if (problemInfo) telegram.problemResolved({ accountEmail: problemInfo.customerName, description: problemInfo.description });
+        if (problemInfo) telegram.problemResolved({ accountEmail: problemInfo.customerName, description: problemInfo.description }, problemInfo.actionBy);
     },
 
     async delete(id) {
