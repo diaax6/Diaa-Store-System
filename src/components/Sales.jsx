@@ -513,7 +513,7 @@ export default function Sales() {
         })));
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "Sales");
-        XLSX.writeFile(wb, `ServiceHub_Sales_${new Date().toISOString().split('T')[0]}.xlsx`);
+        XLSX.writeFile(wb, `DiaaStore_Sales_${new Date().toISOString().split('T')[0]}.xlsx`);
     };
 
     const openAddSale = () => { setEditingSale(null); setShowSaleModal(true); };

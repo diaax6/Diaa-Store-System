@@ -1,4 +1,4 @@
-# Service Hub
+# Diaa Store
 
 > نظام متكامل لإدارة الاشتراكات والمبيعات والعملاء
 
@@ -61,7 +61,7 @@ npm run build
 ## 📁 هيكل المشروع
 
 ```
-service-hub/
+diaa-store/
 ├── index.html              # نقطة الدخول
 ├── public/                 # ملفات ثابتة
 ├── src/

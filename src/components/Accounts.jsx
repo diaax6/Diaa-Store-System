@@ -180,7 +180,7 @@ export default function Accounts() {
             if (isBulkAdd) {
                 const bulkData = fd.get('bulkData')?.trim();
                 if (!bulkData) return;
-                const twoFABaseUrl = 'https://www.servicehub-mail.cloud/2fa-code/';
+                const twoFABaseUrl = 'https://www.diaastore-mail.cloud/2fa-code/';
                 const rows = bulkData.split('\n').map(l => l.trim()).filter(l => l).map(line => {
                     let email = line, password = '', twoFA = '';
                     const separator = line.includes('|') ? '|' : ':';
@@ -758,7 +758,7 @@ export default function Accounts() {
                                                 <li>email | password</li>
                                                 <li>email:password</li>
                                             </ul>
-                                            <p className="text-[10px] text-indigo-500 mt-1.5 font-medium">كود الـ 2FA هيتحول تلقائياً للينك: <span className="font-bold">servicehub-mail.cloud/2fa-code/</span></p>
+                                            <p className="text-[10px] text-indigo-500 mt-1.5 font-medium">كود الـ 2FA هيتحول تلقائياً للينك: <span className="font-bold">diaastore-mail.cloud/2fa-code/</span></p>
                                         </div>
                                     )}
                                 </div>

@@ -4,8 +4,8 @@ import { useData } from '../context/DataContext';
 import { walletsAPI } from '../services/api';
 import { useConfirm } from './ConfirmDialog';
 
-const USD_RATE_KEY = 'service_hub_usd_rate';
-const USD_RATE_TIMESTAMP_KEY = 'service_hub_usd_rate_timestamp';
+const USD_RATE_KEY = 'diaa_store_usd_rate';
+const USD_RATE_TIMESTAMP_KEY = 'diaa_store_usd_rate_timestamp';
 const RATE_CACHE_DURATION = 6 * 60 * 60 * 1000; // 6 hours
 
 const getUsdRate = () => Number(localStorage.getItem(USD_RATE_KEY) || '50');
