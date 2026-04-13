@@ -1,15 +1,16 @@
 // ==========================================
-// Telegram Bot Notification Service v4
-// - Hardcoded group chat ID for reliability
-// - Multiple cross-platform send methods
-// - Beautiful formatted messages
+// Telegram Bot Notification Service v6
+// - Ultra-professional message design
+// - Edit & Delete message support
+// - Message tracking per sale
+// - Status lifecycle: Pending → Activated
 // ==========================================
 
 const BOT_TOKEN = import.meta.env.VITE_TELEGRAM_BOT_TOKEN || '';
-// PRIMARY: Always send to group. Hardcoded as failsafe.
 const GROUP_CHAT_ID = import.meta.env.VITE_TELEGRAM_CHAT_ID || '-1003976824578';
 
 const PREFS_KEY = 'ds_telegram_prefs';
+const MSG_STORE_KEY = 'ds_telegram_msgs';
 
 const DEFAULT_PREFS = {
     newSale: true,
@@ -35,6 +36,34 @@ const savePrefs = (prefs) => {
     localStorage.setItem(PREFS_KEY, JSON.stringify(prefs));
 };
 
+// ==========================================
+// Message ID Store (track messages per sale)
+// ==========================================
+const getMsgStore = () => {
+    try {
+        const saved = localStorage.getItem(MSG_STORE_KEY);
+        if (saved) return JSON.parse(saved);
+    } catch (e) { /* ignore */ }
+    return {};
+};
+
+const saveMsgId = (saleId, messageId) => {
+    const store = getMsgStore();
+    store[saleId] = messageId;
+    localStorage.setItem(MSG_STORE_KEY, JSON.stringify(store));
+};
+
+const getMsgId = (saleId) => {
+    const store = getMsgStore();
+    return store[saleId] || null;
+};
+
+const removeMsgId = (saleId) => {
+    const store = getMsgStore();
+    delete store[saleId];
+    localStorage.setItem(MSG_STORE_KEY, JSON.stringify(store));
+};
+
 const isConfigured = () => BOT_TOKEN && BOT_TOKEN.length > 10;
 
 const timestamp = () => {
@@ -44,14 +73,33 @@ const timestamp = () => {
     return `${d} • ${t}`;
 };
 
+const dateOnly = () => {
+    const now = new Date();
+    return now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+};
+
+const timeOnly = () => {
+    const now = new Date();
+    return now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: true });
+};
+
 // ==========================================
-// Robust sending - 3 methods with retries
+// Design System — Premium Unicode Elements
+// ==========================================
+const LINE_TOP     = '╔══════════════════════════╗';
+const LINE_MID     = '╠══════════════════════════╣';
+const LINE_BOT     = '╚══════════════════════════╝';
+const DOT_LINE     = '┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈';
+const DASH_LINE    = '─────────────────────────────';
+const THIN_LINE    = '▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬';
+
+// ==========================================
+// API Methods
 // ==========================================
 const sendToChat = async (chatId, text) => {
     const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
     const payload = { chat_id: String(chatId), text, parse_mode: 'HTML', disable_web_page_preview: true };
 
-    // Method 1: fetch with no-cors fallback
     try {
         const res = await Promise.race([
             fetch(url, {
@@ -59,39 +107,42 @@ const sendToChat = async (chatId, text) => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload),
             }),
-            new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 6000))
+            new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 8000))
         ]);
-        if (res.ok) { console.log('[TG] ✅ Sent via fetch'); return true; }
+        if (res.ok) {
+            const data = await res.json();
+            console.log('[TG] ✅ Sent via fetch');
+            return data?.result?.message_id || true;
+        }
         console.warn('[TG] fetch non-ok:', res.status);
     } catch (e) {
         console.warn('[TG] fetch failed:', e.message);
     }
 
-    // Method 2: URL params GET (avoids CORS entirely - most mobile compatible!)
+    // Fallback: XHR
     try {
-        const params = new URLSearchParams({
-            chat_id: String(chatId),
-            text: text,
-            parse_mode: 'HTML',
-            disable_web_page_preview: 'true'
+        const msgId = await new Promise((resolve, reject) => {
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', url, true);
+            xhr.setRequestHeader('Content-Type', 'application/json');
+            xhr.timeout = 8000;
+            xhr.onload = () => {
+                try {
+                    const data = JSON.parse(xhr.responseText);
+                    resolve(data?.result?.message_id || true);
+                } catch { resolve(true); }
+            };
+            xhr.onerror = () => reject(new Error('XHR error'));
+            xhr.ontimeout = () => reject(new Error('XHR timeout'));
+            xhr.send(JSON.stringify(payload));
         });
-        const getUrl = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage?${params.toString()}`;
-        
-        // Use Image trick - completely avoids CORS on any browser
-        await new Promise((resolve) => {
-            const img = new Image();
-            img.onload = () => resolve(true);
-            img.onerror = () => resolve(true); // Even on error, the request was sent
-            img.src = getUrl;
-            setTimeout(resolve, 3000);
-        });
-        console.log('[TG] ✅ Sent via Image GET');
-        return true;
+        console.log('[TG] ✅ Sent via XHR');
+        return msgId;
     } catch (e) {
-        console.warn('[TG] Image GET failed:', e.message);
+        console.warn('[TG] XHR failed:', e.message);
     }
 
-    // Method 3: sendBeacon (fire-and-forget)
+    // Fallback: sendBeacon (no message_id returned)
     try {
         if (navigator.sendBeacon) {
             const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
@@ -100,46 +151,73 @@ const sendToChat = async (chatId, text) => {
         }
     } catch (e) { /* ignore */ }
 
-    // Method 4: XHR (final fallback)
-    try {
-        await new Promise((resolve, reject) => {
-            const xhr = new XMLHttpRequest();
-            xhr.open('POST', url, true);
-            xhr.setRequestHeader('Content-Type', 'application/json');
-            xhr.timeout = 6000;
-            xhr.onload = () => resolve();
-            xhr.onerror = () => reject(new Error('XHR error'));
-            xhr.ontimeout = () => reject(new Error('XHR timeout'));
-            xhr.send(JSON.stringify(payload));
-        });
-        console.log('[TG] ✅ Sent via XHR');
-        return true;
-    } catch (e) {
-        console.warn('[TG] XHR failed:', e.message);
-    }
-
     console.error('[TG] ❌ All send methods failed');
     return false;
 };
 
-// Send to group chat only (reliable & consistent)
-const sendMessage = async (type, text) => {
-    if (!isConfigured()) { console.warn('[TG] Not configured'); return; }
+const deleteMessage = async (chatId, messageId) => {
+    if (!messageId || !isConfigured()) return false;
+    const url = `https://api.telegram.org/bot${BOT_TOKEN}/deleteMessage`;
+    try {
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ chat_id: String(chatId), message_id: messageId }),
+        });
+        const data = await res.json();
+        if (data.ok) { console.log('[TG] 🗑️ Deleted message:', messageId); return true; }
+        console.warn('[TG] Delete failed:', data.description);
+    } catch (e) {
+        console.warn('[TG] Delete error:', e.message);
+    }
+    return false;
+};
 
+const editMessage = async (chatId, messageId, text) => {
+    if (!messageId || !isConfigured()) return false;
+    const url = `https://api.telegram.org/bot${BOT_TOKEN}/editMessageText`;
+    try {
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ chat_id: String(chatId), message_id: messageId, text, parse_mode: 'HTML', disable_web_page_preview: true }),
+        });
+        const data = await res.json();
+        if (data.ok) { console.log('[TG] ✏️ Edited message:', messageId); return true; }
+        console.warn('[TG] Edit failed:', data.description);
+    } catch (e) {
+        console.warn('[TG] Edit error:', e.message);
+    }
+    return false;
+};
+
+// Send to group
+const sendMessage = async (type, text) => {
+    if (!isConfigured()) { console.warn('[TG] Not configured'); return null; }
     const prefs = getPrefs();
     if (prefs[type] === false) {
         console.log(`[TG] "${type}" is disabled`);
-        return;
+        return null;
     }
-
-    // Always send to group
-    sendToChat(GROUP_CHAT_ID, text);
+    return sendToChat(GROUP_CHAT_ID, text);
 };
 
 // ==========================================
-// Beautiful Message Templates
+// Helper functions
 // ==========================================
-const LINE = '─────────────────────';
+const contactIcon = (ch) => {
+    if (ch === 'واتساب') return '🟢';
+    if (ch === 'ماسنجر') return '🔵';
+    if (ch === 'تليجرام') return '🔷';
+    return '💬';
+};
+
+const paymentStatusEmoji = (isPaid) => isPaid ? '✅' : '🔴';
+const paymentStatusText = (isPaid) => isPaid ? 'تم الدفع ✓' : 'لم يتم الدفع';
+
+// ==========================================
+// Professional Message Templates v6
+// ==========================================
 
 const telegram = {
     getPrefs,
@@ -149,124 +227,266 @@ const telegram = {
     testConnection: async () => {
         if (!isConfigured()) return { ok: false, error: 'Bot not configured' };
         const text =
-            `🔔 <b>Diaa Store</b>\n` +
-            `${LINE}\n` +
-            `✅ البوت متصل ويعمل بنجاح!\n\n` +
-            `📡 Connection test passed\n` +
-            `📱 Platform: ${/Mobi/i.test(navigator.userAgent) ? 'Mobile' : 'Desktop'}\n` +
-            `🕐 ${timestamp()}`;
+            `🤖  <b>DIAA STORE</b>  •  System Check\n` +
+            `${THIN_LINE}\n\n` +
+            `   ✅  <b>الاتصال ناجح</b>\n\n` +
+            `${DOT_LINE}\n\n` +
+            `   📡  الحالة:  <code>متصل</code>\n` +
+            `   📱  الجهاز:  <code>${/Mobi/i.test(navigator.userAgent) ? 'موبايل' : 'كمبيوتر'}</code>\n` +
+            `   📅  التاريخ:  <code>${dateOnly()}</code>\n` +
+            `   🕐  الوقت:  <code>${timeOnly()}</code>\n\n` +
+            `${THIN_LINE}\n` +
+            `   💎  <i>Diaa Store Management System</i>`;
         const ok = await sendToChat(GROUP_CHAT_ID, text);
         return ok ? { ok: true } : { ok: false, error: 'Failed to send' };
     },
 
-    newSale: (sale) => {
+    // ============================
+    // NEW SALE — قيد التفعيل
+    // ============================
+    newSale: async (sale) => {
         const name = sale.customerName || sale.customerEmail || 'عميل';
-        const paid = sale.isPaid ? '✅ Paid' : '⏳ Unpaid';
-        const activated = sale.isActivated ? '✅ Active' : '🔒 Inactive';
+        const paid = sale.isPaid ? '✅ مدفوع بالكامل' : '🔴 غير مدفوع';
+        const channel = contactIcon(sale.contactChannel);
+        const price = Number(sale.finalPrice || 0).toLocaleString();
+        const discount = sale.discount > 0
+            ? `\n   🏷  الخصم:  <s>${Number(sale.originalPrice || 0).toLocaleString()}</s>  ➜  <b>${price} EGP</b>`
+            : '';
+
         const text =
-            `🛒 <b>NEW SALE</b>\n` +
-            `${LINE}\n\n` +
-            `👤  <b>${name}</b>\n` +
-            `📦  ${sale.productName}\n` +
-            `💰  ${Number(sale.finalPrice || 0).toLocaleString()} EGP\n\n` +
-            `┌ Payment: ${paid}\n` +
-            `├ Status: ${activated}\n` +
-            (sale.paymentMethod ? `├ Wallet: ${sale.paymentMethod}\n` : '') +
-            (sale.moderator ? `├ By: ${sale.moderator}\n` : '') +
-            `└ 🕐 ${timestamp()}`;
-        sendMessage('newSale', text);
+            `📦  <b>أوردر جديد</b>  •  <code>NEW ORDER</code>\n` +
+            `${THIN_LINE}\n\n` +
+            `   👤  العميل:  <b>${name}</b>\n` +
+            (sale.customerPhone ? `   📱  الهاتف:  <code>${sale.customerPhone}</code>\n` : '') +
+            (sale.customerEmail ? `   📧  الإيميل:  <code>${sale.customerEmail}</code>\n` : '') +
+            `   ${channel}  التواصل:  ${sale.contactChannel || 'غير محدد'}\n\n` +
+            `${DOT_LINE}\n\n` +
+            `   🛒  المنتج:  <b>${sale.productName}</b>\n` +
+            `   💰  السعر:  <b>${price} EGP</b>${discount}\n` +
+            `   💳  الدفع:  ${paid}\n` +
+            (!sale.isPaid && sale.remainingAmount > 0
+                ? `   💸  المتبقي:  <b>${Number(sale.remainingAmount).toLocaleString()} EGP</b>\n`
+                : '') +
+            (sale.paymentMethod ? `   🏦  المحفظة:  ${sale.paymentMethod}\n` : '') +
+            `\n${DOT_LINE}\n\n` +
+            `   ⏳  <b>الحالة:  ▸ قيد التفعيل ◂</b>\n\n` +
+            (sale.moderator ? `   👨‍💼  بواسطة:  <b>${sale.moderator}</b>\n` : '') +
+            `   📅  ${dateOnly()}  •  🕐 ${timeOnly()}\n\n` +
+            `${THIN_LINE}\n` +
+            `   💎  <i>Diaa Store</i>`;
+
+        const msgId = await sendMessage('newSale', text);
+
+        // Store message ID for later edit/delete
+        const saleKey = sale.id || `${sale.customerEmail || sale.customerName}_${sale.productName}_${Date.now()}`;
+        if (msgId && typeof msgId === 'number') {
+            saveMsgId(saleKey, msgId);
+        }
+        sale._telegramKey = saleKey;
+        sale._telegramMsgId = msgId;
     },
 
-    saleActivated: (sale) => {
+    // ============================
+    // SALE ACTIVATED — Delete old + Send new
+    // ============================
+    saleActivated: async (sale, activatedBy) => {
         const name = sale.customerName || sale.customerEmail || 'عميل';
+        const price = Number(sale.finalPrice || 0).toLocaleString();
+        const moderator = activatedBy || sale.moderator || 'Admin';
+
+        // Try to delete old "pending" message
+        const saleKey = sale.id || sale._telegramKey;
+        if (saleKey) {
+            const oldMsgId = getMsgId(saleKey);
+            if (oldMsgId) {
+                await deleteMessage(GROUP_CHAT_ID, oldMsgId);
+                removeMsgId(saleKey);
+            }
+        }
+
+        // Send new professional "activated" message
         const text =
-            `✅ <b>ACTIVATED</b>\n` +
-            `${LINE}\n\n` +
-            `👤  <b>${name}</b>\n` +
-            `📦  ${sale.productName}\n` +
-            (sale.customerEmail ? `📧  <code>${sale.customerEmail}</code>\n` : '') +
-            `\n└ 🕐 ${timestamp()}`;
+            `✅  <b>تم التفعيل</b>  •  <code>ACTIVATED</code>\n` +
+            `${THIN_LINE}\n\n` +
+            `   👤  العميل:  <b>${name}</b>\n` +
+            (sale.customerPhone ? `   📱  الهاتف:  <code>${sale.customerPhone}</code>\n` : '') +
+            (sale.customerEmail ? `   📧  الإيميل:  <code>${sale.customerEmail}</code>\n` : '') +
+            `\n${DOT_LINE}\n\n` +
+            `   🛒  المنتج:  <b>${sale.productName}</b>\n` +
+            `   💰  السعر:  <b>${price} EGP</b>\n` +
+            `   💳  الدفع:  ${sale.isPaid ? '✅ مدفوع' : '🔴 غير مدفوع'}\n` +
+            `\n${DOT_LINE}\n\n` +
+            `   ✅  <b>الحالة:  ▸ تم التفعيل ◂</b>\n` +
+            `   👨‍💼  فعّله:  <b>${moderator}</b>\n\n` +
+            `   📅  ${dateOnly()}  •  🕐 ${timeOnly()}\n\n` +
+            `${THIN_LINE}\n` +
+            `   💎  <i>Diaa Store</i>`;
+
         sendMessage('saleActivated', text);
     },
 
+    // ============================
+    // DEBT PAID
+    // ============================
     debtPaid: (sale) => {
         const name = sale.customerName || sale.customerEmail || 'عميل';
+        const price = Number(sale.finalPrice || 0).toLocaleString();
+
         const text =
-            `💰 <b>PAYMENT RECEIVED</b>\n` +
-            `${LINE}\n\n` +
-            `👤  <b>${name}</b>\n` +
-            `📦  ${sale.productName}\n` +
-            `💵  ${Number(sale.finalPrice || 0).toLocaleString()} EGP\n` +
-            `\n└ 🕐 ${timestamp()}`;
+            `💰  <b>تم الدفع</b>  •  <code>PAYMENT RECEIVED</code>\n` +
+            `${THIN_LINE}\n\n` +
+            `   👤  العميل:  <b>${name}</b>\n` +
+            (sale.customerPhone ? `   📱  الهاتف:  <code>${sale.customerPhone}</code>\n` : '') +
+            `\n${DOT_LINE}\n\n` +
+            `   🛒  المنتج:  <b>${sale.productName}</b>\n` +
+            `   💵  المبلغ:  <b>${price} EGP</b>\n` +
+            (sale.paymentMethod ? `   🏦  المحفظة:  ${sale.paymentMethod}\n` : '') +
+            `\n${DOT_LINE}\n\n` +
+            `   ✅  <b>تم الدفع بالكامل</b>\n\n` +
+            `   📅  ${dateOnly()}  •  🕐 ${timeOnly()}\n\n` +
+            `${THIN_LINE}\n` +
+            `   💎  <i>Diaa Store</i>`;
+
         sendMessage('debtPaid', text);
     },
 
+    // ============================
+    // SALE RENEWED
+    // ============================
     saleRenewed: (sale, duration) => {
         const name = sale.customerName || sale.customerEmail || 'عميل';
+        const price = Number(sale.finalPrice || 0).toLocaleString();
+
         const text =
-            `🔄 <b>RENEWAL</b>\n` +
-            `${LINE}\n\n` +
-            `👤  <b>${name}</b>\n` +
-            `📦  ${sale.productName}\n` +
-            `⏱  ${duration || 30} days\n` +
-            `💰  ${Number(sale.finalPrice || 0).toLocaleString()} EGP\n` +
-            `\n└ 🕐 ${timestamp()}`;
+            `🔄  <b>تجديد اشتراك</b>  •  <code>RENEWAL</code>\n` +
+            `${THIN_LINE}\n\n` +
+            `   👤  العميل:  <b>${name}</b>\n` +
+            (sale.customerEmail ? `   📧  الإيميل:  <code>${sale.customerEmail}</code>\n` : '') +
+            `\n${DOT_LINE}\n\n` +
+            `   🛒  المنتج:  <b>${sale.productName}</b>\n` +
+            `   ⏱  المدة:  <b>${duration || 30} يوم</b>\n` +
+            `   💰  السعر:  <b>${price} EGP</b>\n` +
+            `\n${DOT_LINE}\n\n` +
+            `   ✅  <b>تم التجديد بنجاح</b>\n\n` +
+            `   📅  ${dateOnly()}  •  🕐 ${timeOnly()}\n\n` +
+            `${THIN_LINE}\n` +
+            `   💎  <i>Diaa Store</i>`;
+
         sendMessage('saleRenewed', text);
     },
 
+    // ============================
+    // STOCK ADDED
+    // ============================
     stockAdded: (sectionName, count) => {
         const text =
-            `📦 <b>STOCK ADDED</b>\n` +
-            `${LINE}\n\n` +
-            `📂  Section: <b>${sectionName}</b>\n` +
-            `📊  Quantity: <b>${count}</b> item(s)\n` +
-            `\n└ 🕐 ${timestamp()}`;
+            `📦  <b>تحديث المخزون</b>  •  <code>STOCK UPDATE</code>\n` +
+            `${THIN_LINE}\n\n` +
+            `   📂  القسم:  <b>${sectionName}</b>\n` +
+            `   📊  الكمية:  <b>+${count}</b> عنصر\n\n` +
+            `${DOT_LINE}\n\n` +
+            `   ✅  <b>تم إضافة المخزون</b>\n\n` +
+            `   📅  ${dateOnly()}  •  🕐 ${timeOnly()}\n\n` +
+            `${THIN_LINE}\n` +
+            `   💎  <i>Diaa Store</i>`;
+
         sendMessage('stockAdded', text);
     },
 
+    // ============================
+    // INVENTORY PULLED
+    // ============================
     inventoryPulled: (sectionName, email) => {
         const text =
-            `📤 <b>INVENTORY PULL</b>\n` +
-            `${LINE}\n\n` +
-            `📂  Section: <b>${sectionName}</b>\n` +
-            `📧  Account: <code>${email || '-'}</code>\n` +
-            `\n└ 🕐 ${timestamp()}`;
+            `📤  <b>سحب من المخزون</b>  •  <code>INVENTORY PULL</code>\n` +
+            `${THIN_LINE}\n\n` +
+            `   📂  القسم:  <b>${sectionName}</b>\n` +
+            `   📧  الحساب:  <code>${email || '-'}</code>\n\n` +
+            `${DOT_LINE}\n\n` +
+            `   ✅  <b>تم السحب من المخزون</b>\n\n` +
+            `   📅  ${dateOnly()}  •  🕐 ${timeOnly()}\n\n` +
+            `${THIN_LINE}\n` +
+            `   💎  <i>Diaa Store</i>`;
+
         sendMessage('inventoryPulled', text);
     },
 
+    // ============================
+    // NEW PROBLEM
+    // ============================
     newProblem: (problem) => {
         const text =
-            `⚠️ <b>NEW PROBLEM</b>\n` +
-            `${LINE}\n\n` +
-            `📧  ${problem.accountEmail || '-'}\n` +
-            `📝  ${problem.description || '-'}\n` +
-            `\n└ 🕐 ${timestamp()}`;
+            `⚠️  <b>مشكلة جديدة</b>  •  <code>NEW PROBLEM</code>\n` +
+            `${THIN_LINE}\n\n` +
+            `   👤  العميل:  <b>${problem.accountEmail || '-'}</b>\n` +
+            `   📝  الوصف:  ${problem.description || '-'}\n\n` +
+            `${DOT_LINE}\n\n` +
+            `   🔴  <b>الحالة:  ▸ قيد المعالجة ◂</b>\n\n` +
+            `   📅  ${dateOnly()}  •  🕐 ${timeOnly()}\n\n` +
+            `${THIN_LINE}\n` +
+            `   💎  <i>Diaa Store</i>`;
+
         sendMessage('newProblem', text);
     },
 
+    // ============================
+    // PROBLEM RESOLVED
+    // ============================
     problemResolved: (problem) => {
         const text =
-            `🟢 <b>PROBLEM RESOLVED</b>\n` +
-            `${LINE}\n\n` +
-            `📧  ${problem.accountEmail || '-'}\n` +
-            `📝  ${problem.description || '-'}\n` +
-            `\n└ 🕐 ${timestamp()}`;
+            `🟢  <b>تم حل المشكلة</b>  •  <code>RESOLVED</code>\n` +
+            `${THIN_LINE}\n\n` +
+            `   👤  العميل:  <b>${problem.accountEmail || '-'}</b>\n` +
+            `   📝  الوصف:  ${problem.description || '-'}\n\n` +
+            `${DOT_LINE}\n\n` +
+            `   ✅  <b>الحالة:  ▸ تم الحل ◂</b>\n\n` +
+            `   📅  ${dateOnly()}  •  🕐 ${timeOnly()}\n\n` +
+            `${THIN_LINE}\n` +
+            `   💎  <i>Diaa Store</i>`;
+
         sendMessage('problemResolved', text);
     },
 
+    // ============================
+    // NEW EXPENSE
+    // ============================
     expenseAdded: (expense) => {
         const text =
-            `💸 <b>NEW EXPENSE</b>\n` +
-            `${LINE}\n\n` +
-            `📝  ${expense.description || '-'}\n` +
-            `💰  ${Number(expense.amount || 0).toLocaleString()} EGP\n` +
-            `📂  Type: ${expense.type || '-'}\n` +
-            `\n└ 🕐 ${timestamp()}`;
+            `💸  <b>مصروف جديد</b>  •  <code>NEW EXPENSE</code>\n` +
+            `${THIN_LINE}\n\n` +
+            `   📝  الوصف:  <b>${expense.description || '-'}</b>\n` +
+            `   💰  المبلغ:  <b>${Number(expense.amount || 0).toLocaleString()} EGP</b>\n` +
+            `   📂  النوع:  ${expense.type || '-'}\n\n` +
+            `${DOT_LINE}\n\n` +
+            `   📅  ${dateOnly()}  •  🕐 ${timeOnly()}\n\n` +
+            `${THIN_LINE}\n` +
+            `   💎  <i>Diaa Store</i>`;
+
         sendMessage('expenseAdded', text);
     },
 
+    // ============================
+    // CUSTOM MESSAGE
+    // ============================
     custom: (title, body) => {
-        sendMessage('custom', `📢 <b>${title}</b>\n${LINE}\n\n${body}\n\n└ 🕐 ${timestamp()}`);
+        const text =
+            `📢  <b>${title}</b>\n` +
+            `${THIN_LINE}\n\n` +
+            `${body}\n\n` +
+            `${DOT_LINE}\n\n` +
+            `   📅  ${dateOnly()}  •  🕐 ${timeOnly()}\n\n` +
+            `${THIN_LINE}\n` +
+            `   💎  <i>Diaa Store</i>`;
+        sendMessage('custom', text);
+    },
+
+    // Utility: delete old message for a sale
+    deleteOldMessage: async (saleId) => {
+        const msgId = getMsgId(saleId);
+        if (msgId) {
+            await deleteMessage(GROUP_CHAT_ID, msgId);
+            removeMsgId(saleId);
+        }
     },
 };
 

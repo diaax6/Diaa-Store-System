@@ -406,7 +406,7 @@ export const salesAPI = {
         }
         const { data, error } = await supabase.from('sales').insert(insertData).select().single();
         if (error) throw error;
-        telegram.newSale(sale);
+        telegram.newSale({ ...sale, id: data.id });
         return data;
     },
 
@@ -449,11 +449,11 @@ export const salesAPI = {
         if (isPaid && saleInfo) telegram.debtPaid(saleInfo);
     },
 
-    async toggleActivated(id, isActivated, saleInfo) {
+    async toggleActivated(id, isActivated, saleInfo, activatedBy) {
         await supabase.from('sales').update({
             is_activated: isActivated,
         }).eq('id', id);
-        if (isActivated && saleInfo) telegram.saleActivated(saleInfo);
+        if (isActivated && saleInfo) telegram.saleActivated(saleInfo, activatedBy);
     }
 };
 

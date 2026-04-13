@@ -485,7 +485,7 @@ export default function Sales() {
         if (!sale) return;
         try {
             const newActivated = !sale.isActivated;
-            await salesAPI.toggleActivated(id, newActivated, newActivated ? sale : null);
+            await salesAPI.toggleActivated(id, newActivated, newActivated ? sale : null, user?.username || 'Admin');
             await refreshData();
         } catch (error) {
             console.error(error);
