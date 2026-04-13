@@ -50,7 +50,7 @@ export function ConfirmProvider({ children }) {
         <ConfirmContext.Provider value={{ showConfirm, showAlert }}>
             {children}
             {dialog && (
-                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[9999] p-4 animate-confirm-fade-in" onClick={handleCancel}>
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[99999] p-4 animate-confirm-fade-in" onClick={handleCancel}>
                     <div className="bg-white rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden animate-confirm-scale-in" onClick={e => e.stopPropagation()}>
                         {/* Icon + Title */}
                         <div className="p-6 pb-4 text-center">

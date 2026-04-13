@@ -411,7 +411,19 @@ export const salesAPI = {
             insertData.date = sale.date;
         }
         const { data, error } = await supabase.from('sales').insert(insertData).select().single();
-        if (error) throw error;
+        if (error) {
+            // Fallback: if processing columns don't exist yet, retry without them
+            if (error.message && error.message.includes('schema cache')) {
+                delete insertData.processing_status;
+                delete insertData.processing_by;
+                delete insertData.activated_by;
+                const { data: data2, error: error2 } = await supabase.from('sales').insert(insertData).select().single();
+                if (error2) throw error2;
+                telegram.newSale({ ...sale, id: data2.id });
+                return data2;
+            }
+            throw error;
+        }
         telegram.newSale({ ...sale, id: data.id });
         return data;
     },
@@ -465,7 +477,11 @@ export const salesAPI = {
         if (!isActivated) {
             updates.processing_by = '';
         }
-        await supabase.from('sales').update(updates).eq('id', id);
+        const { error } = await supabase.from('sales').update(updates).eq('id', id);
+        if (error && error.message && error.message.includes('schema cache')) {
+            // Fallback: columns don't exist yet
+            await supabase.from('sales').update({ is_activated: isActivated }).eq('id', id);
+        }
         if (isActivated && saleInfo) telegram.saleActivated(saleInfo, activatedBy);
     },
 
@@ -475,11 +491,15 @@ export const salesAPI = {
             processing_status: status,
             processing_by: status === 'processing' ? (processingBy || '') : '',
         };
-        await supabase.from('sales').update(updates).eq('id', id);
+        const { error } = await supabase.from('sales').update(updates).eq('id', id);
+        if (error && error.message && error.message.includes('schema cache')) {
+            // Columns don't exist yet — skip silently
+            console.warn('Processing columns not found. Run SQL migration.');
+            return;
+        }
         if (status === 'processing' && saleInfo) {
             telegram.saleProcessing(saleInfo, processingBy);
         } else if (status === 'new' && saleInfo) {
-            // عند إرجاع الأوردر لـ "جديد" — نعدّل الرسالة تاني
             telegram.saleReverted(saleInfo);
         }
     }
