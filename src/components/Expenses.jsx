@@ -112,6 +112,8 @@ export default function Expenses () {
         data.expenseCategory = data.expenseCategory || 'daily';
 
         try {
+            data._oldExpense = editingExpense;
+            data._actionBy = currentUser;
             await expensesAPI.update(editingExpense.id, data);
             await showAlert({ title: 'تم بنجاح', message: 'تم تعديل المصروف بنجاح ✅', type: 'success' });
             setEditingExpense(null);
@@ -136,7 +138,7 @@ export default function Expenses () {
             await refundToWallet(expense.walletId || expense.wallet_id, expense.amount);
         }
         try {
-            await expensesAPI.delete(id);
+            await expensesAPI.delete(id, expense, currentUser);
             await refreshData();
         } catch (error) {
             console.error(error);

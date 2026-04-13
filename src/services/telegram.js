@@ -508,6 +508,49 @@ const telegram = {
     },
 
     // ============================
+    // EXPENSE EDITED
+    // ============================
+    expenseEdited: (oldExpense, newExpense, actionBy) => {
+        const by = actionBy || 'Admin';
+        const text =
+            `✏️  <b>تعديل مصروف</b>  •  <code>EXPENSE EDITED</code>\n` +
+            `${THIN_LINE}\n\n` +
+            `   📝  الوصف:  <b>${newExpense.description || oldExpense.description || '-'}</b>\n` +
+            `   💰  المبلغ:  <s>${Number(oldExpense.amount || 0).toLocaleString()} EGP</s>  ➡  <b>${Number(newExpense.amount || 0).toLocaleString()} EGP</b>\n` +
+            `   📂  النوع:  ${newExpense.type || oldExpense.type || '-'}\n` +
+            (oldExpense.walletName ? `   🏦  المحفظة:  <b>${oldExpense.walletName}</b>\n` : '') +
+            `\n${DOT_LINE}\n\n` +
+            `   👨‍💼  عدّله:  <b>${by}</b>\n` +
+            `   📅  ${dateOnly()}  •  🕐 ${timeOnly()}\n\n` +
+            `${THIN_LINE}\n` +
+            `   💎  <i>Diaa Store</i>`;
+
+        sendMessage('expenseAdded', text);
+    },
+
+    // ============================
+    // EXPENSE DELETED
+    // ============================
+    expenseDeleted: (expense, actionBy) => {
+        const by = actionBy || 'Admin';
+        const text =
+            `🗑  <b>حذف مصروف</b>  •  <code>EXPENSE DELETED</code>\n` +
+            `${THIN_LINE}\n\n` +
+            `   📝  الوصف:  <b>${expense.description || '-'}</b>\n` +
+            `   💰  المبلغ:  <b>${Number(expense.amount || 0).toLocaleString()} EGP</b>\n` +
+            `   📂  النوع:  ${expense.type || '-'}\n` +
+            (expense.walletName || expense.wallet_name ? `   🏦  المحفظة:  <b>${expense.walletName || expense.wallet_name}</b>  (تم الاسترداد ✅)\n` : '') +
+            `\n${DOT_LINE}\n\n` +
+            `   ❌  <b>تم حذف المصروف</b>\n` +
+            `   👨‍💼  حذفه:  <b>${by}</b>\n` +
+            `   📅  ${dateOnly()}  •  🕐 ${timeOnly()}\n\n` +
+            `${THIN_LINE}\n` +
+            `   💎  <i>Diaa Store</i>`;
+
+        sendMessage('expenseAdded', text);
+    },
+
+    // ============================
     // SALE PROCESSING — Edit existing message
     // ============================
     saleProcessing: async (sale, processingBy) => {

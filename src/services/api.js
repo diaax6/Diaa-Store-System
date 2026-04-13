@@ -559,10 +559,16 @@ export const expensesAPI = {
         if (expense.expenseCategory !== undefined) updates.expense_category = expense.expenseCategory;
         const { error } = await supabase.from('expenses').update(updates).eq('id', id);
         if (error) throw error;
+        if (expense._oldExpense) {
+            telegram.expenseEdited(expense._oldExpense, expense, expense._actionBy);
+        }
     },
 
-    async delete(id) {
+    async delete(id, expenseData, actionBy) {
         await supabase.from('expenses').delete().eq('id', id);
+        if (expenseData) {
+            telegram.expenseDeleted(expenseData, actionBy);
+        }
     }
 };
 
