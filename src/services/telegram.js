@@ -327,6 +327,48 @@ const telegram = {
     },
 
     // ============================
+    // SALE DEACTIVATED — Cancel activation, revert to pending
+    // ============================
+    saleDeactivated: async (sale, deactivatedBy) => {
+        const name = sale.customerName || sale.customerEmail || '\u0639\u0645\u064a\u0644';
+        const price = Number(sale.finalPrice || 0).toLocaleString();
+        const by = deactivatedBy || 'Admin';
+
+        // Delete old "activated" message
+        const saleKey = sale.id || sale._telegramKey;
+        if (saleKey) {
+            const oldMsgId = getMsgId(saleKey);
+            if (oldMsgId) {
+                await deleteMessage(GROUP_CHAT_ID, oldMsgId);
+                removeMsgId(saleKey);
+            }
+        }
+
+        // Send new "deactivated / back to pending" message
+        const text =
+            `\u26a0\ufe0f  <b>\u0625\u0644\u063a\u0627\u0621 \u0627\u0644\u062a\u0641\u0639\u064a\u0644</b>  \u2022  <code>DEACTIVATED</code>\n` +
+            `${THIN_LINE}\n\n` +
+            `   \ud83d\udc64  \u0627\u0644\u0639\u0645\u064a\u0644:  <b>${name}</b>\n` +
+            (sale.customerPhone ? `   \ud83d\udcf1  \u0627\u0644\u0647\u0627\u062a\u0641:  <code>${sale.customerPhone}</code>\n` : '') +
+            `\n${DOT_LINE}\n\n` +
+            `   \ud83d\uded2  \u0627\u0644\u0645\u0646\u062a\u062c:  <b>${sale.productName}</b>\n` +
+            `   \ud83d\udcb0  \u0627\u0644\u0633\u0639\u0631:  <b>${price} EGP</b>\n` +
+            `\n${DOT_LINE}\n\n` +
+            `   \u23f3  <b>\u0627\u0644\u062d\u0627\u0644\u0629:  \u25b8 \u0642\u064a\u062f \u0627\u0644\u062a\u0641\u0639\u064a\u0644 \u25c2</b>\n` +
+            `   \ud83d\udc68\u200d\ud83d\udcbc  \u0623\u0644\u063a\u0627\u0647:  <b>${by}</b>\n\n` +
+            `   \ud83d\udcc5  ${dateOnly()}  \u2022  \ud83d\udd50 ${timeOnly()}\n\n` +
+            `${THIN_LINE}\n` +
+            `   \ud83d\udc8e  <i>Diaa Store</i>`;
+
+        const prefs = getPrefs();
+        if (prefs.saleActivated === false) return;
+        const msgId = await sendToChat(GROUP_CHAT_ID, text);
+        if (saleKey && msgId && typeof msgId === 'number') {
+            saveMsgId(saleKey, msgId);
+        }
+    },
+
+    // ============================
     // DEBT PAID
     // ============================
     debtPaid: (sale, actionBy) => {

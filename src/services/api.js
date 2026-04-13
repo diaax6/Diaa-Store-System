@@ -496,7 +496,11 @@ export const salesAPI = {
             // Fallback: columns don't exist yet
             await supabase.from('sales').update({ is_activated: isActivated }).eq('id', id);
         }
-        if (isActivated && saleInfo) telegram.saleActivated(saleInfo, activatedBy);
+        if (isActivated && saleInfo) {
+            telegram.saleActivated(saleInfo, activatedBy);
+        } else if (!isActivated && saleInfo) {
+            telegram.saleDeactivated(saleInfo, activatedBy);
+        }
     },
 
     async setProcessing(id, status, saleInfo, processingBy) {

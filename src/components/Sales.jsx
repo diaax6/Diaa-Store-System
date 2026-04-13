@@ -522,7 +522,7 @@ export default function Sales() {
         try {
             const newActivated = !sale.isActivated;
             const activatedBy = overrideBy || user?.username || 'Admin';
-            await salesAPI.toggleActivated(id, newActivated, newActivated ? sale : null, activatedBy);
+            await salesAPI.toggleActivated(id, newActivated, sale, activatedBy);
             await refreshData();
         } catch (error) {
             console.error(error);
@@ -756,7 +756,8 @@ export default function Sales() {
                                         {sale.notes && <p className="text-[10px] text-slate-400 mb-2 leading-relaxed"><i className="fa-solid fa-sticky-note text-[8px] ml-1"></i>{sale.notes}</p>}
 
                                         {/* Row 4: Footer */}
-                                        <div className="flex items-center justify-between pt-2 border-t border-slate-100">
+                                        <div className="pt-3 border-t border-slate-100 space-y-2.5">
+                                            {/* Date & Moderator */}
                                             <div className="flex items-center gap-1.5 text-[10px] text-slate-400">
                                                 <i className="fa-regular fa-calendar text-[8px]"></i>
                                                 <span className="font-mono dir-ltr">{new Date(sale.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}</span>
@@ -764,22 +765,37 @@ export default function Sales() {
                                                 <span className="text-slate-300">|</span>
                                                 <span className="text-indigo-500 font-bold">{sale.moderator}</span>
                                             </div>
-                                            <div className="flex items-center gap-1">
-                                                <button onClick={() => togglePaid(sale.id)} className={`w-7 h-7 rounded-lg flex items-center justify-center transition text-xs ${sale.isPaid ? 'bg-emerald-100 text-emerald-600 hover:bg-emerald-200' : 'bg-orange-100 text-orange-600 hover:bg-orange-200'}`} title={sale.isPaid ? 'إلغاء الدفع' : 'تأكيد الدفع'}><i className={`fa-solid ${sale.isPaid ? 'fa-check-double' : 'fa-coins'}`}></i></button>
-                                                {/* Processing button */}
+
+                                            {/* Status Action Buttons */}
+                                            <div className="flex flex-wrap items-center gap-1.5">
+                                                {/* Payment Button */}
+                                                <button onClick={() => togglePaid(sale.id)} className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] font-bold transition-all border ${sale.isPaid ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100 ring-1 ring-emerald-300' : 'bg-orange-50 text-orange-600 border-orange-200 hover:bg-orange-100'}`} title={sale.isPaid ? 'إلغاء الدفع' : 'تأكيد الدفع'}>
+                                                    <i className={`fa-solid ${sale.isPaid ? 'fa-check-double' : 'fa-coins'} text-[9px]`}></i>
+                                                    {sale.isPaid ? 'مدفوع' : 'غير مدفوع'}
+                                                </button>
+
+                                                {/* Processing Button — only show if not activated */}
                                                 {canManageActivation && !sale.isActivated && (
-                                                    <button onClick={() => setProcessingStatus(sale.id)} className={`w-7 h-7 rounded-lg flex items-center justify-center transition text-xs ${sale.processingStatus === 'processing' ? 'bg-yellow-200 text-yellow-700 hover:bg-yellow-300 ring-1 ring-yellow-300' : 'bg-slate-100 text-slate-500 hover:bg-yellow-100 hover:text-yellow-600'}`} title={sale.processingStatus === 'processing' ? 'إرجاع لجديد' : 'قيد التنفيذ'}><i className={`fa-solid ${sale.processingStatus === 'processing' ? 'fa-gear fa-spin' : 'fa-gear'}`}></i></button>
+                                                    <button onClick={() => setProcessingStatus(sale.id)} className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] font-bold transition-all border ${sale.processingStatus === 'processing' ? 'bg-yellow-50 text-yellow-700 border-yellow-300 hover:bg-yellow-100 ring-1 ring-yellow-400 shadow-sm shadow-yellow-100' : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-yellow-50 hover:text-yellow-600 hover:border-yellow-200'}`} title={sale.processingStatus === 'processing' ? `إلغاء التنفيذ (${sale.processingBy || ''})` : 'قيد التنفيذ'}>
+                                                        <i className={`fa-solid ${sale.processingStatus === 'processing' ? 'fa-gear fa-spin' : 'fa-gear'} text-[9px]`}></i>
+                                                        {sale.processingStatus === 'processing' ? 'قيد التنفيذ ⟵ إلغاء' : 'قيد التنفيذ'}
+                                                    </button>
                                                 )}
-                                                {/* Activate button — with admin override */}
+
+                                                {/* Activation Button */}
                                                 {canManageActivation && (
-                                                    isAdmin ? (
-                                                        <button onClick={() => sale.isActivated ? toggleActivated(sale.id) : openAdminActivateModal(sale)} className={`w-7 h-7 rounded-lg flex items-center justify-center transition text-xs ${sale.isActivated ? 'bg-emerald-200 text-emerald-700 hover:bg-emerald-300 ring-1 ring-emerald-300' : 'bg-amber-100 text-amber-600 hover:bg-amber-200'}`} title={sale.isActivated ? 'إلغاء التفعيل' : 'تفعيل (أدمن)'}><i className={`fa-solid ${sale.isActivated ? 'fa-bolt' : 'fa-power-off'}`}></i></button>
-                                                    ) : (
-                                                        <button onClick={() => toggleActivated(sale.id)} className={`w-7 h-7 rounded-lg flex items-center justify-center transition text-xs ${sale.isActivated ? 'bg-emerald-200 text-emerald-700 hover:bg-emerald-300 ring-1 ring-emerald-300' : 'bg-amber-100 text-amber-600 hover:bg-amber-200'}`} title={sale.isActivated ? 'إلغاء التفعيل' : 'تفعيل'}><i className={`fa-solid ${sale.isActivated ? 'fa-bolt' : 'fa-power-off'}`}></i></button>
-                                                    )
+                                                    <button onClick={() => sale.isActivated ? toggleActivated(sale.id) : (isAdmin ? openAdminActivateModal(sale) : toggleActivated(sale.id))} className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] font-bold transition-all border ${sale.isActivated ? 'bg-emerald-100 text-emerald-700 border-emerald-300 hover:bg-emerald-200 ring-1 ring-emerald-400 shadow-sm shadow-emerald-100' : 'bg-amber-50 text-amber-600 border-amber-200 hover:bg-amber-100'}`} title={sale.isActivated ? 'إلغاء التفعيل' : 'تفعيل'}>
+                                                        <i className={`fa-solid ${sale.isActivated ? 'fa-bolt' : 'fa-power-off'} text-[9px]`}></i>
+                                                        {sale.isActivated ? 'مفعّل ✓' : 'تفعيل'}
+                                                    </button>
                                                 )}
-                                                <button onClick={() => openEditSale(sale)} className="w-7 h-7 rounded-lg flex items-center justify-center bg-slate-100 text-slate-500 hover:bg-blue-100 hover:text-blue-600 transition text-xs" title="تعديل"><i className="fa-solid fa-pen-to-square"></i></button>
-                                                <button onClick={() => deleteSale(sale.id)} className="w-7 h-7 rounded-lg flex items-center justify-center bg-slate-100 text-slate-500 hover:bg-red-100 hover:text-red-600 transition text-xs" title="حذف"><i className="fa-solid fa-trash-can"></i></button>
+
+                                                {/* Spacer */}
+                                                <div className="flex-1"></div>
+
+                                                {/* Edit & Delete */}
+                                                <button onClick={() => openEditSale(sale)} className="w-7 h-7 rounded-lg flex items-center justify-center bg-slate-50 text-slate-400 hover:bg-blue-50 hover:text-blue-600 border border-slate-200 hover:border-blue-200 transition text-xs" title="تعديل"><i className="fa-solid fa-pen-to-square"></i></button>
+                                                <button onClick={() => deleteSale(sale.id)} className="w-7 h-7 rounded-lg flex items-center justify-center bg-slate-50 text-slate-400 hover:bg-red-50 hover:text-red-600 border border-slate-200 hover:border-red-200 transition text-xs" title="حذف"><i className="fa-solid fa-trash-can"></i></button>
                                             </div>
                                         </div>
                                     </div>
