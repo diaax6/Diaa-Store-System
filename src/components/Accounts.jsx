@@ -224,6 +224,11 @@ export default function Accounts() {
                 current_uses: newStatus === 'available' ? 0 : Number(fd.get('currentUses') || editingAccount.current_uses),
                 isWorkspace: isWorkspace,
                 workspaceMembers: isWorkspace ? Number(fd.get('workspaceMembers') || 5) : 0,
+                // Metadata for telegram notification
+                _oldStatus: editingAccount.status,
+                _productName: editingAccount.productName,
+                _email: editingAccount.email,
+                _actionBy: user?.username || 'Admin',
             });
             setEditingAccount(null);
             await refreshData();
@@ -254,7 +259,14 @@ export default function Accounts() {
         try {
             const newUses = (acc.current_uses || 0) + 1;
             const newStatus = (acc.allowed_uses !== -1 && newUses >= acc.allowed_uses) ? 'completed' : 'used';
-            await accountsAPI.update(acc.id, { current_uses: newUses, status: newStatus });
+            await accountsAPI.update(acc.id, {
+                current_uses: newUses,
+                status: newStatus,
+                _oldStatus: acc.status,
+                _productName: acc.productName,
+                _email: acc.email,
+                _actionBy: user?.username || 'Admin',
+            });
 
             let t = `البيانات: ${acc.email}`;
             if (acc.password) t += `\nالباسورد: ${acc.password}`;

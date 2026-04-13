@@ -208,7 +208,10 @@ export const accountsAPI = {
             workspace_cost: account.workspaceCost || 0,
         }).select().single();
         if (error) throw error;
-        telegram.stockAdded(account.productName, 1, account.createdBy || 'Admin');
+        // Calculate available count after adding
+        const { data: countData } = await supabase.from('accounts').select('id').eq('product_name', account.productName).eq('status', 'available');
+        const availableAfter = (countData || []).length;
+        telegram.stockAdded(account.productName, 1, account.createdBy || 'Admin', availableAfter);
         return data;
     },
 
@@ -228,7 +231,11 @@ export const accountsAPI = {
         }));
         const { error } = await supabase.from('accounts').insert(rows);
         if (error) throw error;
-        telegram.stockAdded(accounts[0]?.productName || 'غير محدد', rows.length, accounts[0]?.createdBy || 'Admin');
+        // Calculate available count after bulk adding
+        const productName = accounts[0]?.productName || 'غير محدد';
+        const { data: countData } = await supabase.from('accounts').select('id').eq('product_name', productName).eq('status', 'available');
+        const availableAfter = (countData || []).length;
+        telegram.stockAdded(productName, rows.length, accounts[0]?.createdBy || 'Admin', availableAfter);
     },
 
     async update(id, updates) {
@@ -246,6 +253,13 @@ export const accountsAPI = {
 
         const { error } = await supabase.from('accounts').update(dbUpdates).eq('id', id);
         if (error) throw error;
+
+        // Send status change notification if status changed
+        if (updates.status !== undefined && updates._oldStatus && updates._oldStatus !== updates.status) {
+            const { data: countData } = await supabase.from('accounts').select('id').eq('product_name', updates._productName).eq('status', 'available');
+            const availableAfter = (countData || []).length;
+            telegram.stockStatusChanged(updates._productName, updates.email || updates._email, updates._oldStatus, updates.status, updates._actionBy, availableAfter);
+        }
     },
 
     async delete(id) {
@@ -283,7 +297,7 @@ export const accountsAPI = {
             productName: target.product_name,
             twoFA: target.two_fa,
         };
-        telegram.inventoryPulled(sectionName, target.email, actionBy);
+        telegram.inventoryPulled(sectionName, target.email, actionBy, available.length - 1);
         return result;
     }
 };

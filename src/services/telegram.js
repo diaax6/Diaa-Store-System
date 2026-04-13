@@ -22,7 +22,7 @@ const DEFAULT_PREFS = {
     inventoryPulled: true,
     newProblem: true,
     problemResolved: true,
-    expenseAdded: false,
+    expenseAdded: true,
 };
 
 const getPrefs = () => {
@@ -383,14 +383,15 @@ const telegram = {
     // ============================
     // STOCK ADDED
     // ============================
-    stockAdded: (sectionName, count, actionBy) => {
+    stockAdded: (sectionName, count, actionBy, availableAfter) => {
         const by = actionBy || 'Admin';
         const text =
             `📦  <b>تحديث المخزون</b>  •  <code>STOCK UPDATE</code>\n` +
             `${THIN_LINE}\n\n` +
             `   📂  القسم:  <b>${sectionName}</b>\n` +
-            `   📊  الكمية:  <b>+${count}</b> عنصر\n\n` +
-            `${DOT_LINE}\n\n` +
+            `   📊  الكمية المضافة:  <b>+${count}</b> عنصر\n` +
+            (availableAfter !== undefined ? `   🟢  المتاح الآن:  <b>${availableAfter}</b> عنصر\n` : '') +
+            `\n${DOT_LINE}\n\n` +
             `   ✅  <b>تم إضافة المخزون</b>\n` +
             `   👨‍💼  بواسطة:  <b>${by}</b>\n\n` +
             `   📅  ${dateOnly()}  •  🕐 ${timeOnly()}\n\n` +
@@ -403,14 +404,15 @@ const telegram = {
     // ============================
     // INVENTORY PULLED
     // ============================
-    inventoryPulled: (sectionName, email, actionBy) => {
+    inventoryPulled: (sectionName, email, actionBy, availableAfter) => {
         const by = actionBy || 'Admin';
         const text =
             `📤  <b>سحب من المخزون</b>  •  <code>INVENTORY PULL</code>\n` +
             `${THIN_LINE}\n\n` +
             `   📂  القسم:  <b>${sectionName}</b>\n` +
-            `   📧  الحساب:  <code>${email || '-'}</code>\n\n` +
-            `${DOT_LINE}\n\n` +
+            `   📧  الحساب:  <code>${email || '-'}</code>\n` +
+            (availableAfter !== undefined ? `   🟢  المتاح بعد السحب:  <b>${availableAfter}</b> عنصر\n` : '') +
+            `\n${DOT_LINE}\n\n` +
             `   ✅  <b>تم السحب من المخزون</b>\n` +
             `   👨‍💼  بواسطة:  <b>${by}</b>\n\n` +
             `   📅  ${dateOnly()}  •  🕐 ${timeOnly()}\n\n` +
@@ -465,19 +467,44 @@ const telegram = {
     // ============================
     expenseAdded: (expense, actionBy) => {
         const by = actionBy || 'Admin';
+        const walletLine = expense.walletName ? `   🏦  المحفظة:  <b>${expense.walletName}</b>\n` : '';
         const text =
             `💸  <b>مصروف جديد</b>  •  <code>NEW EXPENSE</code>\n` +
             `${THIN_LINE}\n\n` +
             `   📝  الوصف:  <b>${expense.description || '-'}</b>\n` +
             `   💰  المبلغ:  <b>${Number(expense.amount || 0).toLocaleString()} EGP</b>\n` +
-            `   📂  النوع:  ${expense.type || '-'}\n\n` +
-            `${DOT_LINE}\n\n` +
+            `   📂  النوع:  ${expense.type || '-'}\n` +
+            walletLine +
+            (expense.expenseCategory ? `   🏷  التصنيف:  ${expense.expenseCategory === 'stock' ? 'مخزون' : 'يومي / تشغيلي'}\n` : '') +
+            `\n${DOT_LINE}\n\n` +
             `   👨‍💼  بواسطة:  <b>${by}</b>\n` +
             `   📅  ${dateOnly()}  •  🕐 ${timeOnly()}\n\n` +
             `${THIN_LINE}\n` +
             `   💎  <i>Diaa Store</i>`;
 
         sendMessage('expenseAdded', text);
+    },
+
+    // ============================
+    // STOCK STATUS CHANGED
+    // ============================
+    stockStatusChanged: (sectionName, email, oldStatus, newStatus, actionBy, availableAfter) => {
+        const by = actionBy || 'Admin';
+        const statusLabels = { available: 'متاح ✅', used: 'مستخدم 🟡', completed: 'مكتمل ⚫', damaged: 'تالف 🔴', returned: 'مرتجع 🟠' };
+        const text =
+            `🔄  <b>تعديل حالة المخزون</b>  •  <code>STATUS CHANGE</code>\n` +
+            `${THIN_LINE}\n\n` +
+            `   📂  القسم:  <b>${sectionName}</b>\n` +
+            `   📧  الحساب:  <code>${email || '-'}</code>\n` +
+            `   🔀  الحالة:  <s>${statusLabels[oldStatus] || oldStatus}</s>  ➡  <b>${statusLabels[newStatus] || newStatus}</b>\n` +
+            (availableAfter !== undefined ? `   🟢  المتاح الآن:  <b>${availableAfter}</b> عنصر\n` : '') +
+            `\n${DOT_LINE}\n\n` +
+            `   👨‍💼  بواسطة:  <b>${by}</b>\n` +
+            `   📅  ${dateOnly()}  •  🕐 ${timeOnly()}\n\n` +
+            `${THIN_LINE}\n` +
+            `   💎  <i>Diaa Store</i>`;
+
+        sendMessage('stockAdded', text);
     },
 
     // ============================

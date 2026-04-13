@@ -313,7 +313,14 @@ export default function Sales() {
                         // تحديث المخزون
                         const newUses = Number(availableAccount.current_uses) + 1;
                         const newStatus = (Number(availableAccount.allowed_uses) !== -1 && newUses >= Number(availableAccount.allowed_uses)) ? 'completed' : 'used';
-                        await accountsAPI.update(availableAccount.id, { current_uses: newUses, status: newStatus });
+                        await accountsAPI.update(availableAccount.id, {
+                            current_uses: newUses,
+                            status: newStatus,
+                            _oldStatus: availableAccount.status,
+                            _productName: availableAccount.productName,
+                            _email: availableAccount.email,
+                            _actionBy: user?.username || 'Admin',
+                        });
 
                         setAssignedAccountDetails({
                             email: availableAccount.email,
@@ -466,7 +473,14 @@ export default function Sales() {
                 const account = (ctxAccounts || []).find(a => a.id === deleteModal.accountId);
                 if (account) {
                     const newUses = Math.max(0, Number(account.current_uses) - 1);
-                    await accountsAPI.update(account.id, { status: returnStatus, current_uses: newUses });
+                    await accountsAPI.update(account.id, {
+                        status: returnStatus,
+                        current_uses: newUses,
+                        _oldStatus: account.status,
+                        _productName: account.productName,
+                        _email: account.email,
+                        _actionBy: user?.username || 'Admin',
+                    });
                 }
             }
             // عكس المحفظة قبل الحذف
