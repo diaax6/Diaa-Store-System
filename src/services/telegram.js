@@ -14,6 +14,7 @@ const MSG_STORE_KEY = 'ds_telegram_msgs';
 
 const DEFAULT_PREFS = {
     newSale: true,
+    saleProcessing: true,
     saleActivated: true,
     debtPaid: true,
     saleRenewed: true,
@@ -466,17 +467,96 @@ const telegram = {
     },
 
     // ============================
+    // SALE PROCESSING — Edit existing message
+    // ============================
+    saleProcessing: async (sale, processingBy) => {
+        const name = sale.customerName || sale.customerEmail || '\u0639\u0645\u064a\u0644';
+        const price = Number(sale.finalPrice || 0).toLocaleString();
+        const processor = processingBy || sale.moderator || 'Admin';
+
+        const saleKey = sale.id || sale._telegramKey;
+        const oldMsgId = saleKey ? getMsgId(saleKey) : null;
+
+        const text =
+            `\u2699\uFE0F  <b>\u0642\u064A\u062F \u0627\u0644\u062A\u0646\u0641\u064A\u0630</b>  \u2022  <code>PROCESSING</code>\n` +
+            `${THIN_LINE}\n\n` +
+            `   \uD83D\uDC64  \u0627\u0644\u0639\u0645\u064A\u0644:  <b>${name}</b>\n` +
+            (sale.customerPhone ? `   \uD83D\uDCF1  \u0627\u0644\u0647\u0627\u062A\u0641:  <code>${sale.customerPhone}</code>\n` : '') +
+            (sale.customerEmail ? `   \uD83D\uDCE7  \u0627\u0644\u0625\u064A\u0645\u064A\u0644:  <code>${sale.customerEmail}</code>\n` : '') +
+            `\n${DOT_LINE}\n\n` +
+            `   \uD83D\uDED2  \u0627\u0644\u0645\u0646\u062A\u062C:  <b>${sale.productName}</b>\n` +
+            `   \uD83D\uDCB0  \u0627\u0644\u0633\u0639\u0631:  <b>${price} EGP</b>\n` +
+            `   \uD83D\uDCB3  \u0627\u0644\u062F\u0641\u0639:  ${sale.isPaid ? '\u2705 \u0645\u062F\u0641\u0648\u0639' : '\uD83D\uDD34 \u063A\u064A\u0631 \u0645\u062F\u0641\u0648\u0639'}\n` +
+            `\n${DOT_LINE}\n\n` +
+            `   \u2699\uFE0F  <b>\u0627\u0644\u062D\u0627\u0644\u0629:  \u25B8 \u0642\u064A\u062F \u0627\u0644\u062A\u0646\u0641\u064A\u0630 \u25C2</b>\n` +
+            `   \uD83D\uDC68\u200D\uD83D\uDCBC  \u064A\u0639\u0645\u0644 \u0639\u0644\u064A\u0647:  <b>${processor}</b>\n\n` +
+            `   \uD83D\uDCC5  ${dateOnly()}  \u2022  \uD83D\uDD50 ${timeOnly()}\n\n` +
+            `${THIN_LINE}\n` +
+            `   \uD83D\uDC8E  <i>Diaa Store</i>`;
+
+        // Try to edit old message first
+        if (oldMsgId) {
+            const edited = await editMessage(GROUP_CHAT_ID, oldMsgId, text);
+            if (edited) return;
+        }
+
+        // Fallback: send new message if edit fails
+        const prefs = getPrefs();
+        if (prefs.saleProcessing === false) return;
+        const msgId = await sendToChat(GROUP_CHAT_ID, text);
+        if (saleKey && msgId && typeof msgId === 'number') {
+            saveMsgId(saleKey, msgId);
+        }
+    },
+
+    // ============================
+    // SALE REVERTED — Edit message back to pending
+    // ============================
+    saleReverted: async (sale) => {
+        const name = sale.customerName || sale.customerEmail || '\u0639\u0645\u064a\u0644';
+        const channel = contactIcon(sale.contactChannel);
+        const price = Number(sale.finalPrice || 0).toLocaleString();
+        const paid = sale.isPaid ? '\u2705 \u0645\u062f\u0641\u0648\u0639 \u0628\u0627\u0644\u0643\u0627\u0645\u0644' : '\uD83D\uDD34 \u063a\u064a\u0631 \u0645\u062f\u0641\u0648\u0639';
+
+        const saleKey = sale.id || sale._telegramKey;
+        const oldMsgId = saleKey ? getMsgId(saleKey) : null;
+
+        const text =
+            `\uD83D\uDCE6  <b>\u0623\u0648\u0631\u062F\u0631 \u062C\u062F\u064A\u062F</b>  \u2022  <code>NEW ORDER</code>\n` +
+            `${THIN_LINE}\n\n` +
+            `   \uD83D\uDC64  \u0627\u0644\u0639\u0645\u064A\u0644:  <b>${name}</b>\n` +
+            (sale.customerPhone ? `   \uD83D\uDCF1  \u0627\u0644\u0647\u0627\u062A\u0641:  <code>${sale.customerPhone}</code>\n` : '') +
+            (sale.customerEmail ? `   \uD83D\uDCE7  \u0627\u0644\u0625\u064A\u0645\u064A\u0644:  <code>${sale.customerEmail}</code>\n` : '') +
+            `   ${channel}  \u0627\u0644\u062A\u0648\u0627\u0635\u0644:  ${sale.contactChannel || '\u063a\u064a\u0631 \u0645\u062d\u062f\u062f'}\n\n` +
+            `${DOT_LINE}\n\n` +
+            `   \uD83D\uDED2  \u0627\u0644\u0645\u0646\u062A\u062C:  <b>${sale.productName}</b>\n` +
+            `   \uD83D\uDCB0  \u0627\u0644\u0633\u0639\u0631:  <b>${price} EGP</b>\n` +
+            `   \uD83D\uDCB3  \u0627\u0644\u062F\u0641\u0639:  ${paid}\n` +
+            `\n${DOT_LINE}\n\n` +
+            `   \u23F3  <b>\u0627\u0644\u062D\u0627\u0644\u0629:  \u25B8 \u0642\u064A\u062F \u0627\u0644\u062A\u0641\u0639\u064A\u0644 \u25C2</b>\n\n` +
+            (sale.moderator ? `   \uD83D\uDC68\u200D\uD83D\uDCBC  \u0628\u0648\u0627\u0633\u0637\u0629:  <b>${sale.moderator}</b>\n` : '') +
+            `   \uD83D\uDCC5  ${dateOnly()}  \u2022  \uD83D\uDD50 ${timeOnly()}\n\n` +
+            `${THIN_LINE}\n` +
+            `   \uD83D\uDC8E  <i>Diaa Store</i>`;
+
+        // Try to edit old message
+        if (oldMsgId) {
+            await editMessage(GROUP_CHAT_ID, oldMsgId, text);
+        }
+    },
+
+    // ============================
     // CUSTOM MESSAGE
     // ============================
     custom: (title, body) => {
         const text =
-            `📢  <b>${title}</b>\n` +
+            `\uD83D\uDCE2  <b>${title}</b>\n` +
             `${THIN_LINE}\n\n` +
             `${body}\n\n` +
             `${DOT_LINE}\n\n` +
-            `   📅  ${dateOnly()}  •  🕐 ${timeOnly()}\n\n` +
+            `   \uD83D\uDCC5  ${dateOnly()}  \u2022  \uD83D\uDD50 ${timeOnly()}\n\n` +
             `${THIN_LINE}\n` +
-            `   💎  <i>Diaa Store</i>`;
+            `   \uD83D\uDC8E  <i>Diaa Store</i>`;
         sendMessage('custom', text);
     },
 

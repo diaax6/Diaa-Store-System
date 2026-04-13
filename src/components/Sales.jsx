@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
-import { salesAPI, accountsAPI, walletsAPI, customersAPI } from '../services/api';
+import { salesAPI, accountsAPI, walletsAPI, customersAPI, usersAPI } from '../services/api';
 import * as XLSX from 'xlsx';
 import { useConfirm } from './ConfirmDialog';
 
@@ -10,7 +10,13 @@ export default function Sales() {
     const { user, hasPermission } = useAuth();
     const { products, sales: ctxSales, wallets: ctxWallets, customers: ctxCustomers, accounts: ctxAccounts, refreshData } = useData();
     const isAdmin = user?.role === 'admin' || hasPermission('all');
+    const canManageActivation = isAdmin || hasPermission('manage_activation');
     const { showConfirm, showAlert } = useConfirm();
+
+    // Admin activation modal state
+    const [adminActivateModal, setAdminActivateModal] = useState(null);
+    const [adminActivateBy, setAdminActivateBy] = useState('');
+    const [allUsers, setAllUsers] = useState([]);
 
     // ========= States =========
     const [sales, setSales] = useState([]);
@@ -52,6 +58,13 @@ export default function Sales() {
         setWallets(ctxWallets);
         setCustomers(ctxCustomers);
     }, [ctxSales, ctxWallets, ctxCustomers]);
+
+    // Fetch all users for admin activation modal
+    useEffect(() => {
+        if (isAdmin) {
+            usersAPI.getAll().then(setAllUsers).catch(() => {});
+        }
+    }, [isAdmin]);
 
     // Reset customer form when modal opens
     useEffect(() => {
@@ -145,6 +158,8 @@ export default function Sales() {
                 : statusFilter === 'unpaid' ? !s.isPaid
                 : statusFilter === 'activated' ? s.isActivated
                 : statusFilter === 'notActivated' ? !s.isActivated
+                : statusFilter === 'processing' ? (s.processingStatus === 'processing')
+                : statusFilter === 'new_orders' ? (s.processingStatus === 'new' && !s.isActivated)
                 : statusFilter === 'hasDiscount' ? s.discount > 0
                 : statusFilter === 'duplicates' ? (s.customerEmail && duplicateEmails.has(s.customerEmail.toLowerCase().trim()) && s.renewal_stage !== 'renewed')
                 : true;
@@ -480,16 +495,67 @@ export default function Sales() {
         }
     };
 
-    const toggleActivated = async (id) => {
+    const toggleActivated = async (id, overrideBy) => {
         const sale = sales.find(s => s.id === id);
         if (!sale) return;
+
+        // Locking: if order is processing by someone else and user is not admin
+        if (!sale.isActivated && sale.processingStatus === 'processing' && sale.processingBy && sale.processingBy !== (user?.username || 'Admin') && !isAdmin) {
+            showAlert({ title: 'غير مسموح', message: `هذا الأوردر قيد التنفيذ بواسطة ${sale.processingBy}. فقط هو أو الأدمن يقدر يفعّله.`, type: 'warning' });
+            return;
+        }
+
         try {
             const newActivated = !sale.isActivated;
-            await salesAPI.toggleActivated(id, newActivated, newActivated ? sale : null, user?.username || 'Admin');
+            const activatedBy = overrideBy || user?.username || 'Admin';
+            await salesAPI.toggleActivated(id, newActivated, newActivated ? sale : null, activatedBy);
             await refreshData();
         } catch (error) {
             console.error(error);
         }
+    };
+
+    // Processing status toggle
+    const setProcessingStatus = async (id) => {
+        const sale = sales.find(s => s.id === id);
+        if (!sale) return;
+        if (!canManageActivation) {
+            showAlert({ title: 'غير مسموح', message: 'ليس لديك صلاحية إدارة التفعيل', type: 'warning' });
+            return;
+        }
+
+        // If already processing — revert to new (only same user or admin)
+        if (sale.processingStatus === 'processing') {
+            if (sale.processingBy !== (user?.username || 'Admin') && !isAdmin) {
+                showAlert({ title: 'غير مسموح', message: `هذا الأوردر قيد التنفيذ بواسطة ${sale.processingBy}`, type: 'warning' });
+                return;
+            }
+            try {
+                await salesAPI.setProcessing(id, 'new', sale, user?.username || 'Admin');
+                await refreshData();
+            } catch (error) { console.error(error); }
+            return;
+        }
+
+        // Set to processing
+        try {
+            await salesAPI.setProcessing(id, 'processing', sale, user?.username || 'Admin');
+            await refreshData();
+        } catch (error) {
+            console.error(error);
+        }
+    };
+
+    // Admin activation modal
+    const openAdminActivateModal = (sale) => {
+        setAdminActivateBy(user?.username || 'Admin');
+        setAdminActivateModal({ saleId: sale.id, sale });
+    };
+
+    const confirmAdminActivate = async () => {
+        if (!adminActivateModal) return;
+        await toggleActivated(adminActivateModal.saleId, adminActivateBy);
+        setAdminActivateModal(null);
     };
 
     // Copy credentials to clipboard
@@ -568,8 +634,8 @@ export default function Sales() {
                     {/* Filters */}
                     <div className="flex flex-wrap gap-3 items-center">
                         <div className="flex bg-white p-1.5 rounded-xl border border-slate-200 shadow-sm flex-wrap">
-                            {[{ id: 'all', label: 'الكل' }, { id: 'paid', label: 'مدفوع' }, { id: 'unpaid', label: 'غير مدفوع' }, { id: 'activated', label: 'مفعّل' }, { id: 'notActivated', label: 'غير مفعّل' }, { id: 'hasDiscount', label: 'خصومات' }, { id: 'duplicates', label: `مكرر (${duplicateEmails.size})` }].map(f => (
-                                <button key={f.id} onClick={() => setStatusFilter(f.id)} className={`px-3 md:px-4 py-2 rounded-lg text-xs md:text-sm font-bold transition-all ${statusFilter === f.id ? (f.id === 'duplicates' ? 'bg-red-600 text-white shadow-md' : 'bg-indigo-600 text-white shadow-md') : 'text-slate-500 hover:bg-slate-50'}`}>{f.label}</button>
+                            {[{ id: 'all', label: 'الكل' }, { id: 'new_orders', label: 'جديد' }, { id: 'processing', label: 'قيد التنفيذ' }, { id: 'activated', label: 'مفعّل' }, { id: 'paid', label: 'مدفوع' }, { id: 'unpaid', label: 'غير مدفوع' }, { id: 'notActivated', label: 'غير مفعّل' }, { id: 'hasDiscount', label: 'خصومات' }, { id: 'duplicates', label: `مكرر (${duplicateEmails.size})` }].map(f => (
+                                <button key={f.id} onClick={() => setStatusFilter(f.id)} className={`px-3 md:px-4 py-2 rounded-lg text-xs md:text-sm font-bold transition-all ${statusFilter === f.id ? (f.id === 'duplicates' ? 'bg-red-600 text-white shadow-md' : f.id === 'processing' ? 'bg-yellow-500 text-white shadow-md' : f.id === 'new_orders' ? 'bg-cyan-600 text-white shadow-md' : 'bg-indigo-600 text-white shadow-md') : 'text-slate-500 hover:bg-slate-50'}`}>{f.label}</button>
                             ))}
                         </div>
                         {/* Product filter dropdown */}
@@ -610,14 +676,14 @@ export default function Sales() {
                                 const isExpired = daysLeft !== null && daysLeft <= 0;
                                 const isSoon = daysLeft !== null && daysLeft > 0 && daysLeft <= 5;
                                 return (
-                                <div key={sale.id} className="bg-white rounded-2xl border border-slate-200/80 shadow-sm hover:shadow-lg transition-all duration-200 overflow-hidden">
-                                    {/* Header: colored top bar */}
-                                    <div className={`h-1 ${sale.isPaid && sale.isActivated ? 'bg-gradient-to-r from-emerald-400 to-teal-400' : sale.isPaid ? 'bg-gradient-to-r from-emerald-400 to-blue-400' : 'bg-gradient-to-r from-red-400 to-orange-400'}`}></div>
+                                <div key={sale.id} className={`bg-white rounded-2xl border shadow-sm hover:shadow-lg transition-all duration-200 overflow-hidden ${sale.processingStatus === 'processing' ? 'border-yellow-300 ring-1 ring-yellow-200' : 'border-slate-200/80'}`}>
+                                    {/* Header: colored top bar — 3 states */}
+                                    <div className={`h-1.5 ${sale.isActivated ? 'bg-gradient-to-r from-emerald-400 to-teal-400' : sale.processingStatus === 'processing' ? 'bg-gradient-to-r from-yellow-400 to-orange-400 animate-pulse' : sale.isPaid ? 'bg-gradient-to-r from-blue-400 to-indigo-400' : 'bg-gradient-to-r from-red-400 to-orange-400'}`}></div>
                                     
                                     <div className="p-4">
                                         {/* Row 1: Avatar + Name + Price */}
                                         <div className="flex items-center gap-3 mb-3">
-                                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-white font-black text-sm flex-shrink-0 shadow-sm ${sale.isPaid ? 'bg-gradient-to-br from-emerald-500 to-teal-600' : 'bg-gradient-to-br from-red-500 to-orange-600'}`}>
+                                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-white font-black text-sm flex-shrink-0 shadow-sm ${sale.isActivated ? 'bg-gradient-to-br from-emerald-500 to-teal-600' : sale.processingStatus === 'processing' ? 'bg-gradient-to-br from-yellow-500 to-orange-500' : sale.isPaid ? 'bg-gradient-to-br from-blue-500 to-indigo-600' : 'bg-gradient-to-br from-red-500 to-orange-600'}`}>
                                                 {(sale.customerName || sale.customerEmail || 'ع').charAt(0).toUpperCase()}
                                             </div>
                                             <div className="flex-1 min-w-0">
@@ -627,9 +693,25 @@ export default function Sales() {
                                                 </div>
                                                 <div className="flex items-center gap-1 mt-0.5 flex-wrap">
                                                     <span className={`inline-flex items-center gap-0.5 text-[9px] px-1.5 py-0.5 rounded font-bold ${sale.isPaid ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-600'}`}>{sale.isPaid ? '✓ مدفوع' : '○ غير مدفوع'}</span>
-                                                    <span className={`inline-flex items-center gap-0.5 text-[9px] px-1.5 py-0.5 rounded font-bold ${sale.isActivated ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'}`}>{sale.isActivated ? '⚡ مفعّل' : '○ غير مفعّل'}</span>
+                                                    {sale.isActivated ? (
+                                                        <span className="inline-flex items-center gap-0.5 text-[9px] px-1.5 py-0.5 rounded font-bold bg-emerald-100 text-emerald-700">✅ تم التفعيل</span>
+                                                    ) : sale.processingStatus === 'processing' ? (
+                                                        <span className="inline-flex items-center gap-0.5 text-[9px] px-2 py-0.5 rounded-full font-bold bg-yellow-100 text-yellow-700 animate-pulse">⚙️ قيد التنفيذ</span>
+                                                    ) : (
+                                                        <span className="inline-flex items-center gap-0.5 text-[9px] px-1.5 py-0.5 rounded font-bold bg-cyan-100 text-cyan-700">🆕 جديد</span>
+                                                    )}
                                                     {sale.discount > 0 && <span className="text-[9px] px-1.5 py-0.5 rounded font-bold bg-orange-100 text-orange-700">-{sale.discount}</span>}
                                                 </div>
+                                                {sale.processingStatus === 'processing' && sale.processingBy && !sale.isActivated && (
+                                                    <div className="mt-1 text-[9px] font-bold text-yellow-600 bg-yellow-50 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
+                                                        <i className="fa-solid fa-user-gear text-[8px]"></i> يعمل عليه: {sale.processingBy}
+                                                    </div>
+                                                )}
+                                                {sale.isActivated && sale.activatedBy && (
+                                                    <div className="mt-1 text-[9px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
+                                                        <i className="fa-solid fa-circle-check text-[8px]"></i> فعّله: {sale.activatedBy}
+                                                    </div>
+                                                )}
                                             </div>
                                             <div className="text-left flex-shrink-0">
                                                 <div className="text-lg font-black text-slate-800 dir-ltr leading-tight">{Number(sale.finalPrice).toLocaleString()}</div>
@@ -670,7 +752,18 @@ export default function Sales() {
                                             </div>
                                             <div className="flex items-center gap-1">
                                                 <button onClick={() => togglePaid(sale.id)} className={`w-7 h-7 rounded-lg flex items-center justify-center transition text-xs ${sale.isPaid ? 'bg-emerald-100 text-emerald-600 hover:bg-emerald-200' : 'bg-orange-100 text-orange-600 hover:bg-orange-200'}`} title={sale.isPaid ? 'إلغاء الدفع' : 'تأكيد الدفع'}><i className={`fa-solid ${sale.isPaid ? 'fa-check-double' : 'fa-coins'}`}></i></button>
-                                                <button onClick={() => toggleActivated(sale.id)} className={`w-7 h-7 rounded-lg flex items-center justify-center transition text-xs ${sale.isActivated ? 'bg-blue-100 text-blue-600 hover:bg-blue-200' : 'bg-amber-100 text-amber-600 hover:bg-amber-200'}`} title={sale.isActivated ? 'إلغاء التفعيل' : 'تفعيل'}><i className={`fa-solid ${sale.isActivated ? 'fa-bolt' : 'fa-power-off'}`}></i></button>
+                                                {/* Processing button */}
+                                                {canManageActivation && !sale.isActivated && (
+                                                    <button onClick={() => setProcessingStatus(sale.id)} className={`w-7 h-7 rounded-lg flex items-center justify-center transition text-xs ${sale.processingStatus === 'processing' ? 'bg-yellow-200 text-yellow-700 hover:bg-yellow-300 ring-1 ring-yellow-300' : 'bg-slate-100 text-slate-500 hover:bg-yellow-100 hover:text-yellow-600'}`} title={sale.processingStatus === 'processing' ? 'إرجاع لجديد' : 'قيد التنفيذ'}><i className={`fa-solid ${sale.processingStatus === 'processing' ? 'fa-gear fa-spin' : 'fa-gear'}`}></i></button>
+                                                )}
+                                                {/* Activate button — with admin override */}
+                                                {canManageActivation && (
+                                                    isAdmin ? (
+                                                        <button onClick={() => sale.isActivated ? toggleActivated(sale.id) : openAdminActivateModal(sale)} className={`w-7 h-7 rounded-lg flex items-center justify-center transition text-xs ${sale.isActivated ? 'bg-emerald-200 text-emerald-700 hover:bg-emerald-300 ring-1 ring-emerald-300' : 'bg-amber-100 text-amber-600 hover:bg-amber-200'}`} title={sale.isActivated ? 'إلغاء التفعيل' : 'تفعيل (أدمن)'}><i className={`fa-solid ${sale.isActivated ? 'fa-bolt' : 'fa-power-off'}`}></i></button>
+                                                    ) : (
+                                                        <button onClick={() => toggleActivated(sale.id)} className={`w-7 h-7 rounded-lg flex items-center justify-center transition text-xs ${sale.isActivated ? 'bg-emerald-200 text-emerald-700 hover:bg-emerald-300 ring-1 ring-emerald-300' : 'bg-amber-100 text-amber-600 hover:bg-amber-200'}`} title={sale.isActivated ? 'إلغاء التفعيل' : 'تفعيل'}><i className={`fa-solid ${sale.isActivated ? 'fa-bolt' : 'fa-power-off'}`}></i></button>
+                                                    )
+                                                )}
                                                 <button onClick={() => openEditSale(sale)} className="w-7 h-7 rounded-lg flex items-center justify-center bg-slate-100 text-slate-500 hover:bg-blue-100 hover:text-blue-600 transition text-xs" title="تعديل"><i className="fa-solid fa-pen-to-square"></i></button>
                                                 <button onClick={() => deleteSale(sale.id)} className="w-7 h-7 rounded-lg flex items-center justify-center bg-slate-100 text-slate-500 hover:bg-red-100 hover:text-red-600 transition text-xs" title="حذف"><i className="fa-solid fa-trash-can"></i></button>
                                             </div>
@@ -1071,6 +1164,45 @@ export default function Sales() {
                                     <i className="fa-solid fa-spinner fa-spin ml-2"></i> جاري التنفيذ...
                                 </div>
                             )}
+                        </div>
+                    </div>
+                </div>
+            , document.body)}
+
+            {/* ============ ADMIN ACTIVATE MODAL ============ */}
+            {adminActivateModal && createPortal(
+                <div className="animate-fade-in" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15,23,42,0.6)', backdropFilter: 'blur(4px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
+                    <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden">
+                        <div className="p-6 bg-gradient-to-r from-emerald-600 to-teal-600 text-white flex justify-between items-center">
+                            <h3 className="text-lg font-bold flex items-center gap-2">
+                                <i className="fa-solid fa-user-check text-2xl"></i> تفعيل الأوردر
+                            </h3>
+                            <button onClick={() => setAdminActivateModal(null)} className="bg-white/10 hover:bg-white/20 p-2 rounded-full transition"><i className="fa-solid fa-xmark text-lg"></i></button>
+                        </div>
+                        <div className="p-8 space-y-5">
+                            <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200 text-center">
+                                <p className="text-sm font-bold text-slate-600 mb-1">أوردر</p>
+                                <p className="text-lg font-black text-slate-800">{adminActivateModal.sale?.customerName || adminActivateModal.sale?.customerEmail || 'عميل'}</p>
+                                <p className="text-xs text-indigo-600 font-bold mt-1">{adminActivateModal.sale?.productName}</p>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-extrabold text-slate-800 mb-2">تم التفعيل بواسطة</label>
+                                <select value={adminActivateBy} onChange={e => setAdminActivateBy(e.target.value)} className="w-full bg-white border-2 border-emerald-200 rounded-xl p-3.5 font-bold text-sm focus:ring-4 focus:ring-emerald-100 focus:border-emerald-600 outline-none transition-all">
+                                    <option value={user?.username || 'Admin'}>{user?.username || 'Admin'} (أنا)</option>
+                                    {allUsers.filter(u2 => u2.username !== user?.username).map(u2 => (
+                                        <option key={u2.id} value={u2.username}>{u2.username} ({u2.role === 'admin' ? 'أدمن' : u2.role === 'director' ? 'دايركتور' : 'مودريتور'})</option>
+                                    ))}
+                                </select>
+                                <p className="text-[11px] text-slate-400 mt-2 font-medium"><i className="fa-solid fa-info-circle ml-1 text-emerald-400"></i> اختر الموظف اللي فعّل الأوردر</p>
+                            </div>
+
+                            <div className="flex gap-3 pt-2">
+                                <button onClick={() => setAdminActivateModal(null)} className="flex-1 py-3 rounded-xl font-bold text-slate-600 bg-slate-50 border-2 border-slate-200 hover:bg-slate-100 transition">إلغاء</button>
+                                <button onClick={confirmAdminActivate} className="flex-1 py-3 rounded-xl font-bold text-white bg-emerald-600 hover:bg-emerald-700 shadow-lg shadow-emerald-200 transition flex items-center justify-center gap-2">
+                                    <i className="fa-solid fa-check"></i> تفعيل الأوردر
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>

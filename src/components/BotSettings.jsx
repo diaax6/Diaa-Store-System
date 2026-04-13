@@ -3,6 +3,7 @@ import telegram from '../services/telegram';
 
 const NOTIFICATION_TYPES = [
     { key: 'newSale',         label: 'بيع جديد',          icon: 'fa-cart-shopping',       color: 'indigo',  desc: 'عند إنشاء عملية بيع جديدة' },
+    { key: 'saleProcessing',  label: 'قيد التنفيذ',       icon: 'fa-gear',                color: 'yellow',  desc: 'عند بدء العمل على أوردر' },
     { key: 'saleActivated',   label: 'تفعيل بيعة',        icon: 'fa-circle-check',        color: 'emerald', desc: 'عند تعليم بيعة كمفعّلة' },
     { key: 'debtPaid',        label: 'دفع مديونية',       icon: 'fa-hand-holding-dollar', color: 'amber',   desc: 'عند تعليم مديونية كمدفوعة' },
     { key: 'saleRenewed',     label: 'تجديد اشتراك',      icon: 'fa-rotate',              color: 'blue',    desc: 'عند تجديد اشتراك عميل' },

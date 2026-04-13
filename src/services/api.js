@@ -369,6 +369,9 @@ export const salesAPI = {
             workspaceEmail: s.workspace_email || '',
             isActivated: s.is_activated || false,
             customerPassword: s.customer_password || '',
+            processingStatus: s.processing_status || 'new',
+            processingBy: s.processing_by || '',
+            activatedBy: s.activated_by || '',
         }));
     },
 
@@ -399,6 +402,9 @@ export const salesAPI = {
             workspace_email: sale.workspaceEmail || '',
             is_activated: sale.isActivated || false,
             customer_password: sale.customerPassword || '',
+            processing_status: 'new',
+            processing_by: '',
+            activated_by: '',
         };
         // لو فيه تاريخ مخصوص (تسجيل بتاريخ قديم)
         if (sale.date) {
@@ -450,10 +456,32 @@ export const salesAPI = {
     },
 
     async toggleActivated(id, isActivated, saleInfo, activatedBy) {
-        await supabase.from('sales').update({
+        const updates = {
             is_activated: isActivated,
-        }).eq('id', id);
+            processing_status: isActivated ? 'activated' : 'new',
+            activated_by: isActivated ? (activatedBy || 'Admin') : '',
+        };
+        // لو بنلغي التفعيل — نرجع الحالة لـ new
+        if (!isActivated) {
+            updates.processing_by = '';
+        }
+        await supabase.from('sales').update(updates).eq('id', id);
         if (isActivated && saleInfo) telegram.saleActivated(saleInfo, activatedBy);
+    },
+
+    async setProcessing(id, status, saleInfo, processingBy) {
+        // status: 'processing' or 'new' (revert)
+        const updates = {
+            processing_status: status,
+            processing_by: status === 'processing' ? (processingBy || '') : '',
+        };
+        await supabase.from('sales').update(updates).eq('id', id);
+        if (status === 'processing' && saleInfo) {
+            telegram.saleProcessing(saleInfo, processingBy);
+        } else if (status === 'new' && saleInfo) {
+            // عند إرجاع الأوردر لـ "جديد" — نعدّل الرسالة تاني
+            telegram.saleReverted(saleInfo);
+        }
     }
 };
 
