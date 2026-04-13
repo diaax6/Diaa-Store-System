@@ -635,7 +635,7 @@ export default function Sales() {
                     <div className="bg-white/95 backdrop-blur-xl p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col md:flex-row gap-3 items-center justify-between sticky top-2 z-30">
                         <div className="relative w-full md:w-80">
                             <i className="fa-solid fa-search absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
-                            <input type="text" className="w-full bg-white border-2 border-slate-200 text-slate-900 text-sm font-semibold rounded-xl pr-10 p-3 focus:ring-4 focus:ring-indigo-100 focus:border-indigo-600 outline-none transition-all placeholder-slate-400" placeholder="بحث بالاسم أو الرقم أو الإيميل أو المنتج..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+                            <input type="text" className="w-full border-2 border-slate-200 text-slate-900 text-sm font-semibold rounded-xl pr-10 p-3 focus:ring-4 focus:ring-indigo-100 focus:border-indigo-600 outline-none transition-all placeholder-slate-400" placeholder="بحث بالاسم أو الرقم أو الإيميل أو المنتج..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
                         </div>
                         <div className="flex gap-3 w-full md:w-auto">
                             <button onClick={exportExcel} className="bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 font-bold rounded-xl text-sm px-4 py-3 transition-all" title="تصدير Excel"><i className="fa-solid fa-file-excel"></i></button>
