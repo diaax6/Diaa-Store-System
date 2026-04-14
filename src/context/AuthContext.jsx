@@ -57,6 +57,15 @@ export const AuthProvider = ({ children }) => {
         return { success: false, message: result.message };
     };
 
+    const changePassword = async (oldPassword, newPassword) => {
+        try {
+            const result = await authAPI.changePassword(user.id, oldPassword, newPassword);
+            return result;
+        } catch (err) {
+            return { success: false, message: err.message || 'حدث خطأ' };
+        }
+    };
+
     const logout = async () => {
         const token = localStorage.getItem('diaa-store_token');
         if (token) {
@@ -87,7 +96,7 @@ export const AuthProvider = ({ children }) => {
     };
 
     return (
-        <AuthContext.Provider value={{ user, login, logout, hasPermission, loading }}>
+        <AuthContext.Provider value={{ user, login, logout, hasPermission, changePassword, loading }}>
             {!loading && children}
         </AuthContext.Provider>
     );

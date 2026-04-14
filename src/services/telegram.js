@@ -810,6 +810,25 @@ const telegram = {
         sendStock('stockDeleted', text);
     },
 
+    // ♻️ Inventory Returned
+    inventoryReturned: (sectionName, email, returnedBy, availableAfter) => {
+        const by = returnedBy || 'Admin';
+
+        const text =
+            `🟢━━━━━━━━━━━━━━━━━━━━━━━━🟢\n` +
+            `♻️  <b>إرجاع للمخزون</b>  •  <code>ITEM RETURNED</code>\n` +
+            `${SEP}\n\n` +
+            `   📂  القسم:            <b>${sectionName}</b>\n` +
+            (email ? `   📧  الحساب:          <code>${email}</code>\n` : '') +
+            (availableAfter !== undefined ? `   🟢  المتاح الآن:    <b>${availableAfter}</b> عنصر\n` : '') +
+            `\n${SEP}\n\n` +
+            `   ♻️  <b>الحالة:  ▸ تم الإرجاع بنجاح ✓ ◂</b>\n` +
+            `   👨‍💼  أرجعه:   <b>${by}</b>\n` +
+            footer();
+
+        sendStock('inventoryPulled', text);
+    },
+
     // ======================================
     // 💰 SALES GROUP — Financial Movements
     // ======================================

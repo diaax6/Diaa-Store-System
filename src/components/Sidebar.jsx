@@ -256,9 +256,14 @@ export default function Sidebar ({ isOpen, onClose }) {
                             <i className={`fa-solid ${isDark ? 'fa-sun' : 'fa-moon'} text-sm`}></i>
                         </button>
                     </div>
-                    <button onClick={logout} className="w-full flex items-center justify-center gap-2 bg-slate-800 hover:bg-red-500/10 hover:text-red-400 text-slate-400 py-2.5 rounded-xl transition-all border border-slate-700 hover:border-red-500/50 font-bold text-xs">
-                        <i className="fa-solid fa-right-from-bracket"></i> تسجيل خروج
-                    </button>
+                    <div className="space-y-1.5">
+                        <button onClick={() => { setActiveTab('myAccount'); onClose(); }} className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-xl transition-all border font-bold text-xs ${activeTab === 'myAccount' ? 'bg-indigo-600 text-white border-indigo-500' : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700 hover:border-indigo-500/50'}`}>
+                            <i className="fa-solid fa-user-circle"></i> حسابي
+                        </button>
+                        <button onClick={logout} className="w-full flex items-center justify-center gap-2 bg-slate-800 hover:bg-red-500/10 hover:text-red-400 text-slate-400 py-2.5 rounded-xl transition-all border border-slate-700 hover:border-red-500/50 font-bold text-xs">
+                            <i className="fa-solid fa-right-from-bracket"></i> تسجيل خروج
+                        </button>
+                    </div>
                 </div>
             </aside>
 

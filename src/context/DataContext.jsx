@@ -9,7 +9,8 @@ import {
     walletsAPI,
     customersAPI,
     sectionsAPI,
-    problemsAPI
+    problemsAPI,
+    inventoryLogsAPI
 } from '../services/api';
 
 const DataContext = createContext();
@@ -44,6 +45,7 @@ const REALTIME_TABLES = [
     'salary_payments',
     'employee_actions',
     'users',
+    'inventory_logs',
 ];
 
 export const DataProvider = ({ children }) => {
@@ -60,6 +62,7 @@ export const DataProvider = ({ children }) => {
     const [transactions, setTransactions] = useState([]);
     const [sections, setSections] = useState([]);
     const [problems, setProblems] = useState([]);
+    const [inventoryLogs, setInventoryLogs] = useState([]);
     const [loading, setLoading] = useState(false);
     const [productSortOrder, setProductSortOrder] = useState(getSavedOrder);
 
@@ -128,7 +131,8 @@ export const DataProvider = ({ children }) => {
                 walletsData,
                 txnData,
                 sectionsData,
-                problemsData
+                problemsData,
+                logsData
             ] = await Promise.all([
                 salesAPI.getAll(),
                 accountsAPI.getAll(),
@@ -138,7 +142,8 @@ export const DataProvider = ({ children }) => {
                 walletsAPI.getAll(),
                 walletsAPI.getTransactions(),
                 sectionsAPI.getAll(),
-                problemsAPI.getAll()
+                problemsAPI.getAll(),
+                inventoryLogsAPI.getAll().catch(() => [])
             ]);
 
             setSales(salesData);
@@ -154,6 +159,7 @@ export const DataProvider = ({ children }) => {
             setTransactions(txnData);
             setSections(sectionsData);
             setProblems(problemsData);
+            setInventoryLogs(logsData);
 
             // Calculate stats
             const totalRevenue = salesData.reduce((a, b) => a + (Number(b.finalPrice || b.final_price) || 0), 0);
@@ -255,7 +261,7 @@ export const DataProvider = ({ children }) => {
 
     return (
         <DataContext.Provider value={{
-            sales, accounts, expenses, products, customers, wallets, transactions, sections, problems, stats,
+            sales, accounts, expenses, products, customers, wallets, transactions, sections, problems, inventoryLogs, stats,
             activeTab, setActiveTab,
             renewalTarget, setRenewalTarget,
             refreshData, reorderProducts,

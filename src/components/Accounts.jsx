@@ -1,13 +1,13 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
-import { accountsAPI, sectionsAPI, quickLinksAPI } from '../services/api';
+import { accountsAPI, sectionsAPI, quickLinksAPI, inventoryLogsAPI } from '../services/api';
 import { useConfirm } from './ConfirmDialog';
 
 export default function Accounts() {
     const { user } = useAuth();
     const isAdmin = user?.role === 'admin';
-    const { products, accounts: ctxAccounts, sections: ctxSections, refreshData } = useData();
+    const { products, accounts: ctxAccounts, sections: ctxSections, inventoryLogs, refreshData } = useData();
 
     const [accounts, setAccounts] = useState([]);
     const [sections, setSections] = useState([]);
@@ -27,6 +27,11 @@ export default function Accounts() {
     const [showLinkModal, setShowLinkModal] = useState(false);
     const [linksExpanded, setLinksExpanded] = useState(true);
     const { showConfirm, showAlert } = useConfirm();
+    const [showActivityLog, setShowActivityLog] = useState(false);
+    const [logFilterType, setLogFilterType] = useState('all');
+    const [logFilterUser, setLogFilterUser] = useState('all');
+    const [logVisibleCount, setLogVisibleCount] = useState(30);
+    const [returningId, setReturningId] = useState(null);
 
     useEffect(() => { window.scrollTo(0, 0); }, []);
 
@@ -474,6 +479,24 @@ export default function Accounts() {
                                 })}
                             </div>
                         </div>
+                    )}
+
+                    {/* ===== ACTIVITY LOG BUTTON ===== */}
+                    {isAdmin && (
+                        <button onClick={() => { setShowActivityLog(true); setLogVisibleCount(30); setLogFilterType('all'); setLogFilterUser('all'); }}
+                            className="w-full bg-gradient-to-r from-cyan-500 to-blue-600 text-white rounded-2xl p-4 shadow-lg flex items-center justify-between hover:shadow-xl hover:-translate-y-0.5 transition-all group">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 bg-white/15 rounded-xl flex items-center justify-center"><i className="fa-solid fa-clock-rotate-left text-lg"></i></div>
+                                <div className="text-right">
+                                    <h3 className="font-extrabold text-sm">سجل نشاط المخزون</h3>
+                                    <p className="text-cyan-200 text-[10px] font-medium">تتبع جميع عمليات السحب والإضافة والإرجاع</p>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <span className="bg-white/15 px-3 py-1 rounded-full text-xs font-black">{inventoryLogs.length} عملية</span>
+                                <i className="fa-solid fa-arrow-left text-sm group-hover:-translate-x-1 transition-transform"></i>
+                            </div>
+                        </button>
                     )}
 
                     {/* ===== QUICK LINKS ===== */}
@@ -1105,11 +1128,150 @@ export default function Accounts() {
                 </div>
             )}
 
+            {/* ===== ADMIN ACTIVITY LOG MODAL ===== */}
+            {showActivityLog && isAdmin && (() => {
+                const logGetActionInfo = (type) => {
+                    const map = {
+                        pull: { label: 'سحب', color: 'bg-amber-50 text-amber-700 border-amber-200', icon: 'fa-arrow-up-from-bracket', dot: 'bg-amber-500' },
+                        add: { label: 'إضافة', color: 'bg-emerald-50 text-emerald-700 border-emerald-200', icon: 'fa-plus', dot: 'bg-emerald-500' },
+                        bulk_add: { label: 'إضافة جماعية', color: 'bg-teal-50 text-teal-700 border-teal-200', icon: 'fa-layer-group', dot: 'bg-teal-500' },
+                        return: { label: 'إرجاع', color: 'bg-blue-50 text-blue-700 border-blue-200', icon: 'fa-rotate-left', dot: 'bg-blue-500' },
+                        edit: { label: 'تعديل', color: 'bg-purple-50 text-purple-700 border-purple-200', icon: 'fa-pen', dot: 'bg-purple-500' },
+                        delete: { label: 'حذف', color: 'bg-red-50 text-red-700 border-red-200', icon: 'fa-trash', dot: 'bg-red-500' },
+                    };
+                    return map[type] || map.pull;
+                };
+
+                const logFormatDate = (d) => d ? new Date(d).toLocaleDateString('ar-EG', { day: '2-digit', month: 'short', year: 'numeric' }) : '-';
+                const logFormatTime = (d) => d ? new Date(d).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: true }) : '';
+
+                // Get unique users from logs
+                const logUsers = [...new Set(inventoryLogs.map(l => l.performedBy))].filter(Boolean);
+
+                // Filter logs
+                let displayLogs = inventoryLogs;
+                if (logFilterType !== 'all') displayLogs = displayLogs.filter(l => l.actionType === logFilterType);
+                if (logFilterUser !== 'all') displayLogs = displayLogs.filter(l => l.performedBy === logFilterUser);
+
+                // Stats
+                const logStats = {
+                    total: inventoryLogs.length,
+                    pulls: inventoryLogs.filter(l => l.actionType === 'pull').length,
+                    adds: inventoryLogs.filter(l => l.actionType === 'add' || l.actionType === 'bulk_add').length,
+                    returns: inventoryLogs.filter(l => l.actionType === 'return').length,
+                };
+
+                const handleLogReturn = async (log) => {
+                    if (log.isReturned || log.actionType !== 'pull') return;
+                    const confirmed = await showConfirm({ title: 'إرجاع العنصر', message: `إرجاع "${log.accountEmail}" إلى "${log.sectionName}"؟`, confirmText: 'إرجاع', cancelText: 'إلغاء', type: 'warning' });
+                    if (!confirmed) return;
+                    setReturningId(log.id);
+                    try {
+                        await inventoryLogsAPI.returnItem(log.id, log.accountId, log.sectionName, user?.username || 'Admin');
+                        await refreshData();
+                    } catch (err) { console.error(err); }
+                    setReturningId(null);
+                };
+
+                return (
+                    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[999] p-4 animate-fade-in">
+                        <div className="bg-white rounded-3xl w-full max-w-4xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+                            {/* Header */}
+                            <div className="p-6 bg-gradient-to-r from-cyan-600 to-blue-600 text-white flex justify-between items-center flex-shrink-0">
+                                <div>
+                                    <h3 className="text-xl font-bold flex items-center gap-2"><i className="fa-solid fa-clock-rotate-left"></i> سجل نشاط المخزون</h3>
+                                    <p className="text-cyan-200 text-xs font-medium mt-1">جميع عمليات السحب والإضافة والإرجاع</p>
+                                </div>
+                                <button onClick={() => setShowActivityLog(false)} className="bg-white/10 hover:bg-white/20 p-2 rounded-full transition"><i className="fa-solid fa-xmark text-lg"></i></button>
+                            </div>
+
+                            {/* Stats */}
+                            <div className="grid grid-cols-4 gap-3 p-4 border-b border-slate-100 flex-shrink-0">
+                                <div className="bg-slate-50 rounded-xl p-3 text-center"><p className="text-lg font-black text-slate-700">{logStats.total}</p><p className="text-[9px] font-bold text-slate-400">إجمالي</p></div>
+                                <div className="bg-amber-50 rounded-xl p-3 text-center"><p className="text-lg font-black text-amber-700">{logStats.pulls}</p><p className="text-[9px] font-bold text-amber-500">سحب</p></div>
+                                <div className="bg-emerald-50 rounded-xl p-3 text-center"><p className="text-lg font-black text-emerald-700">{logStats.adds}</p><p className="text-[9px] font-bold text-emerald-500">إضافة</p></div>
+                                <div className="bg-blue-50 rounded-xl p-3 text-center"><p className="text-lg font-black text-blue-700">{logStats.returns}</p><p className="text-[9px] font-bold text-blue-500">إرجاع</p></div>
+                            </div>
+
+                            {/* Filters */}
+                            <div className="flex flex-wrap gap-2 p-4 border-b border-slate-100 flex-shrink-0">
+                                <div className="flex bg-slate-100 p-1 rounded-lg flex-1 min-w-[250px]">
+                                    {[{ id: 'all', label: 'الكل' }, { id: 'pull', label: 'سحب' }, { id: 'add', label: 'إضافة' }, { id: 'return', label: 'إرجاع' }].map(f => (
+                                        <button key={f.id} onClick={() => setLogFilterType(f.id)} className={`flex-1 px-2 py-1.5 rounded-md text-[10px] font-bold transition-all ${logFilterType === f.id ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>{f.label}</button>
+                                    ))}
+                                </div>
+                                <select value={logFilterUser} onChange={e => setLogFilterUser(e.target.value)} className="bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-bold text-slate-700 outline-none focus:border-indigo-400">
+                                    <option value="all">كل المستخدمين</option>
+                                    {logUsers.map(u => <option key={u} value={u}>{u}</option>)}
+                                </select>
+                            </div>
+
+                            {/* Log Items */}
+                            <div className="overflow-y-auto flex-1 p-4 space-y-2 custom-scrollbar">
+                                {displayLogs.length === 0 ? (
+                                    <div className="text-center py-12 text-slate-400">
+                                        <i className="fa-solid fa-inbox text-4xl mb-3 opacity-30 block"></i>
+                                        <p className="font-bold">لا توجد عمليات مسجلة</p>
+                                    </div>
+                                ) : (
+                                    displayLogs.slice(0, logVisibleCount).map(log => {
+                                        const info = logGetActionInfo(log.actionType);
+                                        const isReturnable = log.actionType === 'pull' && !log.isReturned && log.accountId;
+                                        return (
+                                            <div key={log.id} className={`bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-all overflow-hidden relative ${log.isReturned ? 'opacity-50' : ''}`}>
+                                                <div className={`absolute top-0 bottom-0 right-0 w-1 ${info.dot}`}></div>
+                                                <div className="p-3 flex items-center gap-3">
+                                                    <div className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ${info.color} border`}>
+                                                        <i className={`fa-solid ${info.icon} text-xs`}></i>
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="flex flex-wrap items-center gap-1.5 mb-0.5">
+                                                            <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-bold border ${info.color}`}>{info.label}</span>
+                                                            <span className="text-[9px] px-1.5 py-0.5 rounded-full font-bold bg-slate-50 text-slate-500 border border-slate-100">{log.sectionName}</span>
+                                                            <span className="text-[9px] px-1.5 py-0.5 rounded-full font-bold bg-indigo-50 text-indigo-600 border border-indigo-100 flex items-center gap-0.5"><i className="fa-solid fa-user text-[7px]"></i> {log.performedBy}</span>
+                                                            {log.isReturned && <span className="text-[9px] px-1.5 py-0.5 rounded-full font-bold bg-blue-50 text-blue-600 border border-blue-200">♻️ مسترجع</span>}
+                                                            {log.quantity > 1 && <span className="text-[9px] px-1.5 py-0.5 rounded-full font-bold bg-purple-50 text-purple-600 border border-purple-200">×{log.quantity}</span>}
+                                                        </div>
+                                                        <code className="text-xs font-mono font-bold text-slate-700 truncate block">{log.accountEmail || '-'}</code>
+                                                        <div className="flex items-center gap-2 mt-1 text-[9px] text-slate-400 font-bold">
+                                                            <span>{logFormatDate(log.createdAt)}</span>
+                                                            <span>{logFormatTime(log.createdAt)}</span>
+                                                            <span>المتاح: {log.availableAfter}</span>
+                                                        </div>
+                                                    </div>
+                                                    {isReturnable && (
+                                                        <button onClick={() => handleLogReturn(log)} disabled={returningId === log.id}
+                                                            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] font-bold bg-blue-50 text-blue-600 hover:bg-blue-100 border border-blue-200 flex-shrink-0 disabled:opacity-50 transition-all">
+                                                            {returningId === log.id ? <i className="fa-solid fa-spinner fa-spin text-[9px]"></i> : <i className="fa-solid fa-rotate-left text-[9px]"></i>}
+                                                            إرجاع
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        );
+                                    })
+                                )}
+                                {logVisibleCount < displayLogs.length && (
+                                    <div className="flex justify-center pt-3">
+                                        <button onClick={() => setLogVisibleCount(p => p + 30)} className="bg-slate-50 border border-slate-200 text-slate-600 px-6 py-2 rounded-xl font-bold text-xs hover:bg-slate-100 transition flex items-center gap-2">
+                                            عرض المزيد <i className="fa-solid fa-chevron-down text-[10px]"></i>
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                );
+            })()}
+
             <style>{`
                 .animate-fade-in { animation: fadeIn 0.3s ease-out forwards; }
                 @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
                 .animate-scale-in { animation: scaleIn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
                 @keyframes scaleIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
+                .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+                .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+                .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
             `}</style>
         </div>
     );

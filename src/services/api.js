@@ -77,6 +77,23 @@ export const authAPI = {
     async logout(token) {
         if (!token) return;
         await supabase.from('users').update({ token: null }).eq('token', token);
+    },
+
+    async changePassword(userId, oldPassword, newPassword) {
+        if (!userId || !oldPassword || !newPassword) return { success: false, message: 'بيانات ناقصة' };
+        // Get user
+        const { data: user, error: fetchErr } = await supabase.from('users').select('*').eq('id', userId).single();
+        if (fetchErr || !user) return { success: false, message: 'مستخدم غير موجود' };
+        // Verify old password
+        let bcrypt;
+        try { bcrypt = await import('bcryptjs'); if (bcrypt.default) bcrypt = bcrypt.default; } catch { return { success: false, message: 'خطأ داخلي' }; }
+        const valid = await bcrypt.compare(oldPassword, user.password);
+        if (!valid) return { success: false, message: 'كلمة المرور الحالية غير صحيحة' };
+        // Hash and update
+        const hashed = await bcrypt.hash(newPassword, 10);
+        const { error: updErr } = await supabase.from('users').update({ password: hashed }).eq('id', userId);
+        if (updErr) return { success: false, message: 'حدث خطأ أثناء التحديث' };
+        return { success: true, message: 'تم تغيير كلمة المرور بنجاح' };
     }
 };
 
@@ -206,6 +223,10 @@ export const accountsAPI = {
     },
 
     async create(account) {
+        // Count available BEFORE adding
+        const { data: beforeData } = await supabase.from('accounts').select('id').eq('product_name', account.productName).eq('status', 'available');
+        const availableBefore = (beforeData || []).length;
+
         const { data, error } = await supabase.from('accounts').insert({
             email: account.email,
             password: account.password || '',
@@ -224,10 +245,18 @@ export const accountsAPI = {
         const { data: countData } = await supabase.from('accounts').select('id').eq('product_name', account.productName).eq('status', 'available');
         const availableAfter = (countData || []).length;
         telegram.stockAdded(account.productName, 1, account.createdBy || 'Admin', availableAfter);
+        // Log the add operation
+        inventoryLogsAPI.create({ action_type: 'add', section_name: account.productName, account_email: account.email, account_id: data.id, details: '', quantity: 1, performed_by: account.createdBy || 'Admin', available_before: availableBefore, available_after: availableAfter }).catch(e => console.warn('Log error:', e));
         return data;
     },
 
     async createBulk(accounts) {
+        const productName = accounts[0]?.productName || 'غير محدد';
+        const actionBy = accounts[0]?.createdBy || 'Admin';
+        // Count available BEFORE
+        const { data: beforeData } = await supabase.from('accounts').select('id').eq('product_name', productName).eq('status', 'available');
+        const availableBefore = (beforeData || []).length;
+
         const rows = accounts.map(a => ({
             email: a.email,
             password: a.password || '',
@@ -244,10 +273,11 @@ export const accountsAPI = {
         const { error } = await supabase.from('accounts').insert(rows);
         if (error) throw error;
         // Calculate available count after bulk adding
-        const productName = accounts[0]?.productName || 'غير محدد';
         const { data: countData } = await supabase.from('accounts').select('id').eq('product_name', productName).eq('status', 'available');
         const availableAfter = (countData || []).length;
-        telegram.stockAdded(productName, rows.length, accounts[0]?.createdBy || 'Admin', availableAfter);
+        telegram.stockAdded(productName, rows.length, actionBy, availableAfter);
+        // Log the bulk add operation
+        inventoryLogsAPI.create({ action_type: 'bulk_add', section_name: productName, account_email: `${rows.length} عنصر`, account_id: null, details: `إضافة ${rows.length} عنصر دفعة واحدة`, quantity: rows.length, performed_by: actionBy, available_before: availableBefore, available_after: availableAfter }).catch(e => console.warn('Log error:', e));
     },
 
     async update(id, updates) {
@@ -331,7 +361,114 @@ export const accountsAPI = {
             twoFA: target.two_fa,
         };
         telegram.inventoryPulled(sectionName, target.email, actionBy, available.length - 1);
+        // Log the pull operation
+        inventoryLogsAPI.create({ action_type: 'pull', section_name: sectionName, account_email: target.email, account_id: target.id, details: target.password ? `Pass: ${target.password}` : '', quantity: 1, performed_by: actionBy || 'Admin', available_before: available.length, available_after: available.length - 1 }).catch(e => console.warn('Log error:', e));
         return result;
+    }
+};
+
+// ============ INVENTORY LOGS ============
+export const inventoryLogsAPI = {
+    async getAll() {
+        const { data } = await supabase
+            .from('inventory_logs')
+            .select('*')
+            .order('created_at', { ascending: false })
+            .limit(500);
+        return (data || []).map(l => ({
+            ...l,
+            actionType: l.action_type,
+            sectionName: l.section_name,
+            accountEmail: l.account_email,
+            accountId: l.account_id,
+            performedBy: l.performed_by,
+            availableBefore: l.available_before,
+            availableAfter: l.available_after,
+            isReturned: l.is_returned || false,
+            returnedAt: l.returned_at,
+            createdAt: l.created_at,
+        }));
+    },
+
+    async getByUser(username) {
+        const { data } = await supabase
+            .from('inventory_logs')
+            .select('*')
+            .eq('performed_by', username)
+            .order('created_at', { ascending: false })
+            .limit(300);
+        return (data || []).map(l => ({
+            ...l,
+            actionType: l.action_type,
+            sectionName: l.section_name,
+            accountEmail: l.account_email,
+            accountId: l.account_id,
+            performedBy: l.performed_by,
+            availableBefore: l.available_before,
+            availableAfter: l.available_after,
+            isReturned: l.is_returned || false,
+            returnedAt: l.returned_at,
+            createdAt: l.created_at,
+        }));
+    },
+
+    async create(log) {
+        const { error } = await supabase.from('inventory_logs').insert({
+            action_type: log.action_type,
+            section_name: log.section_name,
+            account_email: log.account_email || '',
+            account_id: log.account_id || null,
+            details: log.details || '',
+            quantity: log.quantity || 1,
+            performed_by: log.performed_by || 'Admin',
+            available_before: log.available_before || 0,
+            available_after: log.available_after || 0,
+        });
+        if (error) console.warn('Inventory log insert error:', error);
+    },
+
+    async returnItem(logId, accountId, sectionName, returnedBy) {
+        // 1. Mark the log as returned
+        await supabase.from('inventory_logs').update({
+            is_returned: true,
+            returned_at: new Date().toISOString(),
+        }).eq('id', logId);
+
+        // 2. Reset the account back to available
+        if (accountId) {
+            const { data: acc } = await supabase.from('accounts').select('*').eq('id', accountId).single();
+            if (acc) {
+                const newUses = Math.max(0, (acc.current_uses || 0) - 1);
+                await supabase.from('accounts').update({
+                    status: 'available',
+                    current_uses: newUses,
+                }).eq('id', accountId);
+            }
+        }
+
+        // 3. Count available after return
+        const sName = sectionName;
+        const { data: countData } = await supabase.from('accounts').select('id').eq('product_name', sName).eq('status', 'available');
+        const availableAfter = (countData || []).length;
+
+        // 4. Log the return operation
+        const { data: logEntry } = await supabase.from('inventory_logs').select('*').eq('id', logId).single();
+        await inventoryLogsAPI.create({
+            action_type: 'return',
+            section_name: sName,
+            account_email: logEntry?.account_email || '',
+            account_id: accountId,
+            details: `إرجاع عنصر مسحوب سابقاً`,
+            quantity: 1,
+            performed_by: returnedBy || 'Admin',
+            available_before: availableAfter - 1,
+            available_after: availableAfter,
+        });
+
+        // 5. Telegram notification
+        telegram.inventoryReturned(sName, logEntry?.account_email, returnedBy, availableAfter);
+
+        return { success: true, availableAfter };
     }
 };
 

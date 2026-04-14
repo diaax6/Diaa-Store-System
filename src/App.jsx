@@ -19,6 +19,7 @@ import Users from './components/Users';
 import Products from './components/Products';
 import BotSettings from './components/BotSettings';
 import Employees from './components/Employees';
+import MyAccount from './components/MyAccount';
 
 const MainLayout = () => {
   const { user } = useAuth();
@@ -64,6 +65,7 @@ const MainLayout = () => {
           {activeTab === 'users' && (checkPerm('all') || user.role === 'admin') && <Users />}
           {activeTab === 'botSettings' && (checkPerm('botSettings') || checkPerm('all') || user.role === 'admin') && <BotSettings />}
           {activeTab === 'employees' && (checkPerm('employees') || checkPerm('all') || user.role === 'admin') && <Employees />}
+          {activeTab === 'myAccount' && <MyAccount />}
 
         </div>
       </main>
