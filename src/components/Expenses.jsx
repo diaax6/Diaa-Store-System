@@ -15,7 +15,8 @@ export default function Expenses () {
     const [wallets, setWallets] = useState([]);
     const [showAddModal, setShowAddModal] = useState(false);
     const [editingExpense, setEditingExpense] = useState(null);
-    const [categoryFilter, setCategoryFilter] = useState('all'); // all | daily | stock
+    const [categoryFilter, setCategoryFilter] = useState('all');
+    const [dateFilter, setDateFilter] = useState(''); // '' = all dates, else 'YYYY-MM-DD'
     const { showConfirm, showAlert } = useConfirm();
 
     useEffect(() => {
@@ -23,42 +24,54 @@ export default function Expenses () {
         setWallets(ctxWallets);
     }, [ctxExpenses, ctxWallets]);
 
-    // ===== Stats =====
+    // ===== Date-filtered base =====
+    const dateFilteredExpenses = useMemo(() => {
+        if (!dateFilter) return expenses;
+        return expenses.filter(e => {
+            const d = (e.date || '').split('T')[0].split(' ')[0];
+            return d === dateFilter;
+        });
+    }, [expenses, dateFilter]);
+
+    // ===== Stats (react to date filter) =====
     const stats = useMemo(() => {
-        const now = new Date();
-        const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        
-        const dailyExpenses = expenses.filter(e => e.expenseCategory === 'daily' || !e.expenseCategory);
-        const stockExpenses = expenses.filter(e => e.expenseCategory === 'stock');
-        
-        const totalDaily = dailyExpenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
-        const totalStock = stockExpenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
-        const totalAll = totalDaily + totalStock;
-        
-        // يوميات اليوم فقط
-        const todayDailyExpenses = dailyExpenses.filter(e => new Date(e.date) >= startOfToday);
-        const todayDailyTotal = todayDailyExpenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
-        
-        // حساب تكلفة الاستوك المستهلك (من المخزون: الحسابات اللي حالتها used أو completed)
-        const usedAccounts = (ctxAccounts || []).filter(a => a.status === 'used' || a.status === 'completed');
-        const consumedStockCost = stockExpenses.reduce((sum, e) => {
-            // لو المصروف ده مرتبط بمخزون مستهلك
-            return sum + (Number(e.amount) || 0);
-        }, 0);
-        
-        // إيرادات اليوم
-        const todaySales = (ctxSales || []).filter(s => new Date(s.date) >= startOfToday);
-        const todayRevenue = todaySales.reduce((sum, s) => sum + (Number(s.finalPrice) || 0), 0);
-        const todayProfit = todayRevenue - todayDailyTotal;
-        
-        return { totalAll, totalDaily, totalStock, todayDailyTotal, todayRevenue, todayProfit, consumedStockCost };
-    }, [expenses, ctxAccounts, ctxSales]);
+        const base = dateFilteredExpenses;
+        const today = new Date().toISOString().split('T')[0];
+        const todayDate = new Date(today);
+
+        const dailyExpenses = base.filter(e => e.expenseCategory === 'daily' || !e.expenseCategory);
+        const stockExpenses = base.filter(e => e.expenseCategory === 'stock');
+        const salaryExpenses = base.filter(e => e.expenseCategory === 'salary');
+
+        const totalDaily  = dailyExpenses.reduce((s, e) => s + (Number(e.amount) || 0), 0);
+        const totalStock  = stockExpenses.reduce((s, e) => s + (Number(e.amount) || 0), 0);
+        const totalSalary = salaryExpenses.reduce((s, e) => s + (Number(e.amount) || 0), 0);
+        const totalAll = totalDaily + totalStock + totalSalary;
+
+        // Revenue for selected date/all
+        const filteredSales = dateFilter
+            ? (ctxSales || []).filter(s => (s.date || '').split('T')[0] === dateFilter)
+            : ctxSales || [];
+        const totalRevenue = filteredSales.reduce((s, x) => s + (Number(x.finalPrice) || 0), 0);
+        const netProfit = totalRevenue - totalAll;
+
+        // Today-specific (only when no filter OR filter = today)
+        const effectiveDate = dateFilter || today;
+        const todaySales = (ctxSales || []).filter(s => (s.date || '').split('T')[0] === effectiveDate);
+        const todayRevenue = todaySales.reduce((s, x) => s + (Number(x.finalPrice) || 0), 0);
+        const todayExpenses = expenses.filter(e => (e.date || '').split('T')[0].split(' ')[0] === effectiveDate);
+        const todayExpTotal = todayExpenses.reduce((s, e) => s + (Number(e.amount) || 0), 0);
+        const todayProfit = todayRevenue - todayExpTotal;
+
+        return { totalAll, totalDaily, totalStock, totalSalary, totalRevenue, netProfit, todayRevenue: dateFilter ? totalRevenue : todayRevenue, todayDailyTotal: dateFilter ? totalAll : todayExpTotal, todayProfit: dateFilter ? netProfit : todayProfit };
+    }, [dateFilteredExpenses, ctxSales, expenses, dateFilter]);
 
     // ===== Filtered Expenses =====
     const filteredExpenses = useMemo(() => {
-        if (categoryFilter === 'all') return expenses;
-        return expenses.filter(e => (e.expenseCategory || 'daily') === categoryFilter);
-    }, [expenses, categoryFilter]);
+        let base = dateFilteredExpenses;
+        if (categoryFilter !== 'all') base = base.filter(e => (e.expenseCategory || 'daily') === categoryFilter);
+        return base;
+    }, [dateFilteredExpenses, categoryFilter]);
 
     // خصم من المحفظة
     const deductFromWallet = async (walletId, amount, description) => {
@@ -157,64 +170,96 @@ export default function Expenses () {
     };
 
     return (
-        <div className="space-y-8 animate-fade-in pb-20 font-sans text-slate-800">
+        <div className="space-y-6 animate-fade-in pb-20 font-sans text-slate-800">
+
+            {/* ── Date filter banner ── */}
+            {dateFilter && (
+                <div className="bg-indigo-600 text-white rounded-2xl px-5 py-3 flex items-center justify-between shadow-lg">
+                    <div className="flex items-center gap-2 font-bold text-sm">
+                        <i className="fa-solid fa-calendar-day text-indigo-200"></i>
+                        تصفية بتاريخ:
+                        <span className="bg-white/20 px-2 py-0.5 rounded-lg font-mono">
+                            {new Date(dateFilter).toLocaleDateString('ar-EG', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                        </span>
+                    </div>
+                    <button onClick={() => setDateFilter('')} className="bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1">
+                        <i className="fa-solid fa-xmark"></i> إلغاء الفلترة
+                    </button>
+                </div>
+            )}
 
             {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 {/* إجمالي المصروفات */}
                 <div className="bg-gradient-to-br from-rose-600 to-pink-700 rounded-2xl p-5 text-white shadow-lg relative overflow-hidden">
                     <div className="absolute -left-4 -bottom-4 text-7xl opacity-10"><i className="fa-solid fa-money-bill-transfer"></i></div>
-                    <p className="text-rose-200 text-xs font-bold mb-1">إجمالي المصروفات</p>
-                    <h3 className="text-2xl font-extrabold dir-ltr">{stats.totalAll.toLocaleString()} <span className="text-sm opacity-70">EGP</span></h3>
+                    <p className="text-rose-200 text-xs font-bold mb-1">{dateFilter ? 'مصروفات اليوم' : 'إجمالي المصروفات'}</p>
+                    <h3 className="text-2xl font-extrabold dir-ltr">{stats.totalAll.toLocaleString()} <span className="text-sm opacity-70">ج.م</span></h3>
+                    {stats.totalSalary > 0 && <p className="text-[10px] text-rose-200 mt-1">منها رواتب: {stats.totalSalary.toLocaleString()} ج.م</p>}
                 </div>
 
                 {/* مصروفات يومية */}
                 <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm relative overflow-hidden">
                     <div className="absolute top-0 left-0 w-1.5 h-full bg-amber-500"></div>
                     <p className="text-slate-500 text-xs font-bold mb-1 flex items-center gap-1"><i className="fa-solid fa-clock text-amber-500"></i> مصروفات يومية</p>
-                    <h3 className="text-2xl font-extrabold text-amber-600 dir-ltr">{stats.totalDaily.toLocaleString()} <span className="text-sm text-amber-400">EGP</span></h3>
-                    <p className="text-[10px] text-slate-400 font-bold mt-1">إعلانات + اشتراكات + رواتب...</p>
+                    <h3 className="text-2xl font-extrabold text-amber-600 dir-ltr">{stats.totalDaily.toLocaleString()} <span className="text-sm text-amber-400">ج.م</span></h3>
                 </div>
 
                 {/* مصروفات مخزون */}
                 <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm relative overflow-hidden">
                     <div className="absolute top-0 left-0 w-1.5 h-full bg-purple-500"></div>
-                    <p className="text-slate-500 text-xs font-bold mb-1 flex items-center gap-1"><i className="fa-solid fa-boxes-stacked text-purple-500"></i> مصروفات مخزون</p>
-                    <h3 className="text-2xl font-extrabold text-purple-600 dir-ltr">{stats.totalStock.toLocaleString()} <span className="text-sm text-purple-400">EGP</span></h3>
-                    <p className="text-[10px] text-slate-400 font-bold mt-1">تُحسب عند الاستهلاك فقط</p>
+                    <p className="text-slate-500 text-xs font-bold mb-1 flex items-center gap-1"><i className="fa-solid fa-boxes-stacked text-purple-500"></i> مخزون + رواتب</p>
+                    <h3 className="text-2xl font-extrabold text-purple-600 dir-ltr">{(stats.totalStock + stats.totalSalary).toLocaleString()} <span className="text-sm text-purple-400">ج.م</span></h3>
+                    {stats.totalSalary > 0 && <p className="text-[10px] text-purple-400 mt-0.5">رواتب: {stats.totalSalary.toLocaleString()}</p>}
                 </div>
 
-                {/* أرباح اليوم */}
+                {/* صافي الربح */}
                 <div className={`rounded-2xl p-5 shadow-lg relative overflow-hidden ${stats.todayProfit >= 0 ? 'bg-gradient-to-br from-emerald-600 to-green-700 text-white' : 'bg-gradient-to-br from-red-600 to-red-800 text-white'}`}>
                     <div className="absolute -left-4 -bottom-4 text-7xl opacity-10"><i className="fa-solid fa-chart-line"></i></div>
-                    <p className={`text-xs font-bold mb-1 ${stats.todayProfit >= 0 ? 'text-emerald-200' : 'text-red-200'}`}>صافي ربح اليوم</p>
-                    <h3 className="text-2xl font-extrabold dir-ltr">{stats.todayProfit.toLocaleString()} <span className="text-sm opacity-70">EGP</span></h3>
-                    <p className="text-[10px] opacity-80 font-bold mt-1">إيرادات اليوم ({stats.todayRevenue.toLocaleString()}) - مصروفات اليوم ({stats.todayDailyTotal.toLocaleString()})</p>
+                    <p className={`text-xs font-bold mb-1 ${stats.todayProfit >= 0 ? 'text-emerald-200' : 'text-red-200'}`}>{dateFilter ? 'صافي ربح اليوم المحدد' : 'صافي ربح اليوم'}</p>
+                    <h3 className="text-2xl font-extrabold dir-ltr">{stats.todayProfit.toLocaleString()} <span className="text-sm opacity-70">ج.م</span></h3>
+                    <p className="text-[10px] opacity-80 font-bold mt-1">إيرادات ({stats.todayRevenue.toLocaleString()}) — مصروفات ({stats.todayDailyTotal.toLocaleString()})</p>
                 </div>
             </div>
 
             {/* Header + Filters */}
-            <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
                 <div>
-                    <h2 className="text-2xl font-extrabold text-slate-800">سجل المصروفات</h2>
-                    <p className="text-slate-500 text-sm font-medium mt-1">متابعة دقيقة للمصروفات التشغيلية والمخزون</p>
+                    <h2 className="text-xl font-extrabold text-slate-800">سجل المصروفات</h2>
+                    <p className="text-slate-500 text-xs font-medium mt-0.5">متابعة دقيقة للمصروفات التشغيلية والمخزون</p>
                 </div>
-                <div className="flex items-center gap-3 flex-wrap">
+                <div className="flex items-center gap-2 flex-wrap w-full md:w-auto">
+                    {/* Date picker */}
+                    <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl p-1.5">
+                        <i className="fa-solid fa-calendar text-slate-400 text-xs px-1"></i>
+                        <input
+                            type="date"
+                            value={dateFilter}
+                            onChange={e => setDateFilter(e.target.value)}
+                            className="bg-transparent text-sm font-bold text-slate-700 outline-none"
+                        />
+                        {dateFilter && (
+                            <button onClick={() => setDateFilter('')} className="text-slate-400 hover:text-rose-500 transition px-1">
+                                <i className="fa-solid fa-xmark text-xs"></i>
+                            </button>
+                        )}
+                    </div>
                     {/* Category Filter */}
-                    <div className="flex bg-slate-100 p-1.5 rounded-xl border border-slate-200 shadow-inner">
+                    <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200">
                         {[
                             { id: 'all', label: 'الكل', icon: 'fa-layer-group' },
                             { id: 'daily', label: 'يومي', icon: 'fa-clock' },
                             { id: 'stock', label: 'مخزون', icon: 'fa-boxes-stacked' },
+                            { id: 'salary', label: 'رواتب', icon: 'fa-users' },
                         ].map(f => (
                             <button key={f.id} onClick={() => setCategoryFilter(f.id)}
-                                className={`px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-1.5 ${categoryFilter === f.id ? 'bg-white text-indigo-700 shadow-md' : 'text-slate-500 hover:bg-white/50'}`}>
-                                <i className={`fa-solid ${f.icon} text-xs`}></i>{f.label}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1 ${categoryFilter === f.id ? 'bg-white text-indigo-700 shadow-md' : 'text-slate-500 hover:bg-white/50'}`}>
+                                <i className={`fa-solid ${f.icon} text-[10px]`}></i>{f.label}
                             </button>
                         ))}
                     </div>
-                    <button onClick={() => setShowAddModal(true)} className="bg-rose-600 text-white px-6 py-3 rounded-xl font-bold shadow-lg shadow-rose-200 hover:bg-rose-700 hover:-translate-y-0.5 transition-all flex items-center gap-2">
-                        <i className="fa-solid fa-plus text-lg"></i> إضافة مصروف
+                    <button onClick={() => setShowAddModal(true)} className="bg-rose-600 text-white px-5 py-2.5 rounded-xl font-bold shadow-lg shadow-rose-200 hover:bg-rose-700 transition-all flex items-center gap-2 text-sm">
+                        <i className="fa-solid fa-plus"></i> إضافة مصروف
                     </button>
                 </div>
             </div>

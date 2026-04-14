@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
-import { salesAPI, accountsAPI, walletsAPI, customersAPI, usersAPI } from '../services/api';
+import { salesAPI, accountsAPI, walletsAPI, customersAPI, usersAPI, employeesAPI } from '../services/api';
 import * as XLSX from 'xlsx';
 import { useConfirm } from './ConfirmDialog';
 
@@ -13,10 +13,11 @@ export default function Sales() {
     const canManageActivation = isAdmin || hasPermission('manage_activation');
     const { showConfirm, showAlert } = useConfirm();
 
-    // Admin activation modal state
-    const [adminActivateModal, setAdminActivateModal] = useState(null);
-    const [adminActivateBy, setAdminActivateBy] = useState('');
+    // Activation modal state (admin/director only)
+    const [activateModal, setActivateModal] = useState(null); // { saleId, sale }
+    const [activateBy, setActivateBy] = useState('');
     const [allUsers, setAllUsers] = useState([]);
+    const [allEmployees, setAllEmployees] = useState([]);
 
     // ========= States =========
     const [sales, setSales] = useState([]);
@@ -59,12 +60,14 @@ export default function Sales() {
         setCustomers(ctxCustomers);
     }, [ctxSales, ctxWallets, ctxCustomers]);
 
-    // Fetch all users for admin activation modal
+    // Fetch users + employees for activation modal (admin & director)
+    const isDirector = user?.role === 'director';
     useEffect(() => {
-        if (isAdmin) {
+        if (isAdmin || isDirector) {
             usersAPI.getAll().then(setAllUsers).catch(() => {});
+            employeesAPI.getAll().then(emps => setAllEmployees(emps.filter(e => e.isActive))).catch(() => {});
         }
-    }, [isAdmin]);
+    }, [isAdmin, isDirector]);
 
     // Reset customer form when modal opens
     useEffect(() => {
@@ -560,16 +563,16 @@ export default function Sales() {
         }
     };
 
-    // Admin activation modal
-    const openAdminActivateModal = (sale) => {
-        setAdminActivateBy(user?.username || 'Admin');
-        setAdminActivateModal({ saleId: sale.id, sale });
+    // Activation modal — admin/director choose who to attribute activation to
+    const openActivateModal = (sale) => {
+        setActivateBy(user?.username || 'Admin');
+        setActivateModal({ saleId: sale.id, sale });
     };
 
-    const confirmAdminActivate = async () => {
-        if (!adminActivateModal) return;
-        await toggleActivated(adminActivateModal.saleId, adminActivateBy);
-        setAdminActivateModal(null);
+    const confirmActivate = async () => {
+        if (!activateModal) return;
+        await toggleActivated(activateModal.saleId, activateBy);
+        setActivateModal(null);
     };
 
     // Copy credentials to clipboard
@@ -784,7 +787,21 @@ export default function Sales() {
 
                                                 {/* Activation Button */}
                                                 {canManageActivation && (
-                                                    <button onClick={() => sale.isActivated ? toggleActivated(sale.id) : (isAdmin ? openAdminActivateModal(sale) : toggleActivated(sale.id))} className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-extrabold transition-all duration-200 ${sale.isActivated ? 'bg-gradient-to-r from-violet-500 to-purple-600 text-white shadow-sm shadow-violet-200 hover:shadow-md hover:shadow-violet-300' : 'bg-slate-100 text-slate-500 hover:bg-violet-50 hover:text-violet-600 border border-slate-200'}`} title={sale.isActivated ? 'إلغاء التفعيل' : 'تفعيل'}>
+                                                    <button
+                                                        onClick={() => {
+                                                            if (sale.isActivated) {
+                                                                toggleActivated(sale.id);
+                                                            } else if (isAdmin || isDirector) {
+                                                                // admin/director → choose name
+                                                                openActivateModal(sale);
+                                                            } else {
+                                                                // moderator → instant, own name
+                                                                toggleActivated(sale.id);
+                                                            }
+                                                        }}
+                                                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-extrabold transition-all duration-200 ${sale.isActivated ? 'bg-gradient-to-r from-violet-500 to-purple-600 text-white shadow-sm shadow-violet-200 hover:shadow-md hover:shadow-violet-300' : 'bg-slate-100 text-slate-500 hover:bg-violet-50 hover:text-violet-600 border border-slate-200'}`}
+                                                        title={sale.isActivated ? 'إلغاء التفعيل' : 'تفعيل'}
+                                                    >
                                                         <i className={`fa-solid ${sale.isActivated ? 'fa-bolt' : 'fa-power-off'} text-[9px]`}></i>
                                                         {sale.isActivated ? 'مفعّل ✓' : 'تفعيل'}
                                                     </button>
@@ -1199,37 +1216,74 @@ export default function Sales() {
                 </div>
             , document.body)}
 
-            {/* ============ ADMIN ACTIVATE MODAL ============ */}
-            {adminActivateModal && createPortal(
-                <div className="animate-fade-in" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15,23,42,0.6)', backdropFilter: 'blur(4px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
+            {/* ============ ACTIVATE MODAL (Admin / Director) ============ */}
+            {activateModal && createPortal(
+                <div className="animate-fade-in" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15,23,42,0.65)', backdropFilter: 'blur(5px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
                     <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden">
-                        <div className="p-6 bg-gradient-to-r from-emerald-600 to-teal-600 text-white flex justify-between items-center">
+                        {/* Header */}
+                        <div className="p-5 bg-gradient-to-r from-emerald-600 to-teal-600 text-white flex justify-between items-center">
                             <h3 className="text-lg font-bold flex items-center gap-2">
-                                <i className="fa-solid fa-user-check text-2xl"></i> تفعيل الأوردر
+                                <i className="fa-solid fa-user-check text-xl"></i> تفعيل الأوردر
                             </h3>
-                            <button onClick={() => setAdminActivateModal(null)} className="bg-white/10 hover:bg-white/20 p-2 rounded-full transition"><i className="fa-solid fa-xmark text-lg"></i></button>
+                            <button onClick={() => setActivateModal(null)} className="bg-white/10 hover:bg-white/20 p-2 rounded-full transition"><i className="fa-solid fa-xmark text-lg"></i></button>
                         </div>
-                        <div className="p-8 space-y-5">
+
+                        <div className="p-6 space-y-5">
+                            {/* Order info */}
                             <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200 text-center">
-                                <p className="text-sm font-bold text-slate-600 mb-1">أوردر</p>
-                                <p className="text-lg font-black text-slate-800">{adminActivateModal.sale?.customerName || adminActivateModal.sale?.customerEmail || 'عميل'}</p>
-                                <p className="text-xs text-indigo-600 font-bold mt-1">{adminActivateModal.sale?.productName}</p>
+                                <p className="text-xs font-bold text-slate-400 mb-1">أوردر</p>
+                                <p className="text-base font-black text-slate-800">{activateModal.sale?.customerName || activateModal.sale?.customerEmail || 'عميل'}</p>
+                                <p className="text-xs text-indigo-600 font-bold mt-1">{activateModal.sale?.productName}</p>
                             </div>
 
+                            {/* Who activated */}
                             <div>
-                                <label className="block text-sm font-extrabold text-slate-800 mb-2">تم التفعيل بواسطة</label>
-                                <select value={adminActivateBy} onChange={e => setAdminActivateBy(e.target.value)} className="w-full bg-white border-2 border-emerald-200 rounded-xl p-3.5 font-bold text-sm focus:ring-4 focus:ring-emerald-100 focus:border-emerald-600 outline-none transition-all">
-                                    <option value={user?.username || 'Admin'}>{user?.username || 'Admin'} (أنا)</option>
-                                    {allUsers.filter(u2 => u2.username !== user?.username).map(u2 => (
-                                        <option key={u2.id} value={u2.username}>{u2.username} ({u2.role === 'admin' ? 'أدمن' : u2.role === 'director' ? 'دايركتور' : 'مودريتور'})</option>
-                                    ))}
+                                <label className="block text-sm font-extrabold text-slate-800 mb-2">
+                                    <i className="fa-solid fa-user-check text-emerald-500 ml-1"></i> تم التفعيل بواسطة
+                                </label>
+
+                                <select
+                                    value={activateBy}
+                                    onChange={e => setActivateBy(e.target.value)}
+                                    className="w-full bg-white border-2 border-emerald-200 rounded-xl p-3.5 font-bold text-sm focus:ring-4 focus:ring-emerald-100 focus:border-emerald-600 outline-none transition-all"
+                                >
+                                    {/* Current user — default */}
+                                    <option value={user?.username || 'Admin'}>👤 {user?.username || 'Admin'} (أنا)</option>
+
+                                    {/* Separator: Users */}
+                                    {allUsers.filter(u2 => u2.username !== user?.username).length > 0 && (
+                                        <optgroup label="── المستخدمين ──">
+                                            {allUsers.filter(u2 => u2.username !== user?.username).map(u2 => (
+                                                <option key={`user-${u2.id}`} value={u2.username}>
+                                                    {u2.role === 'admin' ? '👑' : u2.role === 'director' ? '⭐' : '🔧'} {u2.username}
+                                                </option>
+                                            ))}
+                                        </optgroup>
+                                    )}
+
+                                    {/* Separator: Employees */}
+                                    {allEmployees.filter(e => !allUsers.find(u2 => u2.username === e.name)).length > 0 && (
+                                        <optgroup label="── الموظفين ──">
+                                            {allEmployees
+                                                .filter(e => !allUsers.find(u2 => u2.username === e.name))
+                                                .map(e => (
+                                                    <option key={`emp-${e.id}`} value={e.name}>
+                                                        🏷 {e.name} {e.role ? `— ${e.role}` : ''}
+                                                    </option>
+                                                ))}
+                                        </optgroup>
+                                    )}
                                 </select>
-                                <p className="text-[11px] text-slate-400 mt-2 font-medium"><i className="fa-solid fa-info-circle ml-1 text-emerald-400"></i> اختر الموظف اللي فعّل الأوردر</p>
+                                <p className="text-[11px] text-slate-400 mt-1.5 font-medium">
+                                    <i className="fa-solid fa-info-circle ml-1 text-emerald-400"></i>
+                                    اختر الموظف اللي فعّل الأوردر — هيتسجل باسمه في التقارير
+                                </p>
                             </div>
 
-                            <div className="flex gap-3 pt-2">
-                                <button onClick={() => setAdminActivateModal(null)} className="flex-1 py-3 rounded-xl font-bold text-slate-600 bg-slate-50 border-2 border-slate-200 hover:bg-slate-100 transition">إلغاء</button>
-                                <button onClick={confirmAdminActivate} className="flex-1 py-3 rounded-xl font-bold text-white bg-emerald-600 hover:bg-emerald-700 shadow-lg shadow-emerald-200 transition flex items-center justify-center gap-2">
+                            {/* Actions */}
+                            <div className="flex gap-3">
+                                <button onClick={() => setActivateModal(null)} className="flex-1 py-3 rounded-xl font-bold text-slate-600 bg-slate-50 border-2 border-slate-200 hover:bg-slate-100 transition">إلغاء</button>
+                                <button onClick={confirmActivate} className="flex-1 py-3 rounded-xl font-bold text-white bg-emerald-600 hover:bg-emerald-700 shadow-lg shadow-emerald-200 transition flex items-center justify-center gap-2">
                                     <i className="fa-solid fa-check"></i> تفعيل الأوردر
                                 </button>
                             </div>
@@ -1237,6 +1291,8 @@ export default function Sales() {
                     </div>
                 </div>
             , document.body)}
+
+
 
             <style>{`
                 .animate-fade-in { animation: fadeIn 0.3s ease-out forwards; }

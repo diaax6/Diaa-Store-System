@@ -1,14 +1,18 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
-import { employeesAPI, salaryPaymentsAPI, employeeActionsAPI } from '../services/api';
+import { employeesAPI, salaryPaymentsAPI, employeeActionsAPI, usersAPI, walletsAPI } from '../services/api';
 import { supabase } from '../lib/supabase';
 import { useConfirm } from './ConfirmDialog';
+import { useAuth } from '../context/AuthContext';
 
 const DAY_NAMES = { saturday: 'السبت', sunday: 'الأحد', monday: 'الاثنين', tuesday: 'الثلاثاء', wednesday: 'الأربعاء', thursday: 'الخميس', friday: 'الجمعة' };
 const DAY_EN = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
-const PAY_CYCLES = { weekly: 'أسبوعي', biweekly: 'نصف شهري', monthly: 'شهري' };
+const PAY_CYCLES = { daily: 'يومي', weekly: 'أسبوعي', biweekly: 'نصف شهري', monthly: 'شهري' };
 
 export default function Employees() {
     useEffect(() => { window.scrollTo(0, 0); }, []);
+
+    const { user } = useAuth();
+    const currentUsername = user?.username || 'Admin';
 
     const [employees, setEmployees] = useState([]);
     const [payments, setPayments] = useState([]);
@@ -20,16 +24,18 @@ export default function Employees() {
     const [selectedEmp, setSelectedEmp] = useState(null);
     const [empPayments, setEmpPayments] = useState([]);
     const [empActions, setEmpActions] = useState([]);
-    const [confirmDelete, setConfirmDelete] = useState(null); // emp id to delete
+    const [confirmDelete, setConfirmDelete] = useState(null);
+    const [allUsers, setAllUsers] = useState([]); // for linking
+    const [wallets, setWallets] = useState([]); // for salary payments
 
-    // Quick action modals
-    const [quickAction, setQuickAction] = useState(null); // {type: 'deduction'|'absence'|'bonus'|'pay', emp}
+    const [quickAction, setQuickAction] = useState(null); // {type: 'deduction'|'absence'|'bonus'|'pay'|'payDaily', emp}
     const [quickAmount, setQuickAmount] = useState('');
     const [quickDesc, setQuickDesc] = useState('');
     const [quickDate, setQuickDate] = useState(new Date().toISOString().split('T')[0]);
+    const [quickWalletId, setQuickWalletId] = useState('');
     const { showAlert } = useConfirm();
 
-    const emptyForm = { name: '', phone: '', role: '', baseSalary: 0, bonus: 0, deductions: 0, absenceDays: 0, absenceDeductionPerDay: 0, notes: '', joinDate: new Date().toISOString().split('T')[0], payDay: 'thursday', payCycle: 'weekly' };
+    const emptyForm = { name: '', phone: '', role: '', baseSalary: 0, bonus: 0, deductions: 0, absenceDays: 0, absenceDeductionPerDay: 0, notes: '', joinDate: new Date().toISOString().split('T')[0], payDay: 'thursday', payCycle: 'weekly', linked_user_id: '' };
     const [form, setForm] = useState(emptyForm);
 
     const loadData = async () => {
@@ -42,6 +48,12 @@ export default function Employees() {
     };
 
     useEffect(() => { loadData(); }, []);
+
+    // Fetch users for linking
+    useEffect(() => {
+        usersAPI.getAll().then(setAllUsers).catch(() => {});
+        walletsAPI.getAll().then(setWallets).catch(() => {});
+    }, []);
 
     // Supabase Realtime auto‑refresh
     useEffect(() => {
@@ -63,7 +75,21 @@ export default function Employees() {
     const openAdd = () => { setEditingEmp(null); setForm(emptyForm); setShowModal(true); };
     const openEdit = (emp) => {
         setEditingEmp(emp);
-        setForm({ name: emp.name, phone: emp.phone||'', role: emp.role||'', baseSalary: emp.baseSalary||0, bonus: emp.bonus||0, deductions: emp.deductions||0, absenceDays: emp.absenceDays||0, absenceDeductionPerDay: emp.absenceDeductionPerDay||0, notes: emp.notes||'', joinDate: emp.joinDate||'', payDay: emp.payDay||'thursday', payCycle: emp.payCycle||'weekly' });
+        setForm({
+            name: emp.name,
+            phone: emp.phone || '',
+            role: emp.role || '',
+            baseSalary: emp.baseSalary || 0,
+            bonus: emp.bonus || 0,
+            deductions: emp.deductions || 0,
+            absenceDays: emp.absenceDays || 0,
+            absenceDeductionPerDay: emp.absenceDeductionPerDay || 0,
+            notes: emp.notes || '',
+            joinDate: emp.joinDate || '',
+            payDay: emp.payDay || 'thursday',
+            payCycle: emp.payCycle || 'weekly',
+            linked_user_id: emp.linked_user_id || '',
+        });
         setShowModal(true);
     };
 
@@ -93,8 +119,18 @@ export default function Employees() {
         if (amount <= 0 && type !== 'absence') { showAlert({ title: 'خطأ', message: 'أدخل مبلغ صحيح', type: 'warning' }); return; }
 
         try {
-            if (type === 'pay') {
-                await salaryPaymentsAPI.create({ employeeId: emp.id, amount, notes: quickDesc, paymentDate: quickDate });
+            if (type === 'pay' || type === 'payDaily') {
+                const wallet = quickWalletId ? wallets.find(w => String(w.id) === String(quickWalletId)) : null;
+                await salaryPaymentsAPI.create({
+                    employeeId: emp.id,
+                    amount,
+                    notes: quickDesc,
+                    paymentDate: quickDate,
+                    walletId: quickWalletId || null,
+                    walletName: wallet ? wallet.name : '',
+                    empName: emp.name,
+                    actionBy: currentUsername,
+                });
             } else if (type === 'deduction') {
                 if (!quickDesc.trim()) { showAlert({ title: 'خطأ', message: 'أدخل سبب الخصم', type: 'warning' }); return; }
                 await employeeActionsAPI.create({ employeeId: emp.id, actionType: 'deduction', amount, description: quickDesc, actionDate: quickDate });
@@ -108,7 +144,7 @@ export default function Employees() {
                 await employeeActionsAPI.create({ employeeId: emp.id, actionType: 'bonus', amount, description: quickDesc, actionDate: quickDate });
                 await employeesAPI.update(emp.id, { bonus: (emp.bonus || 0) + amount });
             }
-            setQuickAction(null); setQuickAmount(''); setQuickDesc(''); setQuickDate(new Date().toISOString().split('T')[0]);
+            setQuickAction(null); setQuickAmount(''); setQuickDesc(''); setQuickDate(new Date().toISOString().split('T')[0]); setQuickWalletId('');
             await loadData();
         } catch (err) { console.error(err); showAlert({ title: 'خطأ!', message: 'حدث خطأ', type: 'danger' }); }
     };
@@ -153,10 +189,11 @@ export default function Employees() {
     if (loading) return <div className="text-center p-20 text-slate-400"><i className="fa-solid fa-spinner fa-spin text-3xl"></i></div>;
 
     const quickConfig = {
-        pay: { title: 'تسجيل قبض', icon: 'fa-money-bill-wave', color: 'emerald', label: 'المبلغ المقبوض', placeholder: 'مثل: 500' },
-        deduction: { title: 'إضافة خصم', icon: 'fa-minus-circle', color: 'red', label: 'قيمة الخصم', placeholder: 'مثل: 50' },
-        absence: { title: 'تسجيل غياب', icon: 'fa-calendar-xmark', color: 'orange', label: 'عدد الأيام', placeholder: '1' },
-        bonus: { title: 'إضافة مكافأة', icon: 'fa-gift', color: 'blue', label: 'قيمة المكافأة', placeholder: 'مثل: 100' },
+        pay:      { title: 'تسجيل قبض', icon: 'fa-money-bill-wave', color: 'emerald', label: 'المبلغ المقبوض', placeholder: 'مثال: 500' },
+        payDaily: { title: 'قبض يومي', icon: 'fa-calendar-check', color: 'emerald', label: 'مبلغ اليوم', placeholder: 'مثال: 100' },
+        deduction:{ title: 'إضافة خصم', icon: 'fa-minus-circle', color: 'red', label: 'قيمة الخصم', placeholder: 'مثال: 50' },
+        absence:  { title: 'تسجيل غياب', icon: 'fa-calendar-xmark', color: 'orange', label: 'عدد الأيام', placeholder: '1' },
+        bonus:    { title: 'إضافة مكافأة', icon: 'fa-gift', color: 'blue', label: 'قيمة المكافأة', placeholder: 'مثال: 100' },
     };
 
     return (
@@ -259,6 +296,14 @@ export default function Employees() {
                                     <div className="min-w-0">
                                         <h3 className="font-extrabold text-sm text-slate-800 truncate">{emp.name}</h3>
                                         <p className="text-[10px] text-slate-400">{emp.role || '-'} • {PAY_CYCLES[emp.payCycle] || 'أسبوعي'} • {DAY_NAMES[emp.payDay] || emp.payDay}</p>
+                                        {emp.linked_user_id && (() => {
+                                            const linkedUser = allUsers.find(u => u.id === emp.linked_user_id);
+                                            return linkedUser ? (
+                                                <span className="inline-flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded-full bg-indigo-50 text-indigo-600 border border-indigo-100 font-bold mt-0.5">
+                                                    <i className="fa-solid fa-link text-[7px]"></i> {linkedUser.username}
+                                                </span>
+                                            ) : null;
+                                        })()}
                                     </div>
                                 </div>
                                 <div className="flex flex-col items-end gap-1">
@@ -275,7 +320,8 @@ export default function Employees() {
 
                             {/* Quick Action Buttons */}
                             <div className="flex gap-1.5 pt-2 border-t border-slate-100" onClick={e => e.stopPropagation()}>
-                                <button onClick={() => { setQuickAction({type:'pay',emp}); setQuickAmount(''); setQuickDate(new Date().toISOString().split('T')[0]); }} className="flex-1 py-1.5 rounded-lg text-[10px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-100 transition flex items-center justify-center gap-1"><i className="fa-solid fa-money-bill-wave"></i> قبّض</button>
+                                <button onClick={() => { setQuickAction({type:'pay',emp}); setQuickAmount(''); setQuickWalletId(''); setQuickDate(new Date().toISOString().split('T')[0]); }} className="flex-1 py-1.5 rounded-lg text-[10px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-100 transition flex items-center justify-center gap-1"><i className="fa-solid fa-money-bill-wave"></i> قبّض</button>
+                                <button onClick={() => { setQuickAction({type:'payDaily',emp}); setQuickAmount(''); setQuickWalletId(''); setQuickDate(new Date().toISOString().split('T')[0]); }} className="flex-1 py-1.5 rounded-lg text-[10px] font-bold text-teal-700 bg-teal-50 hover:bg-teal-100 border border-teal-100 transition flex items-center justify-center gap-1"><i className="fa-solid fa-calendar-check"></i> يومي</button>
                                 <button onClick={() => { setQuickAction({type:'deduction',emp}); setQuickAmount(''); setQuickDate(new Date().toISOString().split('T')[0]); }} className="flex-1 py-1.5 rounded-lg text-[10px] font-bold text-red-600 bg-red-50 hover:bg-red-100 border border-red-100 transition flex items-center justify-center gap-1"><i className="fa-solid fa-minus-circle"></i> خصم</button>
                                 <button onClick={() => { setQuickAction({type:'absence',emp}); setQuickAmount('1'); setQuickDate(new Date().toISOString().split('T')[0]); }} className="flex-1 py-1.5 rounded-lg text-[10px] font-bold text-orange-600 bg-orange-50 hover:bg-orange-100 border border-orange-100 transition flex items-center justify-center gap-1"><i className="fa-solid fa-calendar-xmark"></i> غياب</button>
                                 <button onClick={() => { setQuickAction({type:'bonus',emp}); setQuickAmount(''); setQuickDate(new Date().toISOString().split('T')[0]); }} className="flex-1 py-1.5 rounded-lg text-[10px] font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-100 transition flex items-center justify-center gap-1"><i className="fa-solid fa-gift"></i> مكافأة</button>
@@ -309,6 +355,27 @@ export default function Employees() {
                                     <label className="block text-sm font-extrabold text-slate-800 mb-1.5">{quickAction.type === 'deduction' || quickAction.type === 'bonus' ? 'السبب *' : 'ملاحظة (اختياري)'}</label>
                                     <input type="text" value={quickDesc} onChange={e => setQuickDesc(e.target.value)} className="w-full bg-white border-2 border-slate-200 rounded-xl p-3 font-bold text-sm focus:ring-4 focus:ring-purple-100 focus:border-purple-600 outline-none transition-all" placeholder={quickAction.type === 'deduction' ? 'سبب الخصم...' : quickAction.type === 'bonus' ? 'سبب المكافأة...' : 'ملاحظة...'} required={quickAction.type === 'deduction' || quickAction.type === 'bonus'} />
                                 </div>
+                                {/* Wallet picker — only for pay types */}
+                                {(quickAction.type === 'pay' || quickAction.type === 'payDaily') && (
+                                    <div>
+                                        <label className="block text-sm font-extrabold text-slate-800 mb-1.5">
+                                            <i className="fa-solid fa-wallet text-emerald-500 ml-1"></i>
+                                            المحفظة <span className="text-slate-400 font-normal">(مطلوبة للخصم من الرصيد)</span>
+                                        </label>
+                                        <select
+                                            value={quickWalletId}
+                                            onChange={e => setQuickWalletId(e.target.value)}
+                                            className="w-full bg-white border-2 border-emerald-200 rounded-xl p-3 font-bold text-sm focus:ring-4 focus:ring-emerald-100 focus:border-emerald-600 outline-none"
+                                        >
+                                            <option value="">— بدون خصم من محفظة —</option>
+                                            {wallets.map(w => (
+                                                <option key={w.id} value={w.id}>
+                                                    {w.name} — رصيد: {Number(w.balance).toLocaleString()} ج.م
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                )}
                                 <div>
                                     <label className="block text-sm font-extrabold text-slate-800 mb-1.5">التاريخ</label>
                                     <input type="date" value={quickDate} onChange={e => setQuickDate(e.target.value)} className="w-full bg-white border-2 border-slate-200 rounded-xl p-3 font-bold text-sm focus:ring-4 focus:ring-purple-100 focus:border-purple-600 outline-none transition-all" />
@@ -420,7 +487,7 @@ export default function Employees() {
                                 <div><label className="block text-xs font-extrabold text-slate-800 mb-1">تاريخ الانضمام</label><input type="date" value={form.joinDate} onChange={e => handleChange('joinDate',e.target.value)} className="w-full border-2 border-slate-200 rounded-xl p-2.5 font-bold text-sm focus:border-purple-600 outline-none" /></div>
                             </div>
                             <div className="grid grid-cols-2 gap-3">
-                                <div><label className="block text-xs font-extrabold text-slate-800 mb-1">المرتب الأساسي</label><input type="number" min="0" value={form.baseSalary} onChange={e => handleChange('baseSalary',Number(e.target.value))} className="w-full border-2 border-slate-200 rounded-xl p-2.5 font-bold text-sm focus:border-purple-600 outline-none dir-ltr text-right" /></div>
+                                <div><label className="block text-xs font-extrabold text-slate-800 mb-1">المرتب الأساسي {form.payCycle === 'daily' ? '(اليوم)' : form.payCycle === 'weekly' ? '(الأسبوع)' : form.payCycle === 'biweekly' ? '(نص شهر)' : '(الشهر)'}</label><input type="number" min="0" value={form.baseSalary} onChange={e => handleChange('baseSalary',Number(e.target.value))} className="w-full border-2 border-slate-200 rounded-xl p-2.5 font-bold text-sm focus:border-purple-600 outline-none dir-ltr text-right" /></div>
                                 <div><label className="block text-xs font-extrabold text-slate-800 mb-1">يوم القبض</label>
                                     <select value={form.payDay} onChange={e => handleChange('payDay',e.target.value)} className="w-full border-2 border-slate-200 rounded-xl p-2.5 font-bold text-sm focus:border-purple-600 outline-none">
                                         {Object.entries(DAY_NAMES).map(([k,v]) => <option key={k} value={k}>{v}</option>)}
@@ -436,6 +503,29 @@ export default function Employees() {
                             </div>
                             <div><label className="block text-xs font-extrabold text-slate-800 mb-1">خصم يوم الغياب (ج.م)</label><input type="number" min="0" value={form.absenceDeductionPerDay} onChange={e => handleChange('absenceDeductionPerDay',Number(e.target.value))} className="w-full border-2 border-slate-200 rounded-xl p-2.5 font-bold text-sm focus:border-purple-600 outline-none dir-ltr text-right" /></div>
                             <div><label className="block text-xs font-extrabold text-slate-800 mb-1">ملاحظات</label><textarea value={form.notes} onChange={e => handleChange('notes',e.target.value)} rows="2" className="w-full border-2 border-slate-200 rounded-xl p-2.5 font-semibold text-sm focus:border-purple-600 outline-none resize-none"></textarea></div>
+
+                            {/* ربط بمستخدم */}
+                            <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-3">
+                                <label className="block text-xs font-extrabold text-indigo-800 mb-1.5">
+                                    <i className="fa-solid fa-link ml-1 text-indigo-500"></i> ربط بمستخدم في الموقع
+                                    <span className="text-indigo-400 font-normal mr-1">(اختياري)</span>
+                                </label>
+                                <select
+                                    value={form.linked_user_id}
+                                    onChange={e => handleChange('linked_user_id', e.target.value)}
+                                    className="w-full border-2 border-indigo-200 rounded-xl p-2.5 font-bold text-sm focus:border-indigo-600 outline-none bg-white"
+                                >
+                                    <option value="">— بدون ربط —</option>
+                                    {allUsers.map(u => (
+                                        <option key={u.id} value={u.id}>
+                                            {u.role === 'admin' ? '👑' : u.role === 'director' ? '⭐' : '🔧'} {u.username}
+                                        </option>
+                                    ))}
+                                </select>
+                                <p className="text-[10px] text-indigo-500 mt-1">
+                                    لو الموظف عنده حساب في الموقع اربطه عشان الإحصائيات تتحسب صح
+                                </p>
+                            </div>
 
                             <div className="bg-purple-50 p-3 rounded-xl border border-purple-200 flex justify-between items-center">
                                 <span className="font-bold text-purple-700 text-sm">صافي المرتب</span>

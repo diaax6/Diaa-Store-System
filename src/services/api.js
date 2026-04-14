@@ -262,8 +262,29 @@ export const accountsAPI = {
         }
     },
 
-    async delete(id) {
+    async delete(id, accountData, actionBy) {
+        // Fetch account info before deleting (for notification)
+        let acc = accountData;
+        if (!acc) {
+            const { data } = await supabase.from('accounts').select('*').eq('id', id).single();
+            acc = data;
+        }
         await supabase.from('accounts').delete().eq('id', id);
+        if (acc) {
+            // Calculate remaining available count after delete
+            const { data: countData } = await supabase
+                .from('accounts')
+                .select('id')
+                .eq('product_name', acc.product_name || acc.productName)
+                .eq('status', 'available');
+            const availableAfter = (countData || []).length;
+            telegram.stockDeleted(
+                acc.product_name || acc.productName || 'غير محدد',
+                acc.email,
+                actionBy || acc.created_by || 'Admin',
+                availableAfter
+            );
+        }
     },
 
     async pullNext(sectionName, actionBy) {
@@ -900,6 +921,7 @@ export const employeesAPI = {
             isActive: e.is_active,
             joinDate: e.join_date,
             payDay: e.pay_day || 'thursday',
+            linked_user_id: e.linked_user_id || null,
         }));
     },
 
@@ -917,6 +939,7 @@ export const employeesAPI = {
             is_active: emp.isActive !== false,
             join_date: emp.joinDate || new Date().toISOString().split('T')[0],
             pay_day: emp.payDay || 'thursday',
+            linked_user_id: emp.linked_user_id || null,
         }).select().single();
         if (error) throw error;
         return data;
@@ -935,6 +958,7 @@ export const employeesAPI = {
         if (emp.notes !== undefined) updates.notes = emp.notes;
         if (emp.isActive !== undefined) updates.is_active = emp.isActive;
         if (emp.payDay !== undefined) updates.pay_day = emp.payDay;
+        if (emp.linked_user_id !== undefined) updates.linked_user_id = emp.linked_user_id || null;
         const { error } = await supabase.from('employees').update(updates).eq('id', id);
         if (error) throw error;
     },
@@ -949,19 +973,58 @@ export const employeesAPI = {
 export const salaryPaymentsAPI = {
     async getAll() {
         const { data } = await supabase.from('salary_payments').select('*').order('payment_date', { ascending: false });
-        return (data || []).map(p => ({ ...p, employeeId: p.employee_id, paymentDate: p.payment_date }));
+        return (data || []).map(p => ({ ...p, employeeId: p.employee_id, paymentDate: p.payment_date, walletId: p.wallet_id, walletName: p.wallet_name }));
     },
     async getByEmployee(employeeId) {
         const { data } = await supabase.from('salary_payments').select('*').eq('employee_id', employeeId).order('payment_date', { ascending: false });
-        return (data || []).map(p => ({ ...p, employeeId: p.employee_id, paymentDate: p.payment_date }));
+        return (data || []).map(p => ({ ...p, employeeId: p.employee_id, paymentDate: p.payment_date, walletId: p.wallet_id, walletName: p.wallet_name }));
     },
     async create(payment) {
         const { data, error } = await supabase.from('salary_payments').insert({
-            employee_id: payment.employeeId, amount: payment.amount,
+            employee_id: payment.employeeId,
+            amount: payment.amount,
             payment_date: payment.paymentDate || new Date().toISOString().split('T')[0],
             notes: payment.notes || '',
+            wallet_id: payment.walletId || null,
+            wallet_name: payment.walletName || '',
         }).select().single();
         if (error) throw error;
+
+        // Record as expense
+        if (payment.amount > 0) {
+            const expDate = payment.paymentDate || new Date().toISOString().split('T')[0];
+            await supabase.from('expenses').insert({
+                type: 'قبض موظف',
+                amount: payment.amount,
+                description: `مرتب ${payment.empName || 'موظف'}${payment.notes ? ' — ' + payment.notes : ''}`,
+                date: expDate,
+                wallet_id: payment.walletId || '',
+                wallet_name: payment.walletName || '',
+                expense_category: 'salary',
+            });
+
+            // Deduct from wallet
+            if (payment.walletId) {
+                const { data: wallet } = await supabase.from('wallets').select('*').eq('id', payment.walletId).single();
+                if (wallet) {
+                    const newBalance = Number(wallet.balance) - Number(payment.amount);
+                    await supabase.from('wallets').update({ balance: newBalance }).eq('id', payment.walletId);
+                    await supabase.from('wallet_transactions').insert({
+                        wallet_id: payment.walletId,
+                        type: 'withdraw',
+                        amount: Number(payment.amount),
+                        description: `قبض مرتب ${payment.empName || 'موظف'}`,
+                        source: 'مرتبات',
+                        balance_after: newBalance,
+                        created_by: payment.actionBy || 'System',
+                    });
+                }
+            }
+
+            // Telegram notification
+            telegram.salaryPayment(payment.empName || 'موظف', payment.amount, payment.walletName, payment.actionBy, payment.notes);
+        }
+
         return data;
     },
     async delete(id) {
@@ -990,3 +1053,63 @@ export const employeeActionsAPI = {
         if (error) throw error;
     },
 };
+
+// ============ SHIFTS ============
+export const shiftsAPI = {
+    async getAll() {
+        const { data } = await supabase
+            .from('shifts')
+            .select('*, shift_employees(employee_id)')
+            .order('created_at', { ascending: true });
+        return (data || []).map(s => ({
+            ...s,
+            employeeIds: (s.shift_employees || []).map(se => se.employee_id),
+        }));
+    },
+
+    async create(shift) {
+        const { data, error } = await supabase.from('shifts').insert({
+            name: shift.name,
+            start_time: shift.startTime || '08:00',
+            end_time: shift.endTime || '16:00',
+            color: shift.color || 'blue',
+        }).select().single();
+        if (error) throw error;
+        return data;
+    },
+
+    async update(id, shift) {
+        const updates = {};
+        if (shift.name !== undefined) updates.name = shift.name;
+        if (shift.startTime !== undefined) updates.start_time = shift.startTime;
+        if (shift.endTime !== undefined) updates.end_time = shift.endTime;
+        if (shift.color !== undefined) updates.color = shift.color;
+        const { error } = await supabase.from('shifts').update(updates).eq('id', id);
+        if (error) throw error;
+    },
+
+    async delete(id) {
+        const { error } = await supabase.from('shifts').delete().eq('id', id);
+        if (error) throw error;
+    },
+
+    async addEmployee(shiftId, employeeId) {
+        const { error } = await supabase.from('shift_employees').insert({
+            shift_id: shiftId,
+            employee_id: employeeId,
+        });
+        if (error && !error.message?.includes('duplicate')) throw error;
+    },
+
+    async removeEmployee(shiftId, employeeId) {
+        const { error } = await supabase
+            .from('shift_employees')
+            .delete()
+            .eq('shift_id', shiftId)
+            .eq('employee_id', employeeId);
+        if (error) throw error;
+    },
+};
+
+// Add wallet_id & wallet_name columns to salary_payments if not exists (handled by SQL migration)
+

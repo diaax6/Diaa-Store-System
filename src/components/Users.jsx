@@ -93,7 +93,11 @@ export default function Users () {
         const formData = new FormData(e.target);
         const permissions = (selectedRole === 'admin')
             ? ['all']
-            : PERMISSIONS_LIST.filter(p => formData.get(`perm_${p.id}`) === 'on').map(p => p.id);
+            : PERMISSIONS_LIST.reduce((acc, p) => {
+                const level = document.querySelector(`input[name="perm_${p.id}"]:checked`)?.value;
+                if (level) acc.push(`${p.id}:${level}`);
+                return acc;
+            }, []);
 
         const data = {
             id: currentUser?.id,
@@ -351,18 +355,24 @@ export default function Users () {
                                         <p className="text-xs text-slate-400 font-black uppercase tracking-wider flex items-center gap-2">
                                             <i className="fa-solid fa-key text-indigo-400"></i> الصلاحيات الممنوحة
                                         </p>
-                                        <div className="flex flex-wrap gap-2">
+                                        <div className="flex flex-wrap gap-1.5">
                                             {perms.includes('all') ? (
                                                 <span className="bg-emerald-50 text-emerald-700 text-xs font-bold px-3 py-1.5 rounded-lg border border-emerald-200 w-full text-center">
                                                     <i className="fa-solid fa-check-circle ml-1"></i> صلاحية كاملة — وصول لكل الأقسام
                                                 </span>
                                             ) : perms.length > 0 ? (
                                                 perms.map(p => {
-                                                    const permInfo = PERMISSIONS_LIST.find(pl => pl.id === p);
+                                                    // New format: 'sales:view' or 'sales:edit' or legacy 'sales'
+                                                    const [permId, permLevel] = p.includes(':') ? p.split(':') : [p, 'edit'];
+                                                    const permInfo = PERMISSIONS_LIST.find(pl => pl.id === permId);
+                                                    const isView = permLevel === 'view';
                                                     return (
-                                                        <span key={p} className="bg-slate-50 text-slate-600 text-[11px] font-bold px-2.5 py-1.5 rounded-lg border border-slate-200 flex items-center gap-1.5">
-                                                            <i className={`fa-solid ${permInfo?.icon || 'fa-check'} text-[9px] text-indigo-500`}></i>
-                                                            {permInfo?.label || p}
+                                                        <span key={p} className={`text-[10px] font-bold px-2 py-1 rounded-lg border flex items-center gap-1 ${isView ? 'bg-sky-50 text-sky-700 border-sky-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'}`}>
+                                                            <i className={`fa-solid ${permInfo?.icon || 'fa-check'} text-[8px]`}></i>
+                                                            {permInfo?.label || permId}
+                                                            <span className={`text-[8px] px-1 py-0.5 rounded ${isView ? 'bg-sky-200 text-sky-800' : 'bg-emerald-200 text-emerald-800'}`}>
+                                                                {isView ? 'عرض' : 'تعديل'}
+                                                            </span>
                                                         </span>
                                                     );
                                                 })
@@ -472,7 +482,7 @@ export default function Users () {
                                     <div className="pt-2">
                                         <label className="label-style mb-3 block">
                                             تحديد الصلاحيات
-                                            <span className="text-slate-400 font-normal text-xs mr-2">(اختر الأقسام المسموحة)</span>
+                                            <span className="text-slate-400 font-normal text-xs mr-2">(عرض فقط أو تعديل لكل قسم)</span>
                                         </label>
 
                                         {/* Select All / Deselect All */}
@@ -481,20 +491,32 @@ export default function Users () {
                                                 type="button"
                                                 onClick={() => {
                                                     PERMISSIONS_LIST.forEach(p => {
-                                                        const el = document.querySelector(`[name="perm_${p.id}"]`);
+                                                        const el = document.querySelector(`input[name="perm_${p.id}"][value="edit"]`);
                                                         if (el) el.checked = true;
                                                     });
                                                 }}
                                                 className="text-xs px-3 py-1.5 bg-emerald-50 text-emerald-700 rounded-lg border border-emerald-200 font-bold hover:bg-emerald-100 transition"
                                             >
-                                                <i className="fa-solid fa-check-double ml-1"></i> تحديد الكل
+                                                <i className="fa-solid fa-check-double ml-1"></i> الكل تعديل
                                             </button>
                                             <button
                                                 type="button"
                                                 onClick={() => {
                                                     PERMISSIONS_LIST.forEach(p => {
-                                                        const el = document.querySelector(`[name="perm_${p.id}"]`);
-                                                        if (el) el.checked = false;
+                                                        const el = document.querySelector(`input[name="perm_${p.id}"][value="view"]`);
+                                                        if (el) el.checked = true;
+                                                    });
+                                                }}
+                                                className="text-xs px-3 py-1.5 bg-sky-50 text-sky-700 rounded-lg border border-sky-200 font-bold hover:bg-sky-100 transition"
+                                            >
+                                                <i className="fa-solid fa-eye ml-1"></i> الكل عرض
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    PERMISSIONS_LIST.forEach(p => {
+                                                        const none = document.querySelector(`input[name="perm_${p.id}"][value=""]`);
+                                                        if (none) none.checked = true;
                                                     });
                                                 }}
                                                 className="text-xs px-3 py-1.5 bg-red-50 text-red-700 rounded-lg border border-red-200 font-bold hover:bg-red-100 transition"
@@ -505,29 +527,39 @@ export default function Users () {
 
                                         <div className="grid grid-cols-1 gap-2">
                                             {PERMISSIONS_LIST.map(perm => {
-                                                const isChecked = currentUser
-                                                    ? currentUser.permissions?.includes(perm.id)
-                                                    : perm.default || false;
+                                                // Detect current level from stored permissions
+                                                let currentLevel = '';
+                                                if (currentUser?.permissions) {
+                                                    if (currentUser.permissions.includes(`${perm.id}:edit`) || currentUser.permissions.includes(perm.id)) currentLevel = 'edit';
+                                                    else if (currentUser.permissions.includes(`${perm.id}:view`)) currentLevel = 'view';
+                                                }
 
                                                 return (
-                                                    <label key={perm.id} className="flex items-center gap-3 p-3 bg-white border-2 border-slate-200 rounded-xl cursor-pointer hover:border-indigo-400 hover:shadow-sm transition-all group">
-                                                        <div className="relative flex items-center">
-                                                            <input
-                                                                type="checkbox"
-                                                                name={`perm_${perm.id}`}
-                                                                defaultChecked={isChecked}
-                                                                className="peer h-5 w-5 cursor-pointer appearance-none rounded-md border-2 border-slate-300 transition-all checked:border-indigo-600 checked:bg-indigo-600 hover:border-indigo-400"
-                                                            />
-                                                            <i className="fa-solid fa-check absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-white opacity-0 peer-checked:opacity-100 text-xs pointer-events-none"></i>
-                                                        </div>
-                                                        <div className="w-8 h-8 bg-slate-50 rounded-lg flex items-center justify-center group-hover:bg-indigo-50 transition">
+                                                    <div key={perm.id} className="flex items-center gap-3 p-3 bg-white border-2 border-slate-200 rounded-xl hover:border-indigo-200 transition-all group">
+                                                        {/* Icon & Label */}
+                                                        <div className="w-8 h-8 bg-slate-50 rounded-lg flex items-center justify-center group-hover:bg-indigo-50 transition flex-shrink-0">
                                                             <i className={`fa-solid ${perm.icon} text-xs text-slate-400 group-hover:text-indigo-500 transition`}></i>
                                                         </div>
-                                                        <div className="flex-1">
-                                                            <span className="text-sm font-bold text-slate-600 group-hover:text-indigo-700 transition-colors select-none block">{perm.label}</span>
-                                                            <span className="text-[10px] text-slate-400 font-medium">{perm.desc}</span>
+                                                        <div className="flex-1 min-w-0">
+                                                            <span className="text-sm font-bold text-slate-700 block">{perm.label}</span>
+                                                            <span className="text-[9px] text-slate-400">{perm.desc}</span>
                                                         </div>
-                                                    </label>
+                                                        {/* Radio group: none / view / edit */}
+                                                        <div className="flex bg-slate-100 p-0.5 rounded-lg border border-slate-200 flex-shrink-0">
+                                                            <label className={`px-2 py-1 rounded-md text-[10px] font-bold cursor-pointer transition-all has-[:checked]:bg-white has-[:checked]:text-slate-600 has-[:checked]:shadow-sm text-slate-400`}>
+                                                                <input type="radio" name={`perm_${perm.id}`} value="" defaultChecked={!currentLevel} className="hidden" />
+                                                                منع
+                                                            </label>
+                                                            <label className={`px-2 py-1 rounded-md text-[10px] font-bold cursor-pointer transition-all has-[:checked]:bg-sky-500 has-[:checked]:text-white has-[:checked]:shadow-sm text-slate-400`}>
+                                                                <input type="radio" name={`perm_${perm.id}`} value="view" defaultChecked={currentLevel === 'view'} className="hidden" />
+                                                                <i className="fa-solid fa-eye text-[8px] ml-0.5"></i> عرض
+                                                            </label>
+                                                            <label className={`px-2 py-1 rounded-md text-[10px] font-bold cursor-pointer transition-all has-[:checked]:bg-emerald-500 has-[:checked]:text-white has-[:checked]:shadow-sm text-slate-400`}>
+                                                                <input type="radio" name={`perm_${perm.id}`} value="edit" defaultChecked={currentLevel === 'edit'} className="hidden" />
+                                                                <i className="fa-solid fa-pen text-[8px] ml-0.5"></i> تعديل
+                                                            </label>
+                                                        </div>
+                                                    </div>
                                                 );
                                             })}
                                         </div>

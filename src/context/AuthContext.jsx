@@ -67,10 +67,23 @@ export const AuthProvider = ({ children }) => {
         setUser(null);
     };
 
-    const hasPermission = (perm) => {
+    // hasPermission(perm) — any access (view or edit)
+    // hasPermission(perm, 'edit') — edit access only
+    // hasPermission(perm, 'view') — view access (also true if has edit)
+    const hasPermission = (perm, level) => {
         if (!user) return false;
         if (user.role === 'admin' || (user.permissions && user.permissions.includes('all'))) return true;
-        return user.permissions && user.permissions.includes(perm);
+        if (!user.permissions) return false;
+
+        // New format: 'sales:view', 'sales:edit'
+        const hasEdit = user.permissions.includes(`${perm}:edit`);
+        const hasView = user.permissions.includes(`${perm}:view`);
+        const hasLegacy = user.permissions.includes(perm); // old format — treat as full (edit)
+
+        if (!level) return hasEdit || hasView || hasLegacy; // any access
+        if (level === 'edit') return hasEdit || hasLegacy;
+        if (level === 'view') return hasEdit || hasView || hasLegacy; // edit includes view
+        return false;
     };
 
     return (
