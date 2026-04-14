@@ -21,6 +21,7 @@ export default function Accounts() {
     const [visibleCount, setVisibleCount] = useState(20);
     const [pulledResult, setPulledResult] = useState(null);
     const [selectedSection, setSelectedSection] = useState(null);
+    const [editingSection, setEditingSection] = useState(null); // for renaming sections
     // Quick links state
     const [quickLinks, setQuickLinks] = useState([]);
     const [showLinkModal, setShowLinkModal] = useState(false);
@@ -147,6 +148,26 @@ export default function Accounts() {
         } catch (error) {
             console.error(error);
             showAlert({ title: 'خطأ!', message: 'حدث خطأ', type: 'danger' });
+        }
+    };
+
+    const handleEditSection = async (e) => {
+        e.preventDefault();
+        const fd = new FormData(e.target);
+        const newName = fd.get('sectionName')?.trim();
+        const newType = fd.get('sectionType');
+        if (!newName) return;
+        if (newName !== editingSection.name && sections.find(s => s.name === newName)) {
+            showAlert({ title: 'خطأ', message: 'يوجد سجل بنفس الاسم بالفعل!', type: 'warning' });
+            return;
+        }
+        try {
+            await sectionsAPI.update(editingSection.id, editingSection.name, { name: newName, type: newType });
+            setEditingSection(null);
+            await refreshData();
+        } catch (error) {
+            console.error(error);
+            showAlert({ title: 'خطأ!', message: 'حدث خطأ أثناء التعديل', type: 'danger' });
         }
     };
 
@@ -381,6 +402,12 @@ export default function Accounts() {
                         <i className="fa-solid fa-bolt"></i> {!isAdmin && 'سحب'}
                     </button>
                     {isAdmin && (
+                        <button onClick={(e) => { e.stopPropagation(); setEditingSection(sec); }}
+                            className="py-2 px-3 rounded-xl text-xs font-bold bg-blue-50 text-blue-400 hover:text-blue-600 hover:bg-blue-100 transition-colors" title="تعديل">
+                            <i className="fa-solid fa-pen text-[10px]"></i>
+                        </button>
+                    )}
+                    {isAdmin && (
                         <button onClick={(e) => { e.stopPropagation(); deleteSection(sec); }}
                             className="py-2 px-3 rounded-xl text-xs font-bold bg-red-50 text-red-400 hover:text-red-600 hover:bg-red-100 transition-colors" title="حذف">
                             <i className="fa-solid fa-trash text-[10px]"></i>
@@ -603,9 +630,14 @@ export default function Accounts() {
                             </button>
                             <div className="min-w-0">
                                 <h2 className="text-lg font-black text-slate-800 truncate">{currentSection?.name}</h2>
-                                <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${isCodesSection ? 'bg-amber-50 text-amber-600' : 'bg-indigo-50 text-indigo-600'}`}>
-                                    {isCodesSection ? 'أكواد' : 'حسابات'}
-                                </span>
+                                <div className="flex items-center gap-1.5">
+                                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${isCodesSection ? 'bg-amber-50 text-amber-600' : 'bg-indigo-50 text-indigo-600'}`}>
+                                        {isCodesSection ? 'أكواد' : 'حسابات'}
+                                    </span>
+                                    <button onClick={() => setEditingSection(currentSection)} className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-blue-50 text-blue-600 hover:bg-blue-100 transition border border-blue-100" title="تعديل اسم القسم">
+                                        <i className="fa-solid fa-pen text-[8px] ml-0.5"></i> تعديل
+                                    </button>
+                                </div>
                             </div>
                         </div>
                         <div className="relative w-full md:w-80 border-t md:border-none pt-4 md:pt-0 border-slate-100">
@@ -753,6 +785,48 @@ export default function Accounts() {
                             <button type="submit" className="w-full bg-indigo-600 text-white py-3.5 rounded-xl font-bold hover:bg-indigo-700 shadow-lg shadow-indigo-200 transition-all flex items-center justify-center gap-2">
                                 <i className="fa-solid fa-check"></i> إنشاء السجل
                             </button>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* ===== EDIT SECTION MODAL ===== */}
+            {editingSection && (
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[999] p-4 animate-fade-in">
+                    <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden">
+                        <div className="p-6 bg-gradient-to-r from-blue-600 to-indigo-600 text-white flex justify-between items-center">
+                            <h3 className="text-xl font-bold flex items-center gap-2"><i className="fa-solid fa-pen-to-square"></i> تعديل السجل</h3>
+                            <button onClick={() => setEditingSection(null)} className="bg-white/10 hover:bg-white/20 p-2 rounded-full transition"><i className="fa-solid fa-xmark text-lg"></i></button>
+                        </div>
+                        <form onSubmit={handleEditSection} className="p-8 space-y-5">
+                            <div>
+                                <label className="block text-sm font-extrabold text-slate-800 mb-2">اسم السجل</label>
+                                <input name="sectionName" defaultValue={editingSection.name} className="w-full bg-white border-2 border-slate-200 rounded-xl p-3.5 font-bold text-sm focus:ring-4 focus:ring-blue-100 focus:border-blue-600 outline-none transition-all" required autoFocus />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-extrabold text-slate-800 mb-3">نوع السجل</label>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <label className="flex flex-col items-center gap-2 p-5 rounded-2xl border-2 cursor-pointer transition-all has-[:checked]:border-indigo-500 has-[:checked]:bg-indigo-50 border-slate-200 hover:border-indigo-200 text-center">
+                                        <input type="radio" name="sectionType" value="accounts" defaultChecked={editingSection.type === 'accounts'} className="hidden" />
+                                        <div className="w-14 h-14 bg-indigo-100 text-indigo-600 rounded-xl flex items-center justify-center text-2xl"><i className="fa-solid fa-user-shield"></i></div>
+                                        <span className="text-sm font-extrabold text-slate-700">حسابات</span>
+                                    </label>
+                                    <label className="flex flex-col items-center gap-2 p-5 rounded-2xl border-2 cursor-pointer transition-all has-[:checked]:border-amber-500 has-[:checked]:bg-amber-50 border-slate-200 hover:border-amber-200 text-center">
+                                        <input type="radio" name="sectionType" value="codes" defaultChecked={editingSection.type === 'codes'} className="hidden" />
+                                        <div className="w-14 h-14 bg-amber-100 text-amber-600 rounded-xl flex items-center justify-center text-2xl"><i className="fa-solid fa-key"></i></div>
+                                        <span className="text-sm font-extrabold text-slate-700">أكواد</span>
+                                    </label>
+                                </div>
+                            </div>
+                            <div className="bg-blue-50 p-3.5 rounded-xl border border-blue-200">
+                                <p className="text-[12px] text-blue-700 font-bold flex items-center gap-1.5"><i className="fa-solid fa-circle-info"></i> لو غيرت الاسم، هيتحدث كل العناصر المرتبطة بالاسم الجديد تلقائياً.</p>
+                            </div>
+                            <div className="flex gap-3 pt-2">
+                                <button type="button" onClick={() => setEditingSection(null)} className="flex-1 py-3 rounded-xl font-bold text-slate-600 bg-white border-2 border-slate-200 hover:bg-slate-50 transition">إلغاء</button>
+                                <button type="submit" className="flex-1 bg-blue-600 text-white py-3 rounded-xl font-bold hover:bg-blue-700 shadow-lg shadow-blue-200 transition flex items-center justify-center gap-2">
+                                    <i className="fa-solid fa-check"></i> حفظ التعديلات
+                                </button>
+                            </div>
                         </form>
                     </div>
                 </div>

@@ -168,6 +168,18 @@ export const sectionsAPI = {
         return id;
     },
 
+    async update(id, oldName, updates) {
+        const { error } = await supabase.from('inventory_sections').update({
+            name: updates.name,
+            type: updates.type,
+        }).eq('id', id);
+        if (error) throw error;
+        // If name changed, update all linked accounts
+        if (updates.name && updates.name !== oldName) {
+            await supabase.from('accounts').update({ product_name: updates.name }).eq('product_name', oldName);
+        }
+    },
+
     async delete(id, sectionName) {
         await supabase.from('accounts').delete().eq('product_name', sectionName);
         await supabase.from('inventory_sections').delete().eq('id', id);
