@@ -10,8 +10,10 @@ import {
     customersAPI,
     sectionsAPI,
     problemsAPI,
-    inventoryLogsAPI
+    inventoryLogsAPI,
+    employeesAPI
 } from '../services/api';
+import telegram from '../services/telegram';
 
 const DataContext = createContext();
 const SORT_KEY = 'diaa-store_product_order';
@@ -161,15 +163,18 @@ export const DataProvider = ({ children }) => {
             setProblems(problemsData);
             setInventoryLogs(logsData);
 
-            // Calculate stats
+            // Calculate stats — only count 'paid' expenses in profit
             const totalRevenue = salesData.reduce((a, b) => a + (Number(b.finalPrice || b.final_price) || 0), 0);
-            const totalExpenses = expensesData.reduce((a, b) => a + (Number(b.amount) || 0), 0);
+            const paidExpenses = expensesData.filter(e => (e.approvalStatus || e.approval_status) === 'paid');
+            const totalExpenses = paidExpenses.reduce((a, b) => a + (Number(b.amount) || 0), 0);
+            const allExpenses = expensesData.reduce((a, b) => a + (Number(b.amount) || 0), 0);
             const netProfit = totalRevenue - totalExpenses;
 
             setStats({
                 revenue: totalRevenue,
                 netProfit: totalRevenue,
                 expenses: totalExpenses,
+                allExpenses: allExpenses,
                 final: netProfit
             });
 
@@ -199,6 +204,80 @@ export const DataProvider = ({ children }) => {
     // تحميل البيانات أول مرة لما المستخدم يسجل دخول
     useEffect(() => {
         _fetchData();
+    }, [user, _fetchData]);
+
+    // ============ AUTO-SALARY: إضافة مرتبات الموظفين تلقائياً ============
+    useEffect(() => {
+        if (!user || user.role !== 'admin') return;
+
+        const DAY_EN = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
+        const today = new Date();
+        const todayDay = DAY_EN[today.getDay()];
+        const todayStr = today.toISOString().split('T')[0];
+        const autoKey = `diaa-store_auto_salary_${todayStr}`;
+
+        // Check if already processed today
+        if (localStorage.getItem(autoKey)) return;
+
+        const checkAndAddSalaries = async () => {
+            try {
+                const emps = await employeesAPI.getAll();
+                const payDayEmps = emps.filter(e => e.isActive && e.payDay === todayDay);
+                if (payDayEmps.length === 0) {
+                    localStorage.setItem(autoKey, 'no_employees');
+                    return;
+                }
+
+                // Check which employees already have salary expenses for today
+                const { data: todayExpenses } = await supabase
+                    .from('expenses')
+                    .select('*')
+                    .eq('expense_category', 'salary')
+                    .gte('date', todayStr)
+                    .lte('date', todayStr + 'T23:59:59');
+
+                const existingEmpIds = (todayExpenses || []).map(e => e.employee_id).filter(Boolean);
+                const calcNet = (emp) => {
+                    const absenceTotal = (emp.absenceDays || 0) * (emp.absenceDeductionPerDay || 0);
+                    return (emp.baseSalary || 0) + (emp.bonus || 0) - (emp.deductions || 0) - absenceTotal;
+                };
+
+                const toAdd = payDayEmps.filter(e => !existingEmpIds.includes(e.id));
+                if (toAdd.length === 0) {
+                    localStorage.setItem(autoKey, 'already_added');
+                    return;
+                }
+
+                // Add salary expenses for each employee
+                const addedList = [];
+                for (const emp of toAdd) {
+                    const net = calcNet(emp);
+                    if (net <= 0) continue;
+                    await supabase.from('expenses').insert({
+                        type: 'مرتب موظف',
+                        amount: net,
+                        description: `مرتب ${emp.name} — يوم القبض`,
+                        date: todayStr,
+                        expense_category: 'salary',
+                        approval_status: 'pending',
+                        employee_id: emp.id,
+                    });
+                    addedList.push({ name: emp.name, amount: net });
+                }
+
+                if (addedList.length > 0) {
+                    telegram.autoSalaryAdded(addedList);
+                    await _fetchData(); // Refresh to show new expenses
+                }
+                localStorage.setItem(autoKey, 'done');
+            } catch (err) {
+                console.error('Auto-salary error:', err);
+            }
+        };
+
+        // Run after a short delay to not block initial load
+        const timer = setTimeout(checkAndAddSalaries, 3000);
+        return () => clearTimeout(timer);
     }, [user, _fetchData]);
 
     // ============ SUPABASE REALTIME (DUAL APPROACH) ============

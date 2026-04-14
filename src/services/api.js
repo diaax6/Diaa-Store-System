@@ -705,6 +705,10 @@ export const expensesAPI = {
             walletId: e.wallet_id,
             walletName: e.wallet_name,
             expenseCategory: e.expense_category || 'daily',
+            approvalStatus: e.approval_status || 'pending',
+            approvedBy: e.approved_by || '',
+            approvedAt: e.approved_at || null,
+            employeeId: e.employee_id || null,
         }));
     },
 
@@ -717,10 +721,53 @@ export const expensesAPI = {
             wallet_id: expense.walletId || '',
             wallet_name: expense.walletName || '',
             expense_category: expense.expenseCategory || 'daily',
+            approval_status: expense.approvalStatus || 'pending',
+            employee_id: expense.employeeId || null,
         }).select().single();
         if (error) throw error;
         telegram.expenseAdded(expense, expense.actionBy);
         return data;
+    },
+
+    // تأكيد الدفع — يخصم من المحفظة ويغير الحالة لـ paid
+    async markPaid(id, approvedBy, walletId, walletName) {
+        // Get expense first
+        const { data: expense } = await supabase.from('expenses').select('*').eq('id', id).single();
+        if (!expense) throw new Error('Expense not found');
+
+        const updates = {
+            approval_status: 'paid',
+            approved_by: approvedBy,
+            approved_at: new Date().toISOString(),
+        };
+
+        // If wallet specified, save it and deduct
+        if (walletId) {
+            updates.wallet_id = walletId;
+            updates.wallet_name = walletName || '';
+
+            const { data: wallet } = await supabase.from('wallets').select('*').eq('id', walletId).single();
+            if (wallet) {
+                const newBalance = Number(wallet.balance) - Number(expense.amount);
+                await supabase.from('wallets').update({ balance: newBalance }).eq('id', walletId);
+                await supabase.from('wallet_transactions').insert({
+                    wallet_id: walletId,
+                    type: 'withdraw',
+                    amount: Number(expense.amount),
+                    description: `تأكيد دفع: ${expense.type} — ${expense.description || ''}`.trim(),
+                    source: 'مصروفات',
+                    balance_after: newBalance,
+                    created_by: approvedBy || 'System',
+                });
+            }
+        }
+
+        const { error } = await supabase.from('expenses').update(updates).eq('id', id);
+        if (error) throw error;
+
+        // Telegram notification
+        telegram.expenseApproved({ ...expense, walletName: walletName || expense.wallet_name }, approvedBy);
+        return { ...expense, ...updates };
     },
 
     async update(id, expense) {
@@ -1150,6 +1197,8 @@ export const salaryPaymentsAPI = {
                 wallet_id: payment.walletId || '',
                 wallet_name: payment.walletName || '',
                 expense_category: 'salary',
+                approval_status: 'pending',
+                employee_id: payment.employeeId || null,
             });
 
             // Deduct from wallet

@@ -33,8 +33,9 @@ export default function Dashboard() {
         sales.forEach(s => { if (s.contactChannel) channelCounts[s.contactChannel] = (channelCounts[s.contactChannel] || 0) + 1; });
         const topChannel = Object.entries(channelCounts).sort((a, b) => b[1] - a[1])[0];
 
-        const dailyExpensesList = expenses.filter(e => (e.expenseCategory || 'daily') === 'daily');
-        const stockExpensesList = expenses.filter(e => e.expenseCategory === 'stock');
+        const paidExpenses = expenses.filter(e => (e.approvalStatus || e.approval_status || 'pending') === 'paid');
+        const dailyExpensesList = paidExpenses.filter(e => (e.expenseCategory || 'daily') === 'daily');
+        const stockExpensesList = paidExpenses.filter(e => e.expenseCategory === 'stock');
         const totalDailyExpenses = dailyExpensesList.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
         const totalStockExpenses = stockExpensesList.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
         const totalExpenses = totalDailyExpenses + totalStockExpenses;

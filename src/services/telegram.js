@@ -123,6 +123,8 @@ const HDR = {
     expense       : '🟣━━━━━━━━━━━━━━━━━━━━━━━━🟣',
     expenseEdit   : '🔶━━━━━━━━━━━━━━━━━━━━━━━━🔶',
     expenseDel    : '⭕━━━━━━━━━━━━━━━━━━━━━━━━⭕',
+    expensePaid   : '✅━━━━━━━━━━━━━━━━━━━━━━━━✅',
+    autoSalary    : '💼━━━━━━━━━━━━━━━━━━━━━━━━💼',
     saleFinance   : '💵━━━━━━━━━━━━━━━━━━━━━━━━💵',
     reportDay     : '📊━━━━━━━━━━━━━━━━━━━━━━━━📊',
     reportWeek    : '📈━━━━━━━━━━━━━━━━━━━━━━━━📈',
@@ -833,9 +835,10 @@ const telegram = {
     // 💰 SALES GROUP — Financial Movements
     // ======================================
 
-    // 🟣 Expense Added
+    // 🟣 Expense Added (pending)
     expenseAdded: (expense, actionBy) => {
         const by = actionBy || 'Admin';
+        const catLabel = expense.expenseCategory === 'stock' ? '📦 مخزون' : expense.expenseCategory === 'salary' ? '💼 مرتبات' : '📅 يومي / تشغيلي';
 
         const text =
             `${HDR.expense}\n` +
@@ -845,9 +848,9 @@ const telegram = {
             `   💰  المبلغ:    <b>${fmt(expense.amount)} EGP</b>\n` +
             `   📂  النوع:     ${expense.type || '-'}\n` +
             (expense.walletName ? `   🏦  المحفظة:  <b>${expense.walletName}</b>\n` : '') +
-            (expense.expenseCategory ? `   🏷  التصنيف: ${expense.expenseCategory === 'stock' ? '📦 مخزون' : '📅 يومي / تشغيلي'}\n` : '') +
+            `   🏷  التصنيف: ${catLabel}\n` +
             `\n${SEP}\n\n` +
-            `   🟣  <b>الحالة:  ▸ تم التسجيل ✓ ◂</b>\n` +
+            `   🟡  <b>الحالة:  ▸ معلق — في انتظار التأكيد ◂</b>\n` +
             `   👨‍💼  بواسطة: <b>${by}</b>\n` +
             footer();
 
@@ -910,6 +913,46 @@ const telegram = {
             (notes ? '   📝  ملاحظة:   <b>' + notes + '</b>\n' : '') +
             '   👨‍💼  بواسطة:   <b>' + (actionBy || 'Admin') + '</b>\n' +
             footer();
+        sendSales('expenseAdded', text);
+    },
+
+    // ✅ Expense Approved/Paid
+    expenseApproved: (expense, approvedBy) => {
+        const by = approvedBy || 'Admin';
+
+        const text =
+            `${HDR.expensePaid}\n` +
+            `✅  <b>تأكيد دفع مصروف</b>  •  <code>EXPENSE PAID</code>\n` +
+            `${SEP}\n\n` +
+            `   📝  الوصف:     <b>${expense.description || '-'}</b>\n` +
+            `   💰  المبلغ:    <b>${fmt(expense.amount)} EGP</b>\n` +
+            `   📂  النوع:     ${expense.type || '-'}\n` +
+            (expense.walletName || expense.wallet_name ? `   🏦  المحفظة:  <b>${expense.walletName || expense.wallet_name}</b>\n` : '') +
+            `\n${SEP}\n\n` +
+            `   ✅  <b>الحالة:  ▸ تم التأكيد والدفع ◂</b>\n` +
+            `   👨‍💼  أكّده:  <b>${by}</b>\n` +
+            footer();
+
+        sendSales('expenseAdded', text);
+    },
+
+    // 💼 Auto Salary Added
+    autoSalaryAdded: (employees) => {
+        if (!employees || employees.length === 0) return;
+        const total = employees.reduce((s, e) => s + (Number(e.amount) || 0), 0);
+        const empList = employees.map(e => `   • ${e.name}: <b>${fmt(e.amount)} EGP</b>`).join('\n');
+
+        const text =
+            `${HDR.autoSalary}\n` +
+            `💼  <b>مرتبات يوم جديد</b>  •  <code>AUTO SALARY</code>\n` +
+            `${SEP}\n\n` +
+            `${empList}\n` +
+            `\n${SEP}\n\n` +
+            `   💰  الإجمالي: <b>${fmt(total)} EGP</b>\n` +
+            `   🟡  <b>الحالة: معلق — في انتظار التأكيد</b>\n` +
+            `   👥  عدد الموظفين: <b>${employees.length}</b>\n` +
+            footer();
+
         sendSales('expenseAdded', text);
     },
 
