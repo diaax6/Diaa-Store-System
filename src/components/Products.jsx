@@ -7,7 +7,8 @@ import { useConfirm } from './ConfirmDialog';
 export default function Products() {
     const { user, hasPermission } = useAuth();
     const { products: ctxProducts, sections: ctxSections, accounts: ctxAccounts, refreshData, reorderProducts } = useData();
-    const isAdmin = user?.role === 'admin' || hasPermission('all');
+    const isAdmin = user?.role === 'admin' || hasPermission('products', 'edit') || hasPermission('all');
+    const isAddOnly = hasPermission('products', 'add') && !hasPermission('products', 'edit');
     const { showConfirm, showAlert } = useConfirm();
 
     const [products, setProducts] = useState([]);
@@ -167,7 +168,7 @@ export default function Products() {
                             {categories.map(c => <option key={c} value={c}>{c}</option>)}
                         </select>
                     )}
-                    {isAdmin && (
+                    {(isAdmin || isAddOnly) && (
                         <button onClick={openAddProduct} className="bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl text-sm px-6 py-3 shadow-lg shadow-purple-200 transition-all flex items-center gap-2 whitespace-nowrap">
                             <i className="fa-solid fa-plus"></i> إضافة منتج
                         </button>
@@ -176,7 +177,13 @@ export default function Products() {
             </div>
 
             {/* Products Grid */}
-            {sortedProducts.length === 0 ? (
+            {isAddOnly ? (
+                <div className="flex flex-col items-center justify-center py-16 bg-gradient-to-br from-amber-50 to-orange-50 rounded-3xl border-2 border-dashed border-amber-200 text-amber-700">
+                    <i className="fa-solid fa-plus-circle text-5xl mb-4 opacity-50"></i>
+                    <p className="font-bold text-lg">صلاحية إضافة فقط</p>
+                    <p className="text-sm mt-1 text-amber-500">يمكنك إضافة منتجات جديدة • اضغط "إضافة منتج" للبدء</p>
+                </div>
+            ) : sortedProducts.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-20 bg-white rounded-3xl border-2 border-dashed border-slate-200 text-slate-400">
                     <i className="fa-solid fa-boxes-stacked text-5xl mb-4 opacity-30"></i>
                     <p className="font-bold text-lg">لا توجد منتجات {searchTerm ? 'تطابق البحث' : 'بعد'}</p>

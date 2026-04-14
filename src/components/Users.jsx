@@ -362,16 +362,20 @@ export default function Users () {
                                                 </span>
                                             ) : perms.length > 0 ? (
                                                 perms.map(p => {
-                                                    // New format: 'sales:view' or 'sales:edit' or legacy 'sales'
+                                                    // Format: 'sales:view' or 'sales:edit' or 'accounts:add' or legacy 'sales'
                                                     const [permId, permLevel] = p.includes(':') ? p.split(':') : [p, 'edit'];
                                                     const permInfo = PERMISSIONS_LIST.find(pl => pl.id === permId);
                                                     const isView = permLevel === 'view';
+                                                    const isAdd = permLevel === 'add';
+                                                    const colorClass = isView ? 'bg-sky-50 text-sky-700 border-sky-200' : isAdd ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200';
+                                                    const badgeClass = isView ? 'bg-sky-200 text-sky-800' : isAdd ? 'bg-amber-200 text-amber-800' : 'bg-emerald-200 text-emerald-800';
+                                                    const levelLabel = isView ? 'عرض' : isAdd ? 'إضافة' : 'تعديل';
                                                     return (
-                                                        <span key={p} className={`text-[10px] font-bold px-2 py-1 rounded-lg border flex items-center gap-1 ${isView ? 'bg-sky-50 text-sky-700 border-sky-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'}`}>
+                                                        <span key={p} className={`text-[10px] font-bold px-2 py-1 rounded-lg border flex items-center gap-1 ${colorClass}`}>
                                                             <i className={`fa-solid ${permInfo?.icon || 'fa-check'} text-[8px]`}></i>
                                                             {permInfo?.label || permId}
-                                                            <span className={`text-[8px] px-1 py-0.5 rounded ${isView ? 'bg-sky-200 text-sky-800' : 'bg-emerald-200 text-emerald-800'}`}>
-                                                                {isView ? 'عرض' : 'تعديل'}
+                                                            <span className={`text-[8px] px-1 py-0.5 rounded ${badgeClass}`}>
+                                                                {levelLabel}
                                                             </span>
                                                         </span>
                                                     );
@@ -531,8 +535,12 @@ export default function Users () {
                                                 let currentLevel = '';
                                                 if (currentUser?.permissions) {
                                                     if (currentUser.permissions.includes(`${perm.id}:edit`) || currentUser.permissions.includes(perm.id)) currentLevel = 'edit';
+                                                    else if (currentUser.permissions.includes(`${perm.id}:add`)) currentLevel = 'add';
                                                     else if (currentUser.permissions.includes(`${perm.id}:view`)) currentLevel = 'view';
                                                 }
+
+                                                // accounts & products get 4 levels (add), others get 3
+                                                const hasAddLevel = perm.id === 'accounts' || perm.id === 'products';
 
                                                 return (
                                                     <div key={perm.id} className="flex items-center gap-3 p-3 bg-white border-2 border-slate-200 rounded-xl hover:border-indigo-200 transition-all group">
@@ -544,7 +552,7 @@ export default function Users () {
                                                             <span className="text-sm font-bold text-slate-700 block">{perm.label}</span>
                                                             <span className="text-[9px] text-slate-400">{perm.desc}</span>
                                                         </div>
-                                                        {/* Radio group: none / view / edit */}
+                                                        {/* Radio group: none / view / [add] / edit */}
                                                         <div className="flex bg-slate-100 p-0.5 rounded-lg border border-slate-200 flex-shrink-0">
                                                             <label className={`px-2 py-1 rounded-md text-[10px] font-bold cursor-pointer transition-all has-[:checked]:bg-white has-[:checked]:text-slate-600 has-[:checked]:shadow-sm text-slate-400`}>
                                                                 <input type="radio" name={`perm_${perm.id}`} value="" defaultChecked={!currentLevel} className="hidden" />
@@ -554,6 +562,12 @@ export default function Users () {
                                                                 <input type="radio" name={`perm_${perm.id}`} value="view" defaultChecked={currentLevel === 'view'} className="hidden" />
                                                                 <i className="fa-solid fa-eye text-[8px] ml-0.5"></i> عرض
                                                             </label>
+                                                            {hasAddLevel && (
+                                                                <label className={`px-2 py-1 rounded-md text-[10px] font-bold cursor-pointer transition-all has-[:checked]:bg-amber-500 has-[:checked]:text-white has-[:checked]:shadow-sm text-slate-400`}>
+                                                                    <input type="radio" name={`perm_${perm.id}`} value="add" defaultChecked={currentLevel === 'add'} className="hidden" />
+                                                                    <i className="fa-solid fa-plus text-[8px] ml-0.5"></i> إضافة
+                                                                </label>
+                                                            )}
                                                             <label className={`px-2 py-1 rounded-md text-[10px] font-bold cursor-pointer transition-all has-[:checked]:bg-emerald-500 has-[:checked]:text-white has-[:checked]:shadow-sm text-slate-400`}>
                                                                 <input type="radio" name={`perm_${perm.id}`} value="edit" defaultChecked={currentLevel === 'edit'} className="hidden" />
                                                                 <i className="fa-solid fa-pen text-[8px] ml-0.5"></i> تعديل

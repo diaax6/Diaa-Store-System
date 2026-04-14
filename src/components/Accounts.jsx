@@ -5,8 +5,9 @@ import { accountsAPI, sectionsAPI, quickLinksAPI, inventoryLogsAPI } from '../se
 import { useConfirm } from './ConfirmDialog';
 
 export default function Accounts() {
-    const { user } = useAuth();
-    const isAdmin = user?.role === 'admin';
+    const { user, hasPermission } = useAuth();
+    const isAdmin = user?.role === 'admin' || hasPermission('accounts', 'edit');
+    const isAddOnly = hasPermission('accounts', 'add') && !hasPermission('accounts', 'edit');
     const { products, accounts: ctxAccounts, sections: ctxSections, inventoryLogs, refreshData } = useData();
 
     const [accounts, setAccounts] = useState([]);
@@ -350,7 +351,7 @@ export default function Accounts() {
         return (
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-lg transition-all group flex flex-col">
                 {/* Header */}
-                <div onClick={() => { if (isAdmin) { setSelectedSection(sec.id); setSearchTerm(''); setFilterStatus('all'); setVisibleCount(20); } }} className={`${isAdmin ? 'cursor-pointer' : ''} p-4 pb-3`}>
+                <div onClick={() => { if (isAdmin || isAddOnly) { setSelectedSection(sec.id); setSearchTerm(''); setFilterStatus('all'); setVisibleCount(20); } }} className={`${(isAdmin || isAddOnly) ? 'cursor-pointer' : ''} p-4 pb-3`}>
                     <div className="flex items-center gap-3 mb-3">
                         <div className={`w-11 h-11 rounded-xl flex items-center justify-center text-lg flex-shrink-0 ${isCodes ? 'bg-amber-100 text-amber-600' : 'bg-indigo-100 text-indigo-600'}`}>
                             <i className={`fa-solid ${isCodes ? 'fa-key' : 'fa-user-shield'}`}></i>
@@ -394,17 +395,17 @@ export default function Accounts() {
 
                 {/* Action Buttons Footer */}
                 <div className="border-t border-slate-100 p-3 mt-auto flex gap-2">
-                    {isAdmin && (
+                    {(isAdmin || isAddOnly) && (
                         <button onClick={() => { setSelectedSection(sec.id); setSearchTerm(''); setFilterStatus('all'); setVisibleCount(20); }}
                             className={`flex-1 py-2 rounded-xl text-xs font-bold transition-colors ${isCodes ? 'bg-amber-50 text-amber-700 hover:bg-amber-100' : 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100'}`}>
-                            <i className="fa-solid fa-folder-open ml-1 text-[10px]"></i> فتح
+                            <i className="fa-solid fa-folder-open ml-1 text-[10px]"></i> {isAddOnly ? 'إضافة' : 'فتح'}
                         </button>
                     )}
                     <button onClick={(e) => { e.stopPropagation(); handlePullNext(sec.name); }}
                         disabled={avail === 0}
-                        className={`${isAdmin ? '' : 'flex-1'} py-2 px-3 rounded-xl text-xs font-bold transition-colors ${avail > 0 ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100' : 'bg-slate-50 text-slate-300 cursor-not-allowed'}`}
+                        className={`${(isAdmin || isAddOnly) ? '' : 'flex-1'} py-2 px-3 rounded-xl text-xs font-bold transition-colors ${avail > 0 ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100' : 'bg-slate-50 text-slate-300 cursor-not-allowed'}`}
                         title="سحب">
-                        <i className="fa-solid fa-bolt"></i> {!isAdmin && 'سحب'}
+                        <i className="fa-solid fa-bolt"></i> {(!isAdmin && !isAddOnly) && 'سحب'}
                     </button>
                     {isAdmin && (
                         <button onClick={(e) => { e.stopPropagation(); setEditingSection(sec); }}
@@ -608,8 +609,8 @@ export default function Accounts() {
                         </div>
                     )}
                 </>
-            ) : !isAdmin ? (
-                /* Non-admin: show restricted view with pull only */
+            ) : (!isAdmin && !isAddOnly) ? (
+                /* Non-admin non-add: show restricted view with pull only */
                 <div className="bg-white rounded-3xl border-2 border-dashed border-slate-200 text-slate-400 text-center py-16">
                     <i className="fa-solid fa-lock text-5xl mb-4 opacity-30"></i>
                     <p className="font-bold text-lg text-slate-500">صلاحيات محدودة</p>
@@ -657,16 +658,20 @@ export default function Accounts() {
                                     <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${isCodesSection ? 'bg-amber-50 text-amber-600' : 'bg-indigo-50 text-indigo-600'}`}>
                                         {isCodesSection ? 'أكواد' : 'حسابات'}
                                     </span>
+                                    {isAdmin && (
                                     <button onClick={() => setEditingSection(currentSection)} className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-blue-50 text-blue-600 hover:bg-blue-100 transition border border-blue-100" title="تعديل اسم القسم">
                                         <i className="fa-solid fa-pen text-[8px] ml-0.5"></i> تعديل
                                     </button>
+                                    )}
                                 </div>
                             </div>
                         </div>
+                        {!isAddOnly && (
                         <div className="relative w-full md:w-80 border-t md:border-none pt-4 md:pt-0 border-slate-100">
                             <i className="fa-solid fa-search absolute right-3 md:top-1/2 md:-translate-y-1/2 top-7 text-slate-400"></i>
                             <input type="text" className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-sm font-semibold rounded-xl pr-10 p-3 outline-none focus:bg-white focus:border-indigo-400 transition-all placeholder-slate-400" placeholder="بحث بالبيانات..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
                         </div>
+                        )}
                         <div className="flex gap-3 w-full md:w-auto">
                             <button onClick={() => handlePullNext()} className="bg-emerald-600 hover:bg-emerald-700 text-white w-full md:w-auto justify-center font-bold rounded-xl text-sm px-6 py-2.5 shadow-lg shadow-emerald-200 transition-all flex items-center gap-2">
                                 <i className="fa-solid fa-bolt"></i> سحب التالي
@@ -677,7 +682,8 @@ export default function Accounts() {
                         </div>
                     </div>
 
-                    {/* Filters */}
+                    {/* Filters — hidden for add-only users */}
+                    {!isAddOnly && (
                     <div className="flex flex-wrap gap-3 items-center">
                         <div className="flex bg-white p-1.5 rounded-xl border border-slate-200 shadow-sm overflow-x-auto w-full md:w-auto scrollbar-hide">
                             {[{ id: 'all', label: 'الكل', count: accountStats.total }, { id: 'available', label: 'متاح', count: accountStats.available }, { id: 'used', label: 'مستخدم', count: accountStats.used }, { id: 'completed', label: 'مكتمل', count: accountStats.full }, { id: 'damaged', label: 'تالف' }].map(f => (
@@ -688,9 +694,16 @@ export default function Accounts() {
                             ))}
                         </div>
                     </div>
+                    )}
 
-                    {/* Items List */}
-                    {filteredAccounts.length === 0 ? (
+                    {/* Items List — hidden for add-only users */}
+                    {isAddOnly ? (
+                        <div className="flex flex-col items-center justify-center py-12 bg-gradient-to-br from-amber-50 to-orange-50 rounded-3xl border-2 border-dashed border-amber-200 text-amber-700">
+                            <i className="fa-solid fa-plus-circle text-5xl mb-4 opacity-50"></i>
+                            <p className="font-bold text-lg">صلاحية إضافة فقط</p>
+                            <p className="text-sm mt-1 text-amber-500">يمكنك إضافة عناصر جديدة وسحب التالي • اضغط "إضافة" للبدء</p>
+                        </div>
+                    ) : filteredAccounts.length === 0 ? (
                         <div className="flex flex-col items-center justify-center py-16 bg-white rounded-3xl border-2 border-dashed border-slate-200 text-slate-400">
                             <i className={`fa-solid ${isCodesSection ? 'fa-key' : 'fa-server'} text-5xl mb-4 opacity-30`}></i>
                             <p className="font-bold text-lg">لا توجد {isCodesSection ? 'أكواد' : 'بيانات'} هنا</p>

@@ -76,22 +76,25 @@ export const AuthProvider = ({ children }) => {
         setUser(null);
     };
 
-    // hasPermission(perm) — any access (view or edit)
+    // hasPermission(perm) — any access (view or edit or add)
     // hasPermission(perm, 'edit') — edit access only
-    // hasPermission(perm, 'view') — view access (also true if has edit)
+    // hasPermission(perm, 'add') — add access (also true if has edit)
+    // hasPermission(perm, 'view') — view access (also true if has edit or add)
     const hasPermission = (perm, level) => {
         if (!user) return false;
         if (user.role === 'admin' || (user.permissions && user.permissions.includes('all'))) return true;
         if (!user.permissions) return false;
 
-        // New format: 'sales:view', 'sales:edit'
+        // Format: 'sales:view', 'sales:edit', 'accounts:add'
         const hasEdit = user.permissions.includes(`${perm}:edit`);
+        const hasAdd = user.permissions.includes(`${perm}:add`);
         const hasView = user.permissions.includes(`${perm}:view`);
         const hasLegacy = user.permissions.includes(perm); // old format — treat as full (edit)
 
-        if (!level) return hasEdit || hasView || hasLegacy; // any access
+        if (!level) return hasEdit || hasAdd || hasView || hasLegacy; // any access
         if (level === 'edit') return hasEdit || hasLegacy;
-        if (level === 'view') return hasEdit || hasView || hasLegacy; // edit includes view
+        if (level === 'add') return hasEdit || hasAdd || hasLegacy; // edit includes add
+        if (level === 'view') return hasEdit || hasAdd || hasView || hasLegacy; // edit & add include view
         return false;
     };
 
