@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from './AuthContext';
 import { supabase } from '../lib/supabase';
 import {
@@ -18,6 +19,30 @@ import telegram from '../services/telegram';
 const DataContext = createContext();
 const SORT_KEY = 'diaa-store_product_order';
 
+// ── URL ↔ Tab mapping ──────────────────────────────────────────
+export const TAB_TO_PATH = {
+    dashboard  : '/',
+    sales      : '/sales',
+    products   : '/products',
+    accounts   : '/accounts',
+    clients    : '/clients',
+    shifts     : '/shifts',
+    reports    : '/reports',
+    expenses   : '/expenses',
+    wallets    : '/wallets',
+    renewals   : '/renewals',
+    problems   : '/problems',
+    employees  : '/employees',
+    users      : '/users',
+    botSettings: '/bot-settings',
+    myAccount  : '/my-account',
+};
+
+const PATH_TO_TAB = Object.fromEntries(
+    Object.entries(TAB_TO_PATH).map(([tab, path]) => [path, tab])
+);
+
+
 const getSavedOrder = () => {
     try { return JSON.parse(localStorage.getItem(SORT_KEY) || '{}'); } catch { return {}; }
 };
@@ -32,6 +57,9 @@ const sortProducts = (products, orderMap) => {
 };
 
 // الجداول اللي هنراقبها في الوقت الحقيقي
+// Note: employees/salary_payments/employee_actions are NOT fetched by DataContext,
+// so listening to them here only wastes network (triggers _fetchData for nothing).
+// Employees.jsx manages its own realtime subscription for those tables.
 const REALTIME_TABLES = [
     'sales',
     'products',
@@ -42,11 +70,6 @@ const REALTIME_TABLES = [
     'expenses',
     'inventory_sections',
     'problems',
-    'attendance',
-    'employees',
-    'salary_payments',
-    'employee_actions',
-    'users',
     'inventory_logs',
 ];
 
@@ -77,8 +100,18 @@ export const DataProvider = ({ children }) => {
     });
 
     // --- Control States ---
-    const [activeTab, setActiveTab] = useState('dashboard');
+    // activeTab is derived from the URL — navigate() keeps URL and tab in sync
+    const navigate  = useNavigate();
+    const location  = useLocation();
+    const activeTab = PATH_TO_TAB[location.pathname] ?? 'dashboard';
+
+    const setActiveTab = useCallback((tab) => {
+        const path = TAB_TO_PATH[tab] ?? '/';
+        navigate(path);
+    }, [navigate]);
+
     const [renewalTarget, setRenewalTarget] = useState(null);
+
 
     // --- Realtime refs ---
     const realtimeTimerRef = useRef(null);
@@ -142,7 +175,7 @@ export const DataProvider = ({ children }) => {
                 productsAPI.getAll(),
                 customersAPI.getAll(),
                 walletsAPI.getAll(),
-                walletsAPI.getTransactions(),
+                walletsAPI.getTransactions(null, 1000), // limit global fetch — full history available per-wallet on demand
                 sectionsAPI.getAll(),
                 problemsAPI.getAll(),
                 inventoryLogsAPI.getAll().catch(() => [])
@@ -172,7 +205,7 @@ export const DataProvider = ({ children }) => {
 
             setStats({
                 revenue: totalRevenue,
-                netProfit: totalRevenue,
+                netProfit: netProfit,
                 expenses: totalExpenses,
                 allExpenses: allExpenses,
                 final: netProfit

@@ -1,11 +1,19 @@
 import { useState, useMemo, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useData } from '../context/DataContext';
+import { TAB_TO_PATH } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 import { accountsAPI } from '../services/api';
 
 export default function Sidebar ({ isOpen, onClose }) {
-    const { activeTab, setActiveTab, sales, accounts, sections, refreshData } = useData();
+    const { sales, accounts, sections, refreshData } = useData();
     const { user, logout, hasPermission } = useAuth();
+    const navigate = useNavigate();
+    const location = useLocation();
+    // Derive active tab from URL path for highlight logic
+    const PATH_TO_TAB_LOCAL = Object.fromEntries(Object.entries(TAB_TO_PATH).map(([t,p]) => [p,t]));
+    const activeTab = PATH_TO_TAB_LOCAL[location.pathname] ?? 'dashboard';
+    const go = (tab) => { navigate(TAB_TO_PATH[tab] ?? '/'); onClose(); };
     const [showQuickPull, setShowQuickPull] = useState(false);
     const [pullResult, setPullResult] = useState(null);
     const [copiedField, setCopiedField] = useState(null);
@@ -32,12 +40,10 @@ export default function Sidebar ({ isOpen, onClose }) {
         localStorage.setItem('ds_dark_mode', String(newVal));
     };
 
-    // التوجيه التلقائي للمودريتور
+    // Auto-redirect moderator from dashboard to sales
     useEffect(() => {
-        if (user) {
-            if (user.role !== 'admin' && hasPermission('sales') && activeTab === 'dashboard') {
-                setActiveTab('sales');
-            }
+        if (user && user.role !== 'admin' && hasPermission('sales') && activeTab === 'dashboard') {
+            navigate(TAB_TO_PATH['sales']);
         }
     }, [user]);
 
@@ -125,46 +131,72 @@ export default function Sidebar ({ isOpen, onClose }) {
                     </div>
                 </div>
 
-                <nav className="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-1">
-                    {allTabs.filter(t => hasPermission(t.id)).map(item => (
-                        <button
-                            key={item.id}
-                            onClick={() => { setActiveTab(item.id); onClose(); }}
-                            className={`w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-200 group relative ${activeTab === item.id
-                                ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/50 font-bold'
-                                : 'text-slate-400 hover:bg-slate-800 hover:text-white font-medium'
+                <nav className="flex-1 overflow-y-auto custom-scrollbar py-3">
+                    {/* Main nav */}
+                    <div className="px-3 space-y-0.5">
+                        {allTabs.filter(t => hasPermission(t.id)).map(item => (
+                            <button
+                                key={item.id}
+                                onClick={() => go(item.id)}
+                                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-150 group relative text-sm ${
+                                    activeTab === item.id
+                                        ? 'bg-indigo-500/20 text-indigo-300 font-semibold border-r-2 border-indigo-400'
+                                        : 'text-slate-400 hover:bg-white/5 hover:text-slate-200 font-medium border-r-2 border-transparent'
                                 }`}
-                        >
-                            <i className={`fa-solid ${item.icon} w-5 text-center transition-transform group-hover:scale-110 ${activeTab === item.id ? 'text-white' : 'text-slate-500 group-hover:text-indigo-400'}`}></i>
-                            <span className="text-sm">{item.label}</span>
+                            >
+                                <i className={`fa-solid ${item.icon} w-4 text-center text-sm ${
+                                    activeTab === item.id ? 'text-indigo-400' : 'text-slate-500 group-hover:text-slate-300'
+                                }`}></i>
+                                <span>{item.label}</span>
+                                {item.id === 'renewals' && alertsCount > 0 && (
+                                    <span className="mr-auto bg-red-500 text-white text-[9px] font-black h-4 px-1.5 min-w-4 flex items-center justify-center rounded-full">
+                                        {alertsCount > 99 ? '+99' : alertsCount}
+                                    </span>
+                                )}
+                            </button>
+                        ))}
+                    </div>
 
-                            {item.id === 'renewals' && alertsCount > 0 && (
-                                <span className="absolute left-3 top-1/2 -translate-y-1/2 bg-red-500 text-white text-[9px] font-black h-5 w-5 flex items-center justify-center rounded-full animate-pulse shadow-sm">
-                                    {alertsCount > 99 ? '+99' : alertsCount}
-                                </span>
-                            )}
-                        </button>
-                    ))}
-
-                    {(hasPermission('all') || user.role === 'admin') && (
-                        <button onClick={() => { setActiveTab('users'); onClose(); }} className={`w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-200 ${activeTab === 'users' ? 'bg-indigo-600 text-white font-bold' : 'text-slate-400 hover:bg-slate-800 hover:text-white font-medium'}`}>
-                            <i className="fa-solid fa-user-gear w-5 text-center"></i>
-                            <span className="text-sm">المستخدمين</span>
-                        </button>
-                    )}
-
-                    {(hasPermission('employees') || hasPermission('all') || user.role === 'admin') && (
-                        <button onClick={() => { setActiveTab('employees'); onClose(); }} className={`w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-200 ${activeTab === 'employees' ? 'bg-violet-600 text-white font-bold' : 'text-slate-400 hover:bg-slate-800 hover:text-white font-medium'}`}>
-                            <i className="fa-solid fa-id-card-clip w-5 text-center"></i>
-                            <span className="text-sm">الموظفين</span>
-                        </button>
-                    )}
-
-                    {(hasPermission('botSettings') || hasPermission('all') || user.role === 'admin') && (
-                        <button onClick={() => { setActiveTab('botSettings'); onClose(); }} className={`w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-200 ${activeTab === 'botSettings' ? 'bg-blue-600 text-white font-bold' : 'text-slate-400 hover:bg-slate-800 hover:text-white font-medium'}`}>
-                            <i className="fa-brands fa-telegram w-5 text-center"></i>
-                            <span className="text-sm">إعدادات البوت</span>
-                        </button>
+                    {/* Admin group */}
+                    {(hasPermission('all') || user.role === 'admin' || hasPermission('employees') || hasPermission('botSettings')) && (
+                        <>
+                            <p className="nav-grp mt-2">إدارة</p>
+                            <div className="px-3 space-y-0.5">
+                                {(hasPermission('all') || user.role === 'admin') && (
+                                    <button onClick={() => go('users')}
+                                        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-150 text-sm ${
+                                            activeTab === 'users'
+                                                ? 'bg-indigo-500/20 text-indigo-300 font-semibold border-r-2 border-indigo-400'
+                                                : 'text-slate-400 hover:bg-white/5 hover:text-slate-200 font-medium border-r-2 border-transparent'
+                                        }`}>
+                                        <i className={`fa-solid fa-user-gear w-4 text-center text-sm ${activeTab === 'users' ? 'text-indigo-400' : 'text-slate-500'}`}></i>
+                                        <span>المستخدمين</span>
+                                    </button>
+                                )}
+                                {(hasPermission('employees') || hasPermission('all') || user.role === 'admin') && (
+                                    <button onClick={() => go('employees')}
+                                        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-150 text-sm ${
+                                            activeTab === 'employees'
+                                                ? 'bg-indigo-500/20 text-indigo-300 font-semibold border-r-2 border-indigo-400'
+                                                : 'text-slate-400 hover:bg-white/5 hover:text-slate-200 font-medium border-r-2 border-transparent'
+                                        }`}>
+                                        <i className={`fa-solid fa-id-card-clip w-4 text-center text-sm ${activeTab === 'employees' ? 'text-indigo-400' : 'text-slate-500'}`}></i>
+                                        <span>الموظفين</span>
+                                    </button>
+                                )}
+                                {(hasPermission('botSettings') || hasPermission('all') || user.role === 'admin') && (
+                                    <button onClick={() => go('botSettings')}
+                                        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-150 text-sm ${
+                                            activeTab === 'botSettings'
+                                                ? 'bg-indigo-500/20 text-indigo-300 font-semibold border-r-2 border-indigo-400'
+                                                : 'text-slate-400 hover:bg-white/5 hover:text-slate-200 font-medium border-r-2 border-transparent'
+                                        }`}>
+                                        <i className={`fa-brands fa-telegram w-4 text-center text-sm ${activeTab === 'botSettings' ? 'text-indigo-400' : 'text-slate-500'}`}></i>
+                                        <span>إعدادات البوت</span>
+                                    </button>
+                                )}
+                            </div>
+                        </>
                     )}
 
                     {/* ===== QUICK PULL SECTION ===== */}
@@ -242,27 +274,27 @@ export default function Sidebar ({ isOpen, onClose }) {
                     )}
                 </nav>
 
-                <div className="p-4 border-t border-slate-800 bg-slate-900">
-                    <div className="flex items-center gap-3 mb-3 px-2">
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center text-white font-bold text-xs shadow-lg">
+                <div className="p-3 border-t border-slate-800">
+                    <div className="flex items-center gap-2 p-2 rounded-lg hover:bg-white/5 transition-colors cursor-pointer" onClick={() => go('myAccount')}>
+                        <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
                             {user.username.charAt(0).toUpperCase()}
                         </div>
                         <div className="overflow-hidden flex-1">
-                            <h4 className="text-xs font-bold text-white truncate">{user.username}</h4>
-                            <span className="text-[10px] text-emerald-400 uppercase font-bold tracking-wider">{user.role}</span>
+                            <p className="text-xs font-semibold text-slate-200 truncate">{user.username}</p>
+                            <p className="text-[10px] text-slate-500 uppercase tracking-wide">{user.role}</p>
                         </div>
-                        {/* Dark Mode Toggle */}
-                        <button onClick={toggleDarkMode} className="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-yellow-400 transition-all border border-slate-700" title={isDark ? 'الوضع الفاتح' : 'الوضع المظلم'}>
-                            <i className={`fa-solid ${isDark ? 'fa-sun' : 'fa-moon'} text-sm`}></i>
-                        </button>
-                    </div>
-                    <div className="space-y-1.5">
-                        <button onClick={() => { setActiveTab('myAccount'); onClose(); }} className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-xl transition-all border font-bold text-xs ${activeTab === 'myAccount' ? 'bg-indigo-600 text-white border-indigo-500' : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700 hover:border-indigo-500/50'}`}>
-                            <i className="fa-solid fa-user-circle"></i> حسابي
-                        </button>
-                        <button onClick={logout} className="w-full flex items-center justify-center gap-2 bg-slate-800 hover:bg-red-500/10 hover:text-red-400 text-slate-400 py-2.5 rounded-xl transition-all border border-slate-700 hover:border-red-500/50 font-bold text-xs">
-                            <i className="fa-solid fa-right-from-bracket"></i> تسجيل خروج
-                        </button>
+                        <div className="flex items-center gap-1">
+                            <button onClick={e => { e.stopPropagation(); toggleDarkMode(); }}
+                                className="w-7 h-7 flex items-center justify-center rounded-md bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-yellow-400 transition-all"
+                                title={isDark ? 'الوضع الفاتح' : 'الوضع المظلم'}>
+                                <i className={`fa-solid ${isDark ? 'fa-sun' : 'fa-moon'} text-xs`}></i>
+                            </button>
+                            <button onClick={e => { e.stopPropagation(); logout(); }}
+                                className="w-7 h-7 flex items-center justify-center rounded-md bg-slate-800 hover:bg-red-500/20 text-slate-400 hover:text-red-400 transition-all"
+                                title="تسجيل خروج">
+                                <i className="fa-solid fa-right-from-bracket text-xs"></i>
+                            </button>
+                        </div>
                     </div>
                 </div>
             </aside>
