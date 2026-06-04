@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import ErrorBoundary from './components/ErrorBoundary';
 import { DataProvider, useData } from './context/DataContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ConfirmProvider } from './components/ConfirmDialog';
@@ -75,13 +76,15 @@ const MainLayout = () => {
 
 function App () {
   return (
-    <AuthProvider>
-      <DataProvider>
-        <ConfirmProvider>
-          <MainLayout />
-        </ConfirmProvider>
-      </DataProvider>
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <DataProvider>
+          <ConfirmProvider>
+            <MainLayout />
+          </ConfirmProvider>
+        </DataProvider>
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }
 
