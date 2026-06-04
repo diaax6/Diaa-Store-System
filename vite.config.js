@@ -1,16 +1,16 @@
-import { defineConfig } from 'vite'
+﻿import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react-swc'
 import path from 'path'
-import viteCompression from 'vite-plugin-compression' // ضغط Gzip/Brotli
-import { visualizer } from 'rollup-plugin-visualizer' // لتحليل حجم الباندل
+import viteCompression from 'vite-plugin-compression' // Ø¶ØºØ· Gzip/Brotli
+import { visualizer } from 'rollup-plugin-visualizer' // Ù„ØªØ­Ù„ÙŠÙ„ Ø­Ø¬Ù… Ø§Ù„Ø¨Ø§Ù†Ø¯Ù„
 
 export default defineConfig({
     plugins: [
         react(),
         viteCompression({
-            algorithm: 'brotliCompress', // الأفضل (Brotli)
+            algorithm: 'brotliCompress', // Ø§Ù„Ø£ÙØ¶Ù„ (Brotli)
             ext: '.br',
-            deleteOriginFile: false, // يخلي الملف الأصلي موجود كمان
+            deleteOriginFile: false, // ÙŠØ®Ù„ÙŠ Ø§Ù„Ù…Ù„Ù Ø§Ù„Ø£ØµÙ„ÙŠ Ù…ÙˆØ¬ÙˆØ¯ ÙƒÙ…Ø§Ù†
         }),
         viteCompression({
             algorithm: 'gzip',
@@ -22,13 +22,13 @@ export default defineConfig({
     base: '/',
     build: {
         target: 'esnext',
-        minify: 'esbuild', // ضغط JS & CSS (مدمج مع Vite)
-        cssCodeSplit: true, // يعمل Code Splitting للـ CSS
+        minify: 'esbuild', // Ø¶ØºØ· JS & CSS (Ù…Ø¯Ù…Ø¬ Ù…Ø¹ Vite)
+        cssCodeSplit: true, // ÙŠØ¹Ù…Ù„ Code Splitting Ù„Ù„Ù€ CSS
         rollupOptions: {
             output: {
                 manualChunks: {
-                    react:   ['react', 'react-dom'],                      // React core — changes rarely
-                    charts:  ['chart.js', 'react-chartjs-2'],             // Charting — heavy, lazy-load worthy
+                    react:   ['react', 'react-dom'],                      // React core â€” changes rarely
+                    charts:  ['chart.js', 'react-chartjs-2'],             // Charting â€” heavy, lazy-load worthy
                     vendor:  ['lucide-react', 'sweetalert2', 'xlsx'],     // Utility libs
                 },
             },
@@ -41,3 +41,5 @@ export default defineConfig({
         extensions: ['.mjs', '.js', '.ts', '.jsx', '.tsx', '.json'],
     },
 })
+
+// deployed: 2026-06-04
