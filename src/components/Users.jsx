@@ -1,7 +1,9 @@
 ﻿import { useState, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { usersAPI, salesAPI, accountsAPI } from '../services/api';
 import { useData } from '../context/DataContext';
 import { useConfirm } from './ConfirmDialog';
+import { useLang } from '../i18n/index';
 
 // قائمة الصلاحيات — محدثة حسب أقسام الموقع الفعلية
 const PERMISSIONS_LIST = [
@@ -279,7 +281,7 @@ export default function Users () {
                                                 </div>
                                                 <div>
                                                     <p className="text-xs text-slate-400 font-bold">إجمالي الإيرادات</p>
-                                                    <p className="text-sm font-black text-slate-700">{(stats.totalRevenue || 0).toLocaleString()} ج.م</p>
+                                                    <p className="text-sm font-black text-slate-700">{(stats.totalRevenue || 0).toLocaleString('en-US')} ج.م</p>
                                                 </div>
                                             </div>
                                             <div className="flex items-center gap-2">
@@ -319,7 +321,7 @@ export default function Users () {
                                                 {u.base_salary > 0 && (
                                                     <div className="flex items-center gap-2">
                                                         <span className="text-xs text-slate-500 font-bold">الراتب:</span>
-                                                        <span className="text-sm font-black text-amber-700">{Number(u.base_salary).toLocaleString()} ج.م</span>
+                                                        <span className="text-sm font-black text-amber-700">{Number(u.base_salary).toLocaleString('en-US')} ج.م</span>
                                                     </div>
                                                 )}
                                                 {u.vodafone_cash && (
@@ -375,8 +377,8 @@ export default function Users () {
             </div>
 
             {/* --- Modal: إضافة/تعديل مستخدم --- */}
-            {showModal && (
-                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
+            {showModal && createPortal(
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in" style={{direction:'rtl',fontFamily:'Cairo,sans-serif'}}>
                     <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden transform transition-all scale-100 flex flex-col max-h-[90vh]">
                         <div className="p-6 bg-gradient-to-r from-indigo-600 to-purple-700 text-white flex justify-between items-center shadow-md z-10">
                             <h3 className="text-xl font-bold flex items-center gap-2">
@@ -585,7 +587,7 @@ export default function Users () {
                         </div>
                     </div>
                 </div>
-            )}
+            , document.body)}
 
             {/* CSS Styles Injection */}
             <style>{`

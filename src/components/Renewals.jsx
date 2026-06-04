@@ -1,11 +1,14 @@
 ﻿import { useState, useMemo, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { salesAPI, walletsAPI } from '../services/api';
 import telegram from '../services/telegram';
 import { useConfirm } from './ConfirmDialog';
+import { useLang } from '../i18n/index';
 
 export default function Renewals() {
+    const { t } = useLang();
     useEffect(() => { window.scrollTo(0, 0); }, []);
 
     const { user } = useAuth();
@@ -183,7 +186,7 @@ export default function Renewals() {
         }
     };
 
-    // تعليم كمدفوع
+    // {t('renewals_mark_paid')}
     const markPaid = async (id) => {
         const sale = alerts.unpaid.find(s => s.id === id);
         try {
@@ -223,24 +226,24 @@ export default function Renewals() {
                 <div className="flex items-center gap-3">
                     <div className="ph-icon" style={{backgroundColor:'#dc2626'}}><i className="fa-solid fa-bell text-sm"></i></div>
                     <div>
-                        <h1 className="ph-title">التنبيهات</h1>
-                        <p className="ph-sub">متابعة التجديدات والمديونيات</p>
+                        <h1 className="ph-title">{t('renewals_title')}</h1>
+                        <p className="ph-sub">{t('renewals_subtitle')}</p>
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
-                    {alerts.renewals.length > 0 && <span className="ds-badge ds-warn"><i className="fa-solid fa-clock"></i> {alerts.renewals.length} قرب التجديد</span>}
-                    {alerts.expiring.length > 0 && <span className="ds-badge ds-err"><i className="fa-solid fa-calendar-xmark"></i> {alerts.expiring.length} منتهية</span>}
-                    {alerts.unpaid.length > 0 && <span className="ds-badge ds-purple"><i className="fa-solid fa-hand-holding-dollar"></i> {alerts.unpaid.length} مديونية</span>}
-                    {totalAlerts === 0 && <span className="ds-badge ds-ok"><i className="fa-solid fa-check-circle"></i> كل شيء تمام</span>}
+                    {alerts.renewals.length > 0 && <span className="ds-badge ds-warn"><i className="fa-solid fa-clock"></i> {alerts.renewals.length} {t('renewals_badge_soon')}</span>}
+                    {alerts.expiring.length > 0 && <span className="ds-badge ds-err"><i className="fa-solid fa-calendar-xmark"></i> {alerts.expiring.length} {t('renewals_badge_expired')}</span>}
+                    {alerts.unpaid.length > 0 && <span className="ds-badge ds-purple"><i className="fa-solid fa-hand-holding-dollar"></i> {alerts.unpaid.length} {t('renewals_badge_unpaid')}</span>}
+                    {totalAlerts === 0 && <span className="ds-badge ds-ok"><i className="fa-solid fa-check-circle"></i> {t('renewals_badge_ok')}</span>}
                 </div>
             </div>
 
             {/* Tab Navigation - Fixed with static classes */}
             <div className="bg-white rounded-2xl p-1.5 border border-slate-200 shadow-sm flex gap-1">
                 {[
-                    { id: 'renewals', label: 'قرب التجديد', icon: 'fa-clock', count: alerts.renewals.length },
-                    { id: 'expired', label: 'منتهية', icon: 'fa-calendar-xmark', count: alerts.expiring.length },
-                    { id: 'unpaid', label: 'مديونيات', icon: 'fa-hand-holding-dollar', count: alerts.unpaid.length },
+                    { id: 'renewals', label: t('renewals_tab_soon'), icon: 'fa-clock', count: alerts.renewals.length },
+                    { id: 'expired', label: t('renewals_tab_expired'), icon: 'fa-calendar-xmark', count: alerts.expiring.length },
+                    { id: 'unpaid', label: t('renewals_tab_unpaid'), icon: 'fa-hand-holding-dollar', count: alerts.unpaid.length },
                 ].map(tab => (
                     <button key={tab.id} onClick={() => setActiveTab(tab.id)}
                         className={`flex-1 py-2.5 md:py-3 rounded-xl text-xs md:text-sm font-bold transition-all flex items-center justify-center gap-1 md:gap-2 ${activeTab === tab.id ? tabStyles[tab.id].active : 'text-slate-500 hover:bg-slate-50'}`}>
@@ -261,8 +264,8 @@ export default function Renewals() {
                 {currentList.length === 0 && (
                     <div className="flex flex-col items-center justify-center py-16 md:py-20 bg-white rounded-3xl border border-dashed border-slate-200 text-slate-400">
                         <i className="fa-solid fa-check-circle text-4xl md:text-5xl mb-4 opacity-30 text-emerald-300"></i>
-                        <p className="font-bold text-base md:text-lg">لا توجد تنبيهات</p>
-                        <p className="text-xs md:text-sm">كل شيء تمام 👌</p>
+                        <p className="font-bold text-base md:text-lg">{t('renewals_no_alerts')}</p>
+                        <p className="text-xs md:text-sm">{t('renewals_all_good')}</p>
                     </div>
                 )}
 
@@ -275,24 +278,24 @@ export default function Renewals() {
                                 {sale.customerPhone && <p className="text-[10px] md:text-xs text-slate-400 font-mono dir-ltr text-right mt-0.5">{sale.customerPhone}</p>}
                                 <div className="flex flex-wrap gap-1.5 mt-1.5">
                                     <span className="text-[10px] bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-lg font-bold">{sale.productName}</span>
-                                    <span className="text-[10px] bg-slate-50 text-slate-500 px-2 py-0.5 rounded-lg font-bold">{sale.duration || 30} يوم</span>
+                                    <span className="text-[10px] bg-slate-50 text-slate-500 px-2 py-0.5 rounded-lg font-bold">{sale.duration || 30} {t('renewals_day')}</span>
                                 </div>
                             </div>
                             {/* Days badge */}
                             <div className={`text-white text-[10px] md:text-xs px-2.5 py-1.5 font-bold rounded-xl flex-shrink-0 text-center ${sale._daysLeft <= 0 ? 'bg-red-600' : sale._daysLeft <= 2 ? 'bg-orange-600' : 'bg-yellow-500'}`}>
                                 {sale._daysLeft <= 0 ? (
-                                    <><span className="block text-[9px]">منتهي منذ</span>{Math.abs(sale._daysLeft)} يوم</>
+                                    <><span className="block text-[9px]">{t('renewals_expired_since')}</span>{Math.abs(sale._daysLeft)} {t('renewals_day')}</>
                                 ) : (
-                                    <><span className="block text-[9px]">باقي</span>{sale._daysLeft} يوم</>
+                                    <><span className="block text-[9px]">{t('renewals_remaining')}</span>{sale._daysLeft} {t('renewals_day')}</>
                                 )}
                             </div>
                         </div>
 
                         <div className="bg-slate-50 rounded-xl p-2.5 md:p-3 text-[10px] md:text-xs border border-slate-100 space-y-1">
-                            <div className="flex justify-between"><span className="text-slate-400">تاريخ البيع:</span><span className="font-bold text-slate-700">{formatDate(sale.date)}</span></div>
-                            <div className="flex justify-between"><span className="text-slate-400">تاريخ الانتهاء:</span><span className={`font-bold ${sale._daysLeft <= 0 ? 'text-red-600' : 'text-orange-600'}`}>{formatDate(sale.expiryDate)}</span></div>
-                            <div className="flex justify-between"><span className="text-slate-400">السعر:</span><span className="font-bold text-slate-700">{Number(sale.finalPrice).toLocaleString()} ج.م</span></div>
-                            {sale.paymentMethod && <div className="flex justify-between"><span className="text-slate-400">الدفع:</span><span className="font-bold text-emerald-600">{sale.paymentMethod}</span></div>}
+                            <div className="flex justify-between"><span className="text-slate-400">{t('renewals_sale_date')}</span><span className="font-bold text-slate-700">{formatDate(sale.date)}</span></div>
+                            <div className="flex justify-between"><span className="text-slate-400">{t('renewals_expiry_date')}</span><span className={`font-bold ${sale._daysLeft <= 0 ? 'text-red-600' : 'text-orange-600'}`}>{formatDate(sale.expiryDate)}</span></div>
+                            <div className="flex justify-between"><span className="text-slate-400">{t('renewals_price')}</span><span className="font-bold text-slate-700">{Number(sale.finalPrice).toLocaleString('en-US')} ج.م</span></div>
+                            {sale.paymentMethod && <div className="flex justify-between"><span className="text-slate-400">{t('renewals_payment')}</span><span className="font-bold text-emerald-600">{sale.paymentMethod}</span></div>}
                         </div>
 
                         {/* Renewal Action Buttons */}
@@ -303,16 +306,16 @@ export default function Renewals() {
                                 className="flex-1 bg-emerald-600 text-white py-2 md:py-2.5 rounded-xl text-xs md:text-sm font-bold hover:bg-emerald-700 transition shadow-sm flex items-center justify-center gap-1.5 disabled:opacity-60"
                             >
                                 {quickRenewing === sale.id ? (
-                                    <><i className="fa-solid fa-spinner fa-spin"></i> <span className="hidden sm:inline">جاري التجديد...</span><span className="sm:hidden">جاري...</span></>
+                                    <><i className="fa-solid fa-spinner fa-spin"></i> <span className="hidden sm:inline">{t('renewals_renewing')}</span><span className="sm:hidden">{t('renewals_renewing')}</span></>
                                 ) : (
-                                    <><i className="fa-solid fa-bolt"></i> <span className="hidden sm:inline">تجديد سريع</span><span className="sm:hidden">تجديد</span></>
+                                    <><i className="fa-solid fa-bolt"></i> <span className="hidden sm:inline">{t('renewals_quick_renew')}</span><span className="sm:hidden">{t('renewals_quick_renew')}</span></>
                                 )}
                             </button>
                             <button
                                 onClick={(e) => { e.stopPropagation(); setShowRenewModal(sale); }}
                                 className="flex-1 bg-blue-600 text-white py-2 md:py-2.5 rounded-xl text-xs md:text-sm font-bold hover:bg-blue-700 transition shadow-sm flex items-center justify-center gap-1.5"
                             >
-                                <i className="fa-solid fa-pen-to-square"></i> <span className="hidden sm:inline">تجديد مع تعديل</span><span className="sm:hidden">تعديل</span>
+                                <i className="fa-solid fa-pen-to-square"></i> <span className="hidden sm:inline">{t('renewals_edit_renew')}</span><span className="sm:hidden">تعديل</span>
                             </button>
                         </div>
                     </div>
@@ -328,18 +331,18 @@ export default function Renewals() {
                                 <span className="text-[10px] bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-lg font-bold mt-1 inline-block">{sale.productName}</span>
                             </div>
                             <div className="bg-purple-50 px-3 py-2 rounded-xl text-center border border-purple-100 flex-shrink-0">
-                                <span className="block text-[9px] md:text-[10px] text-purple-500 font-bold">متبقي</span>
-                                <span className="text-base md:text-lg font-black text-purple-700">{Number(sale.remainingAmount).toLocaleString()}</span>
+                                <span className="block text-[9px] md:text-[10px] text-purple-500 font-bold">{t('renewals_remaining_amt')}</span>
+                                <span className="text-base md:text-lg font-black text-purple-700">{Number(sale.remainingAmount).toLocaleString('en-US')}</span>
                                 <span className="text-[9px] text-purple-500 font-bold block">ج.م</span>
                             </div>
                         </div>
                         <div className="bg-slate-50 rounded-xl p-2.5 md:p-3 mb-3 text-[10px] md:text-xs border border-slate-100 space-y-1">
-                            <div className="flex justify-between"><span className="text-slate-400">السعر الكلي:</span><span className="font-bold text-slate-700">{Number(sale.finalPrice).toLocaleString()} ج.م</span></div>
-                            <div className="flex justify-between"><span className="text-slate-400">تاريخ البيع:</span><span className="font-bold text-slate-700">{formatDate(sale.date)}</span></div>
+                            <div className="flex justify-between"><span className="text-slate-400">{t('renewals_total_price')}</span><span className="font-bold text-slate-700">{Number(sale.finalPrice).toLocaleString('en-US')} ج.م</span></div>
+                            <div className="flex justify-between"><span className="text-slate-400">{t('renewals_sale_date')}</span><span className="font-bold text-slate-700">{formatDate(sale.date)}</span></div>
                             {sale.paymentMethod && <div className="flex justify-between"><span className="text-slate-400">المحفظة:</span><span className="font-bold text-emerald-600">{sale.paymentMethod}</span></div>}
                         </div>
                         <button onClick={() => markPaid(sale.id)} className="w-full bg-purple-600 hover:bg-purple-700 text-white py-2 md:py-2.5 rounded-xl text-xs md:text-sm font-bold shadow-sm transition-all flex items-center justify-center gap-2">
-                            <i className="fa-solid fa-hand-holding-dollar"></i> تعليم كمدفوع
+                            <i className="fa-solid fa-hand-holding-dollar"></i> {t('renewals_mark_paid')}
                         </button>
                     </div>
                 ))}
@@ -349,35 +352,35 @@ export default function Renewals() {
             {visibleCount < currentList.length && (
                 <div className="flex justify-center mt-6">
                     <button onClick={() => setVisibleCount(p => p + 15)} className="bg-white border-2 border-indigo-100 text-indigo-600 px-8 py-2.5 rounded-full font-bold hover:bg-indigo-50 hover:border-indigo-200 transition-all shadow-sm text-sm">
-                        عرض المزيد ({currentList.length - visibleCount})
+                        {t('renewals_show_more')} ({currentList.length - visibleCount})
                     </button>
                 </div>
             )}
 
             {/* ============ RENEW WITH EDIT MODAL ============ */}
-            {showRenewModal && (
-                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in" onClick={() => setShowRenewModal(null)}>
+            {showRenewModal && createPortal(
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in" style={{direction:'rtl',fontFamily:'Cairo,sans-serif'}} onClick={() => setShowRenewModal(null)}>
                     <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl flex flex-col max-h-[90vh] overflow-hidden" onClick={e => e.stopPropagation()}>
                         <div className="p-4 md:p-6 bg-gradient-to-r from-blue-700 to-indigo-600 text-white flex justify-between items-center">
                             <h3 className="text-lg md:text-xl font-bold flex items-center gap-2">
-                                <i className="fa-solid fa-pen-to-square"></i> تجديد مع تعديل البيانات
+                                <i className="fa-solid fa-pen-to-square"></i> {t('renewals_modal_title')}
                             </h3>
                             <button onClick={() => setShowRenewModal(null)} className="bg-white/10 hover:bg-white/20 p-2 rounded-full transition"><i className="fa-solid fa-xmark text-lg"></i></button>
                         </div>
                         <form onSubmit={handleRenewWithEdit} className="p-5 md:p-8 overflow-y-auto space-y-4 md:space-y-5" key={showRenewModal.id}>
                             {/* Original data */}
                             <div className="bg-slate-50 p-3 md:p-4 rounded-2xl border border-slate-200">
-                                <p className="text-[10px] md:text-xs font-black text-slate-500 uppercase tracking-widest mb-2"><i className="fa-solid fa-user ml-1"></i> البيانات الأصلية</p>
+                                <p className="text-[10px] md:text-xs font-black text-slate-500 uppercase tracking-widest mb-2"><i className="fa-solid fa-user ml-1"></i> {t('renewals_orig_data')}</p>
                                 <div className="grid grid-cols-2 gap-2 md:gap-3 text-[10px] md:text-xs">
-                                    <div><span className="text-slate-400">العميل:</span> <span className="font-bold text-slate-700">{getDisplayName(showRenewModal)}</span></div>
-                                    <div><span className="text-slate-400">المنتج:</span> <span className="font-bold text-slate-700">{showRenewModal.productName}</span></div>
-                                    <div><span className="text-slate-400">السعر:</span> <span className="font-bold text-slate-700">{Number(showRenewModal.finalPrice).toLocaleString()} ج.م</span></div>
-                                    <div><span className="text-slate-400">المدة:</span> <span className="font-bold text-slate-700">{showRenewModal.duration || 30} يوم</span></div>
+                                    <div><span className="text-slate-400">{t('renewals_orig_client')}</span> <span className="font-bold text-slate-700">{getDisplayName(showRenewModal)}</span></div>
+                                    <div><span className="text-slate-400">{t('renewals_orig_product')}</span> <span className="font-bold text-slate-700">{showRenewModal.productName}</span></div>
+                                    <div><span className="text-slate-400">{t('renewals_price')}</span> <span className="font-bold text-slate-700">{Number(showRenewModal.finalPrice).toLocaleString('en-US')} ج.م</span></div>
+                                    <div><span className="text-slate-400">{t('renewals_orig_duration')}</span> <span className="font-bold text-slate-700">{showRenewModal.duration || 30} {t('renewals_day')}</span></div>
                                 </div>
                             </div>
 
                             <div>
-                                <label className="block text-xs md:text-sm font-extrabold text-slate-800 mb-2">المنتج</label>
+                                <label className="block text-xs md:text-sm font-extrabold text-slate-800 mb-2">{t('renewals_product_label')}</label>
                                 <select name="productName" defaultValue={showRenewModal.productName} className="w-full bg-white border-2 border-slate-200 rounded-xl p-3 md:p-3.5 font-bold text-sm focus:ring-4 focus:ring-blue-100 focus:border-blue-600 outline-none transition-all">
                                     {products.map(p => (
                                         <option key={p.id} value={p.name}>{p.name} — {p.price} ج.م</option>
@@ -386,25 +389,25 @@ export default function Renewals() {
                             </div>
 
                             <div>
-                                <label className="block text-xs md:text-sm font-extrabold text-slate-800 mb-2">إيميل العميل</label>
+                                <label className="block text-xs md:text-sm font-extrabold text-slate-800 mb-2">{t('renewals_email_label')}</label>
                                 <input name="customerEmail" defaultValue={showRenewModal.customerEmail} className="w-full bg-white border-2 border-slate-200 rounded-xl p-3 md:p-3.5 font-bold text-sm focus:ring-4 focus:ring-blue-100 focus:border-blue-600 outline-none transition-all font-mono" />
                             </div>
 
                             <div className="grid grid-cols-2 gap-3 md:gap-4">
                                 <div>
-                                    <label className="block text-xs md:text-sm font-extrabold text-slate-800 mb-2">السعر الجديد (ج.م)</label>
+                                    <label className="block text-xs md:text-sm font-extrabold text-slate-800 mb-2">{t('renewals_new_price')}</label>
                                     <input name="finalPrice" type="number" defaultValue={showRenewModal.finalPrice} className="w-full bg-white border-2 border-emerald-200 rounded-xl p-3 md:p-3.5 font-bold text-sm focus:ring-4 focus:ring-emerald-100 focus:border-emerald-600 outline-none transition-all text-emerald-700" min="0" />
                                 </div>
                                 <div>
-                                    <label className="block text-xs md:text-sm font-extrabold text-slate-800 mb-2">المدة (أيام)</label>
+                                    <label className="block text-xs md:text-sm font-extrabold text-slate-800 mb-2">{t('renewals_duration_days')}</label>
                                     <input name="duration" type="number" defaultValue={showRenewModal.duration || 30} className="w-full bg-white border-2 border-slate-200 rounded-xl p-3 md:p-3.5 font-bold text-sm focus:ring-4 focus:ring-blue-100 focus:border-blue-600 outline-none transition-all" min="1" />
                                 </div>
                             </div>
 
                             <div>
-                                <label className="block text-xs md:text-sm font-extrabold text-slate-800 mb-2">وسيلة الدفع (المحفظة)</label>
+                                <label className="block text-xs md:text-sm font-extrabold text-slate-800 mb-2">{t('renewals_wallet_label')}</label>
                                 <select name="walletId" defaultValue={showRenewModal.walletId || ""} className="w-full bg-white border-2 border-emerald-200 rounded-xl p-3 md:p-3.5 font-bold text-sm focus:ring-4 focus:ring-emerald-100 focus:border-emerald-600 outline-none transition-all">
-                                    <option value="">بدون محفظة</option>
+                                    <option value="">{t('renewals_no_wallet')}</option>
                                     {wallets.map(w => (
                                         <option key={w.id} value={w.id}>{w.name}</option>
                                     ))}
@@ -413,29 +416,29 @@ export default function Renewals() {
 
                             <label className="flex items-center gap-3 p-3 md:p-3.5 bg-emerald-50 rounded-xl border border-emerald-100 cursor-pointer hover:bg-emerald-100 transition-colors">
                                 <input type="checkbox" name="isPaid" defaultChecked={true} className="w-5 h-5 text-emerald-600 rounded focus:ring-emerald-500 border-emerald-300" />
-                                <span className="text-sm font-bold text-emerald-800">مدفوع بالكامل ✅</span>
+                                <span className="text-sm font-bold text-emerald-800">{t('renewals_paid_full')}</span>
                             </label>
 
                             <div>
-                                <label className="block text-xs md:text-sm font-extrabold text-slate-800 mb-2">المبلغ المتبقي</label>
+                                <label className="block text-xs md:text-sm font-extrabold text-slate-800 mb-2">{t('renewals_remaining_label')}</label>
                                 <input name="remainingAmount" type="number" defaultValue="0" className="w-full bg-white border-2 border-red-200 rounded-xl p-3 md:p-3.5 font-bold text-sm focus:ring-4 focus:ring-red-100 focus:border-red-500 outline-none transition-all text-red-600" min="0" />
                             </div>
 
                             <div>
-                                <label className="block text-xs md:text-sm font-extrabold text-slate-800 mb-2">ملاحظات (اختياري)</label>
-                                <textarea name="notes" className="w-full bg-white border-2 border-slate-200 rounded-xl p-3 md:p-3.5 font-bold text-sm focus:ring-4 focus:ring-blue-100 focus:border-blue-600 outline-none transition-all h-20 resize-none" placeholder="أي ملاحظات..."></textarea>
+                                <label className="block text-xs md:text-sm font-extrabold text-slate-800 mb-2">{t('renewals_notes_label')}</label>
+                                <textarea name="notes" className="w-full bg-white border-2 border-slate-200 rounded-xl p-3 md:p-3.5 font-bold text-sm focus:ring-4 focus:ring-blue-100 focus:border-blue-600 outline-none transition-all h-20 resize-none" placeholder={t('renewals_notes_ph')}></textarea>
                             </div>
 
                             <div className="flex gap-3 pt-3 border-t border-slate-200">
-                                <button type="button" onClick={() => setShowRenewModal(null)} className="flex-1 py-2.5 md:py-3 rounded-xl font-bold text-slate-600 bg-white border-2 border-slate-200 hover:bg-slate-50 transition text-sm">إلغاء</button>
+                                <button type="button" onClick={() => setShowRenewModal(null)} className="flex-1 py-2.5 md:py-3 rounded-xl font-bold text-slate-600 bg-white border-2 border-slate-200 hover:bg-slate-50 transition text-sm">{t('lbl_cancel')}</button>
                                 <button type="submit" className="flex-1 bg-blue-600 text-white py-2.5 md:py-3 rounded-xl font-bold hover:bg-blue-700 shadow-lg shadow-blue-200 transition flex items-center justify-center gap-2 text-sm">
-                                    <i className="fa-solid fa-check"></i> تأكيد التجديد
+                                    <i className="fa-solid fa-check"></i> {t('renewals_confirm')}
                                 </button>
                             </div>
                         </form>
                     </div>
                 </div>
-            )}
+            , document.body)}
 
             <style>{`
                 .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }

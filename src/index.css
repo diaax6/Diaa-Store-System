@@ -1,4 +1,4 @@
-﻿@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -270,7 +270,9 @@ html.dark .input-style:focus {
 /* ---- Stat card ---- */
 .stat-card { background-color: var(--bg-card); border: 1px solid var(--border); border-radius: 0.75rem; padding: 1rem 1.125rem; display: flex; flex-direction: column; gap: 0.25rem; box-shadow: 0 1px 3px rgba(0,0,0,0.06); border-right-width: 3px; }
 .stat-card-lbl { font-size: 0.68rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
-.stat-card-val { font-size: 1.5rem; font-weight: 700; color: var(--text-main); line-height: 1.2; }
+/* force Western numerals — prevents Cairo font from rendering Arabic-Indic zero (٠) as bullet (•) */
+.stat-card-val { font-size: 1.5rem; font-weight: 700; color: var(--text-main); line-height: 1.2; font-variant-numeric: normal; font-feature-settings: "lnum" 1, "tnum" 0; }
+.dir-ltr, [dir="ltr"] { font-variant-numeric: normal; font-feature-settings: "lnum" 1, "tnum" 0; }
 .stat-card-sub { font-size: 0.7rem; color: var(--text-muted); }
 .stat-indigo  { border-right-color: #6366f1; }
 .stat-emerald { border-right-color: #10b981; }
@@ -370,4 +372,43 @@ html.dark .pill-red    { background-color: rgba(239,68,68,0.15); color: #f87171;
 html.dark .pill-amber  { background-color: rgba(245,158,11,0.15); color: #fbbf24; border-color: rgba(245,158,11,0.3); }
 html.dark .pill-green  { background-color: rgba(16,185,129,0.15); color: #34d399; border-color: rgba(16,185,129,0.3); }
 
+/* ======= LTR (English) DIRECTION OVERRIDES ======= */
 
+/* Sidebar: moves to LEFT side in LTR */
+[dir="ltr"] aside.fixed.right-0 {
+    right: auto;
+    left: 0;
+}
+
+/* Sidebar slide: reversed direction for LTR */
+[dir="ltr"] .lg\:translate-x-0 { transform: translateX(0); }
+
+/* Active nav border: switch from border-r to border-l */
+[dir="ltr"] .border-r-2 {
+    border-right-width: 0 !important;
+    border-left-width: 2px !important;
+}
+
+/* Text alignment flip for LTR page content */
+[dir="ltr"] body { direction: ltr; }
+
+/* Tables in LTR */
+[dir="ltr"] .ds-th { text-align: left; }
+[dir="ltr"] .ds-td { text-align: left; }
+
+/* Stats dir fix */
+[dir="ltr"] .stat-card-val { direction: ltr; text-align: left; }
+
+/* Font: English uses system sans-serif */
+[dir="ltr"] body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
+/* mr-auto badge counter: swap side in LTR */
+[dir="ltr"] .mr-auto { margin-right: 0; margin-left: auto; }
+
+/* ph-bar header alignment */
+[dir="ltr"] .ph-bar { flex-direction: row; }
+
+/* dir-ltr utility always forces ltr regardless of page dir */
+.dir-ltr { direction: ltr !important; unicode-bidi: isolate; }

@@ -1,6 +1,8 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from './AuthContext';
+import { SUPPORTED_LANGS, DEFAULT_LANG, getStoredLang } from '../i18n/index';
+
 import { supabase } from '../lib/supabase';
 import {
     productsAPI,
@@ -20,27 +22,64 @@ const DataContext = createContext();
 const SORT_KEY = 'diaa-store_product_order';
 
 // ── URL ↔ Tab mapping ──────────────────────────────────────────
-export const TAB_TO_PATH = {
-    dashboard  : '/',
-    sales      : '/sales',
-    products   : '/products',
-    accounts   : '/accounts',
-    clients    : '/clients',
-    shifts     : '/shifts',
-    reports    : '/reports',
-    expenses   : '/expenses',
-    wallets    : '/wallets',
-    renewals   : '/renewals',
-    problems   : '/problems',
-    employees  : '/employees',
-    users      : '/users',
-    botSettings: '/bot-settings',
-    myAccount  : '/my-account',
+// PAGE_SLUG_MAP: tab → page slug (no language prefix)
+const PAGE_SLUG_MAP = {
+    dashboard  : 'dashboard',
+    sales      : 'sales',
+    products   : 'products',
+    accounts   : 'accounts',
+    clients    : 'clients',
+    shifts     : 'shifts',
+    reports    : 'reports',
+    expenses   : 'expenses',
+    wallets    : 'wallets',
+    renewals   : 'renewals',
+    problems   : 'problems',
+    employees  : 'employees',
+    users      : 'users',
+    botSettings: 'bot-settings',
+    myAccount  : 'my-account',
 };
 
-const PATH_TO_TAB = Object.fromEntries(
-    Object.entries(TAB_TO_PATH).map(([tab, path]) => [path, tab])
+// Reverse: slug → tab
+const SLUG_TO_TAB = Object.fromEntries(
+    Object.entries(PAGE_SLUG_MAP).map(([tab, slug]) => [slug, tab])
 );
+
+/**
+ * TAB_TO_PATH(lang?, tab) — returns the lang-prefixed URL for a tab.
+ * Compatible with old call sites that pass just a tab string (uses stored lang).
+ */
+export const TAB_TO_PATH = (langOrTab, tab) => {
+    // Called as TAB_TO_PATH[tab] (legacy object access) — not supported;
+    // all callers must use TAB_TO_PATH(lang, tab) or TAB_TO_PATH(tab)
+    let lang, tabKey;
+    if (tab === undefined) {
+        // Single argument: TAB_TO_PATH('sales') → use stored lang
+        lang   = getStoredLang();
+        tabKey = langOrTab;
+    } else {
+        lang   = SUPPORTED_LANGS.includes(langOrTab) ? langOrTab : getStoredLang();
+        tabKey = tab;
+    }
+    const slug = PAGE_SLUG_MAP[tabKey];
+    if (!slug) return `/${lang}/dashboard`;
+    return `/${lang}/${slug}`;
+};
+
+// Also export a plain lookup for Sidebar (which needs static key access)
+export const TAB_SLUGS = PAGE_SLUG_MAP;
+
+/**
+ * getLangAndTabFromPath('/ar/sales') → { lang: 'ar', tab: 'sales' }
+ */
+export const getLangAndTabFromPath = (pathname) => {
+    const parts = pathname.replace(/^\//, '').split('/');
+    const lang  = SUPPORTED_LANGS.includes(parts[0]) ? parts[0] : DEFAULT_LANG;
+    const slug  = parts[1] || 'dashboard';
+    const tab   = SLUG_TO_TAB[slug] ?? 'dashboard';
+    return { lang, tab };
+};
 
 
 const getSavedOrder = () => {
@@ -103,12 +142,12 @@ export const DataProvider = ({ children }) => {
     // activeTab is derived from the URL — navigate() keeps URL and tab in sync
     const navigate  = useNavigate();
     const location  = useLocation();
-    const activeTab = PATH_TO_TAB[location.pathname] ?? 'dashboard';
+    const { lang: urlLang, tab: activeTab } = (() => getLangAndTabFromPath(location.pathname))();
 
-    const setActiveTab = useCallback((tab) => {
-        const path = TAB_TO_PATH[tab] ?? '/';
-        navigate(path);
-    }, [navigate]);
+    const setActiveTab = useCallback((tab, lang) => {
+        const resolvedLang = lang ?? urlLang ?? getStoredLang();
+        navigate(TAB_TO_PATH(resolvedLang, tab));
+    }, [navigate, urlLang]);
 
     const [renewalTarget, setRenewalTarget] = useState(null);
 

@@ -1,19 +1,20 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useData } from '../context/DataContext';
-import { TAB_TO_PATH } from '../context/DataContext';
+import { TAB_TO_PATH, getLangAndTabFromPath } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
+import { useLang } from '../i18n/index';
 import { accountsAPI } from '../services/api';
 
 export default function Sidebar ({ isOpen, onClose }) {
     const { sales, accounts, sections, refreshData } = useData();
     const { user, logout, hasPermission } = useAuth();
+    const { lang, t, switchLang } = useLang();
     const navigate = useNavigate();
     const location = useLocation();
-    // Derive active tab from URL path for highlight logic
-    const PATH_TO_TAB_LOCAL = Object.fromEntries(Object.entries(TAB_TO_PATH).map(([t,p]) => [p,t]));
-    const activeTab = PATH_TO_TAB_LOCAL[location.pathname] ?? 'dashboard';
-    const go = (tab) => { navigate(TAB_TO_PATH[tab] ?? '/'); onClose(); };
+    // Derive active tab from URL path
+    const { tab: activeTab } = getLangAndTabFromPath(location.pathname);
+    const go = (tab) => { navigate(TAB_TO_PATH(lang, tab)); onClose(); };
     const [showQuickPull, setShowQuickPull] = useState(false);
     const [pullResult, setPullResult] = useState(null);
     const [copiedField, setCopiedField] = useState(null);
@@ -43,7 +44,7 @@ export default function Sidebar ({ isOpen, onClose }) {
     // Auto-redirect moderator from dashboard to sales
     useEffect(() => {
         if (user && user.role !== 'admin' && hasPermission('sales') && activeTab === 'dashboard') {
-            navigate(TAB_TO_PATH['sales']);
+            navigate(TAB_TO_PATH(lang, 'sales'));
         }
     }, [user]);
 
@@ -94,17 +95,17 @@ export default function Sidebar ({ isOpen, onClose }) {
     const copyField = (text, id) => { navigator.clipboard.writeText(text); setCopiedField(id); setTimeout(() => setCopiedField(null), 1500); };
 
     const allTabs = [
-        { id: 'dashboard', label: 'الرئيسية', icon: 'fa-chart-pie' },
-        { id: 'sales', label: 'المبيعات', icon: 'fa-cart-shopping' },
-        { id: 'products', label: 'المنتجات', icon: 'fa-boxes-stacked' },
-        { id: 'accounts', label: 'المخزون', icon: 'fa-server' },
-        { id: 'clients', label: 'العملاء', icon: 'fa-users' },
-        { id: 'shifts', label: 'الشفتات', icon: 'fa-clock' },
-        { id: 'reports', label: 'التقارير', icon: 'fa-chart-line' },
-        { id: 'expenses', label: 'المصروفات', icon: 'fa-wallet' },
-        { id: 'wallets', label: 'المحافظ', icon: 'fa-vault' },
-        { id: 'renewals', label: 'التنبيهات', icon: 'fa-bell' },
-        { id: 'problems', label: 'المشاكل', icon: 'fa-triangle-exclamation' },
+        { id: 'dashboard', label: t('nav_dashboard'), icon: 'fa-chart-pie' },
+        { id: 'sales',     label: t('nav_sales'),     icon: 'fa-cart-shopping' },
+        { id: 'products',  label: t('nav_products'),  icon: 'fa-boxes-stacked' },
+        { id: 'accounts',  label: t('nav_accounts'),  icon: 'fa-server' },
+        { id: 'clients',   label: t('nav_clients'),   icon: 'fa-users' },
+        { id: 'shifts',    label: t('nav_shifts'),    icon: 'fa-clock' },
+        { id: 'reports',   label: t('nav_reports'),   icon: 'fa-chart-line' },
+        { id: 'expenses',  label: t('nav_expenses'),  icon: 'fa-wallet' },
+        { id: 'wallets',   label: t('nav_wallets'),   icon: 'fa-vault' },
+        { id: 'renewals',  label: t('nav_renewals'),  icon: 'fa-bell' },
+        { id: 'problems',  label: t('nav_problems'),  icon: 'fa-triangle-exclamation' },
     ];
 
     return (
@@ -113,10 +114,12 @@ export default function Sidebar ({ isOpen, onClose }) {
                 <div onClick={onClose} className="fixed inset-0 bg-black/50 z-40 lg:hidden backdrop-blur-sm transition-opacity"></div>
             )}
 
-            <aside className={`fixed top-0 bottom-0 right-0 w-64 bg-slate-900 text-white z-50 flex flex-col shadow-2xl overflow-hidden font-sans transition-transform duration-300 ${isOpen ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'}`}>
+            <aside className={`fixed top-0 bottom-0 w-64 bg-slate-900 text-white z-50 flex flex-col shadow-2xl overflow-hidden font-sans transition-transform duration-300
+                ${lang === 'en' ? 'left-0' : 'right-0'}
+                ${isOpen ? 'translate-x-0' : lang === 'en' ? '-translate-x-full lg:translate-x-0' : 'translate-x-full lg:translate-x-0'}`}>
 
                 <div className="p-6 border-b border-slate-800 relative">
-                    <button onClick={onClose} className="absolute top-4 left-4 text-slate-400 hover:text-white lg:hidden">
+                    <button onClick={onClose} className={`absolute top-4 ${lang === 'en' ? 'right-4' : 'left-4'} text-slate-400 hover:text-white lg:hidden`}>
                         <i className="fa-solid fa-xmark text-xl"></i>
                     </button>
 
@@ -160,7 +163,7 @@ export default function Sidebar ({ isOpen, onClose }) {
                     {/* Admin group */}
                     {(hasPermission('all') || user.role === 'admin' || hasPermission('employees') || hasPermission('botSettings')) && (
                         <>
-                            <p className="nav-grp mt-2">إدارة</p>
+                            <p className="nav-grp mt-2">{t('nav_section_admin')}</p>
                             <div className="px-3 space-y-0.5">
                                 {(hasPermission('all') || user.role === 'admin') && (
                                     <button onClick={() => go('users')}
@@ -170,7 +173,7 @@ export default function Sidebar ({ isOpen, onClose }) {
                                                 : 'text-slate-400 hover:bg-white/5 hover:text-slate-200 font-medium border-r-2 border-transparent'
                                         }`}>
                                         <i className={`fa-solid fa-user-gear w-4 text-center text-sm ${activeTab === 'users' ? 'text-indigo-400' : 'text-slate-500'}`}></i>
-                                        <span>المستخدمين</span>
+                                        <span>{t('nav_users')}</span>
                                     </button>
                                 )}
                                 {(hasPermission('employees') || hasPermission('all') || user.role === 'admin') && (
@@ -181,7 +184,7 @@ export default function Sidebar ({ isOpen, onClose }) {
                                                 : 'text-slate-400 hover:bg-white/5 hover:text-slate-200 font-medium border-r-2 border-transparent'
                                         }`}>
                                         <i className={`fa-solid fa-id-card-clip w-4 text-center text-sm ${activeTab === 'employees' ? 'text-indigo-400' : 'text-slate-500'}`}></i>
-                                        <span>الموظفين</span>
+                                        <span>{t('nav_employees')}</span>
                                     </button>
                                 )}
                                 {(hasPermission('botSettings') || hasPermission('all') || user.role === 'admin') && (
@@ -192,7 +195,7 @@ export default function Sidebar ({ isOpen, onClose }) {
                                                 : 'text-slate-400 hover:bg-white/5 hover:text-slate-200 font-medium border-r-2 border-transparent'
                                         }`}>
                                         <i className={`fa-brands fa-telegram w-4 text-center text-sm ${activeTab === 'botSettings' ? 'text-indigo-400' : 'text-slate-500'}`}></i>
-                                        <span>إعدادات البوت</span>
+                                        <span>{t('nav_botSettings')}</span>
                                     </button>
                                 )}
                             </div>
@@ -206,7 +209,7 @@ export default function Sidebar ({ isOpen, onClose }) {
                                 className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 transition-all">
                                 <div className="flex items-center gap-2">
                                     <i className="fa-solid fa-bolt text-sm"></i>
-                                    <span className="text-xs font-bold">سحب سريع</span>
+                                    <span className="text-xs font-bold">{t('nav_quick_pull')}</span>
                                 </div>
                                 <div className="flex items-center gap-2">
                                     <span className="text-[10px] bg-emerald-500/20 px-2 py-0.5 rounded-full font-black">{totalAvailable}</span>
@@ -284,14 +287,22 @@ export default function Sidebar ({ isOpen, onClose }) {
                             <p className="text-[10px] text-slate-500 uppercase tracking-wide">{user.role}</p>
                         </div>
                         <div className="flex items-center gap-1">
+                            {/* Language switcher */}
+                            <button
+                                onClick={e => { e.stopPropagation(); switchLang(); }}
+                                className="w-7 h-7 flex items-center justify-center rounded-md bg-slate-800 hover:bg-indigo-500/20 text-slate-400 hover:text-indigo-300 transition-all text-[9px] font-black"
+                                title={t('lang_switch_to')}
+                            >
+                                {lang === 'ar' ? 'EN' : 'ع'}
+                            </button>
                             <button onClick={e => { e.stopPropagation(); toggleDarkMode(); }}
                                 className="w-7 h-7 flex items-center justify-center rounded-md bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-yellow-400 transition-all"
-                                title={isDark ? 'الوضع الفاتح' : 'الوضع المظلم'}>
+                                title={isDark ? t('light_mode') : t('dark_mode')}>
                                 <i className={`fa-solid ${isDark ? 'fa-sun' : 'fa-moon'} text-xs`}></i>
                             </button>
                             <button onClick={e => { e.stopPropagation(); logout(); }}
                                 className="w-7 h-7 flex items-center justify-center rounded-md bg-slate-800 hover:bg-red-500/20 text-slate-400 hover:text-red-400 transition-all"
-                                title="تسجيل خروج">
+                                title={t('logout')}>
                                 <i className="fa-solid fa-right-from-bracket text-xs"></i>
                             </button>
                         </div>

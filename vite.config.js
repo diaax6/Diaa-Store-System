@@ -1,10 +1,30 @@
-﻿import { defineConfig } from 'vite'
+import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react-swc'
 import path from 'path'
 import viteCompression from 'vite-plugin-compression' // Ø¶ØºØ· Gzip/Brotli
 import { visualizer } from 'rollup-plugin-visualizer' // Ù„ØªØ­Ù„ÙŠÙ„ Ø­Ø¬Ù… Ø§Ù„Ø¨Ø§Ù†Ø¯Ù„
 
 export default defineConfig({
+    server: {
+        proxy: {
+            '/rest': {
+                target: 'https://sys.diaastore.cloud',
+                changeOrigin: true,
+                secure: false,
+            },
+            '/functions': {
+                target: 'https://sys.diaastore.cloud',
+                changeOrigin: true,
+                secure: false,
+            },
+            '/realtime': {
+                target: 'wss://sys.diaastore.cloud',
+                changeOrigin: true,
+                secure: false,
+                ws: true,
+            },
+        }
+    },
     plugins: [
         react(),
         viteCompression({

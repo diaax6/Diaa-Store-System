@@ -1,12 +1,14 @@
-﻿import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
+import { useLang } from '../i18n/index';
 
 export default function Dashboard() {
     useEffect(() => { window.scrollTo(0, 0); }, []);
 
     const { sales, products, expenses } = useData();
     const { hasPermission, user } = useAuth();
+    const { t } = useLang();
     const canViewDailyProfit = user?.role === 'admin' || hasPermission('view_daily_profit');
 
     const stats = useMemo(() => {
@@ -42,13 +44,10 @@ export default function Dashboard() {
         const totalSalaryExpenses = salaryExpensesList.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
         const totalExpenses = totalDailyExpenses + totalStockExpenses + totalSalaryExpenses;
 
-        // grossProfit = totalRevenue  - all paid expenses
-        // netProfit   = totalCollected - all paid expenses
         const grossProfit = totalRevenue  - totalExpenses;
         const netProfit   = totalCollected - totalExpenses;
 
         const dailyRevenue = dailySales.reduce((sum, s) => sum + (Number(s.finalPrice) || 0), 0);
-        // Today profit: revenue from today minus ALL today paid expenses
         const todayPaidExpenses = paidExpenses.filter(e => new Date(e.date) >= startOfToday);
         const todayDailyExpenses = todayPaidExpenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
         const dailyProfit = dailyRevenue - todayDailyExpenses;
@@ -80,12 +79,12 @@ export default function Dashboard() {
     return (
         <div className="space-y-5 animate-fade-in pb-20">
 
-            {/* Salawat Banner */}
+            {/* Salawat Banner — always Arabic */}
             <div className="flex justify-center">
                 <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-lg border border-emerald-200/40 text-emerald-600 select-none"
                     style={{ background: 'rgba(16,185,129,0.07)' }}>
                     <i className="fa-solid fa-kaaba text-xs opacity-70"></i>
-                    <p className="text-xs font-semibold tracking-wide">{'\u0627\u0644\u0644\u0647\u0645 \u0635\u0644\u0650 \u0648\u0633\u0644\u0645 \u0639\u0644\u0649 \u0646\u0628\u064a\u0646\u0627 \u0645\u062d\u0645\u062f \uFD3E'}</p>
+                    <p className="text-xs font-semibold tracking-wide" dir="rtl">{'اللهم صلِ وسلم على نبينا محمد ﷺ'}</p>
                     <i className="fa-solid fa-mosque text-xs opacity-70"></i>
                 </div>
             </div>
@@ -95,13 +94,13 @@ export default function Dashboard() {
                 <div className="flex items-center gap-3">
                     <div className="ph-icon"><i className="fa-solid fa-chart-pie text-sm"></i></div>
                     <div>
-                        <h1 className="ph-title">{'\u0644\u0648\u062d\u0629 \u0627\u0644\u062a\u062d\u0643\u0645'}</h1>
-                        <p className="ph-sub">{'\u0646\u0638\u0631\u0629 \u0634\u0627\u0645\u0644\u0629 \u0639\u0644\u0649 \u0623\u062f\u0627\u0621 Diaa Store'}</p>
+                        <h1 className="ph-title">{t('dash_title')}</h1>
+                        <p className="ph-sub">{t('dash_subtitle')}</p>
                     </div>
                 </div>
                 <div className="flex items-center gap-1.5 text-xs text-slate-500">
                     <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse inline-block"></span>
-                    <span className="font-medium">{stats.totalSales} {'\u0623\u0648\u0631\u062f\u0631'}</span>
+                    <span className="font-medium">{stats.totalSales} {t('dash_orders')}</span>
                 </div>
             </div>
 
@@ -109,24 +108,24 @@ export default function Dashboard() {
             {canViewDailyProfit && (
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                     <div className="stat-card stat-indigo">
-                        <span className="stat-card-lbl">{'\u0625\u062c\u0645\u0627\u0644\u064a \u0627\u0644\u0625\u064a\u0631\u0627\u062f\u0627\u062a'}</span>
-                        <span className="stat-card-val dir-ltr">{stats.totalRevenue.toLocaleString()}</span>
-                        <span className="stat-card-sub">{'\u062c.\u0645 \u2014 \u062c\u0645\u064a\u0639 \u0627\u0644\u0645\u0628\u064a\u0639\u0627\u062a'}</span>
+                        <span className="stat-card-lbl">{t('dash_total_revenue')}</span>
+                        <span className="stat-card-val dir-ltr">{stats.totalRevenue.toLocaleString('en-US')}</span>
+                        <span className="stat-card-sub">{t('dash_total_revenue_sub')}</span>
                     </div>
                     <div className="stat-card stat-blue">
-                        <span className="stat-card-lbl">{'\u0627\u0644\u0645\u062d\u0635\u0651\u0644'}</span>
-                        <span className="stat-card-val dir-ltr">{stats.totalCollected.toLocaleString()}</span>
-                        <span className="stat-card-sub">{'\u062c.\u0645 \u2014 \u0645\u062f\u0641\u0648\u0639 \u0641\u0639\u0644\u0627\u064b'}</span>
+                        <span className="stat-card-lbl">{t('dash_collected')}</span>
+                        <span className="stat-card-val dir-ltr">{stats.totalCollected.toLocaleString('en-US')}</span>
+                        <span className="stat-card-sub">{t('dash_collected_sub')}</span>
                     </div>
                     <div className={`stat-card ${stats.grossProfit >= 0 ? 'stat-emerald' : 'stat-red'}`}>
-                        <span className="stat-card-lbl">{'\u0625\u062c\u0645\u0627\u0644\u064a \u0627\u0644\u0631\u0628\u062d'}</span>
-                        <span className={`stat-card-val dir-ltr ${stats.grossProfit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>{stats.grossProfit.toLocaleString()}</span>
-                        <span className="stat-card-sub">{'\u062c.\u0645 \u2014 \u0625\u064a\u0631\u0627\u062f\u0627\u062a \u2212 \u0645\u0635\u0631\u0648\u0641\u0627\u062a'}</span>
+                        <span className="stat-card-lbl">{t('dash_gross_profit')}</span>
+                        <span className={`stat-card-val dir-ltr ${stats.grossProfit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>{stats.grossProfit.toLocaleString('en-US')}</span>
+                        <span className="stat-card-sub">{t('dash_gross_profit_sub')}</span>
                     </div>
                     <div className={`stat-card ${stats.netProfit >= 0 ? 'stat-emerald' : 'stat-red'}`}>
-                        <span className="stat-card-lbl">{'\u0635\u0627\u0641\u064a \u0627\u0644\u0631\u0628\u062d'}</span>
-                        <span className={`stat-card-val dir-ltr ${stats.netProfit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>{stats.netProfit.toLocaleString()}</span>
-                        <span className="stat-card-sub">{'\u062c.\u0645 \u2014 \u0645\u062d\u0635\u0651\u0644 \u2212 \u0645\u0635\u0631\u0648\u0641\u0627\u062a'}</span>
+                        <span className="stat-card-lbl">{t('dash_net_profit')}</span>
+                        <span className={`stat-card-val dir-ltr ${stats.netProfit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>{stats.netProfit.toLocaleString('en-US')}</span>
+                        <span className="stat-card-sub">{t('dash_net_profit_sub')}</span>
                     </div>
                 </div>
             )}
@@ -135,24 +134,24 @@ export default function Dashboard() {
             {canViewDailyProfit && (
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                     <div className="stat-card stat-amber">
-                        <span className="stat-card-lbl">{'\u0645\u0635\u0631\u0648\u0641\u0627\u062a \u064a\u0648\u0645\u064a\u0629'}</span>
-                        <span className="stat-card-val dir-ltr">{stats.totalDailyExpenses.toLocaleString()}</span>
-                        <span className="stat-card-sub">{'\u062c.\u0645'}</span>
+                        <span className="stat-card-lbl">{t('dash_daily_exp')}</span>
+                        <span className="stat-card-val dir-ltr">{stats.totalDailyExpenses.toLocaleString('en-US')}</span>
+                        <span className="stat-card-sub">{t('lbl_egp')}</span>
                     </div>
                     <div className="stat-card stat-violet">
-                        <span className="stat-card-lbl">{'\u0645\u0635\u0631\u0648\u0641\u0627\u062a \u0645\u062e\u0632\u0648\u0646'}</span>
-                        <span className="stat-card-val dir-ltr">{stats.totalStockExpenses.toLocaleString()}</span>
-                        <span className="stat-card-sub">{'\u062c.\u0645'}</span>
+                        <span className="stat-card-lbl">{t('dash_stock_exp')}</span>
+                        <span className="stat-card-val dir-ltr">{stats.totalStockExpenses.toLocaleString('en-US')}</span>
+                        <span className="stat-card-sub">{t('lbl_egp')}</span>
                     </div>
                     <div className="stat-card stat-red">
-                        <span className="stat-card-lbl">{'\u0645\u062f\u064a\u0648\u0646\u064a\u0627\u062a'}</span>
-                        <span className="stat-card-val dir-ltr">{stats.totalRemaining.toLocaleString()}</span>
-                        <span className="stat-card-sub">{'\u062c.\u0645 \u2014 \u063a\u064a\u0631 \u0645\u062d\u0635\u0651\u0644'}</span>
+                        <span className="stat-card-lbl">{t('dash_debts')}</span>
+                        <span className="stat-card-val dir-ltr">{stats.totalRemaining.toLocaleString('en-US')}</span>
+                        <span className="stat-card-sub">{t('dash_debts_sub')}</span>
                     </div>
                     <div className={`stat-card ${stats.dailyProfit >= 0 ? 'stat-emerald' : 'stat-red'}`}>
-                        <span className="stat-card-lbl">{'\u0631\u0628\u062d \u0627\u0644\u064a\u0648\u0645'}</span>
-                        <span className={`stat-card-val dir-ltr ${stats.dailyProfit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>{stats.dailyProfit.toLocaleString()}</span>
-                        <span className="stat-card-sub dir-ltr">{stats.dailyRevenue.toLocaleString()} - {stats.todayDailyExpenses.toLocaleString()}</span>
+                        <span className="stat-card-lbl">{t('dash_today_profit')}</span>
+                        <span className={`stat-card-val dir-ltr ${stats.dailyProfit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>{stats.dailyProfit.toLocaleString('en-US')}</span>
+                        <span className="stat-card-sub dir-ltr">{stats.dailyRevenue.toLocaleString('en-US')} - {stats.todayDailyExpenses.toLocaleString('en-US')}</span>
                     </div>
                 </div>
             )}
@@ -160,32 +159,32 @@ export default function Dashboard() {
             {/* KPI Grid — Volume */}
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
                 <div className="stat-card stat-indigo">
-                    <span className="stat-card-lbl">{'\u0625\u062c\u0645\u0627\u0644\u064a \u0627\u0644\u0623\u0648\u0631\u062f\u0631\u0627\u062a'}</span>
+                    <span className="stat-card-lbl">{t('dash_total_orders')}</span>
                     <span className="stat-card-val">{stats.totalSales}</span>
-                    <span className="stat-card-sub">{stats.paidCount} {'\u0645\u062f\u0641\u0648\u0639'} / {stats.unpaidCount} {'\u0645\u0639\u0644\u0642'}</span>
+                    <span className="stat-card-sub">{stats.paidCount} {t('dash_paid')} / {stats.unpaidCount} {t('dash_pending')}</span>
                 </div>
                 <div className="stat-card stat-blue">
-                    <span className="stat-card-lbl">{'\u0625\u064a\u0631\u0627\u062f \u0627\u0644\u064a\u0648\u0645'}</span>
-                    <span className="stat-card-val dir-ltr">{canViewDailyProfit ? stats.dailyRevenue.toLocaleString() : stats.dailyCount}</span>
-                    <span className="stat-card-sub">{stats.dailyCount} {'\u0623\u0648\u0631\u062f\u0631'}</span>
+                    <span className="stat-card-lbl">{t('dash_today_revenue')}</span>
+                    <span className="stat-card-val dir-ltr">{canViewDailyProfit ? stats.dailyRevenue.toLocaleString('en-US') : stats.dailyCount}</span>
+                    <span className="stat-card-sub">{stats.dailyCount} {t('dash_orders')}</span>
                 </div>
                 <div className="stat-card stat-violet">
-                    <span className="stat-card-lbl">{'\u0645\u0628\u064a\u0639\u0627\u062a \u0627\u0644\u0623\u0633\u0628\u0648\u0639'}</span>
-                    <span className="stat-card-val dir-ltr">{canViewDailyProfit ? stats.weeklyRevenue.toLocaleString() : stats.weeklyCount}</span>
-                    <span className="stat-card-sub">{stats.weeklyCount} {'\u0623\u0648\u0631\u062f\u0631'}</span>
+                    <span className="stat-card-lbl">{t('dash_weekly_sales')}</span>
+                    <span className="stat-card-val dir-ltr">{canViewDailyProfit ? stats.weeklyRevenue.toLocaleString('en-US') : stats.weeklyCount}</span>
+                    <span className="stat-card-sub">{stats.weeklyCount} {t('dash_orders')}</span>
                 </div>
                 <div className="stat-card stat-amber">
-                    <span className="stat-card-lbl">{'\u0645\u0628\u064a\u0639\u0627\u062a \u0627\u0644\u0634\u0647\u0631'}</span>
-                    <span className="stat-card-val dir-ltr">{canViewDailyProfit ? stats.monthlyRevenue.toLocaleString() : stats.monthlyCount}</span>
-                    <span className="stat-card-sub">{stats.monthlyCount} {'\u0623\u0648\u0631\u062f\u0631'}</span>
+                    <span className="stat-card-lbl">{t('dash_monthly_sales')}</span>
+                    <span className="stat-card-val dir-ltr">{canViewDailyProfit ? stats.monthlyRevenue.toLocaleString('en-US') : stats.monthlyCount}</span>
+                    <span className="stat-card-sub">{stats.monthlyCount} {t('dash_orders')}</span>
                 </div>
                 <div className="stat-card stat-neutral">
-                    <span className="stat-card-lbl">{'\u0627\u0644\u0645\u0646\u062a\u062c\u0627\u062a'}</span>
+                    <span className="stat-card-lbl">{t('dash_products')}</span>
                     <span className="stat-card-val">{stats.totalProducts}</span>
-                    <span className="stat-card-sub">{'\u0645\u0646\u062a\u062c \u0645\u062a\u0627\u062d'}</span>
+                    <span className="stat-card-sub">{t('dash_product_available')}</span>
                 </div>
                 <div className="stat-card stat-emerald">
-                    <span className="stat-card-lbl">{'\u0646\u0633\u0628\u0629 \u0627\u0644\u062a\u062d\u0635\u064a\u0644'}</span>
+                    <span className="stat-card-lbl">{t('dash_collection_rate')}</span>
                     <span className="stat-card-val">{stats.totalSales > 0 ? ((stats.paidCount / stats.totalSales) * 100).toFixed(0) : 0}%</span>
                     <span className="stat-card-sub">{stats.topProduct}</span>
                 </div>
@@ -199,15 +198,15 @@ export default function Dashboard() {
                     <div className="sect-card-header">
                         <span className="sect-card-title flex items-center gap-2">
                             <i className="fa-solid fa-chart-bar text-indigo-500 text-sm"></i>
-                            {'\u0627\u0644\u0645\u0628\u064a\u0639\u0627\u062a \u062d\u0633\u0628 \u0627\u0644\u0645\u0646\u062a\u062c'}
+                            {t('dash_by_product')}
                         </span>
-                        <span className="text-xs text-slate-400">{productStats.length} {'\u0645\u0646\u062a\u062c'}</span>
+                        <span className="text-xs text-slate-400">{productStats.length} {t('dash_products')}</span>
                     </div>
                     <div className="p-4">
                         {productStats.length === 0 ? (
                             <div className="empty-state py-10">
                                 <div className="empty-icon"><i className="fa-solid fa-chart-bar"></i></div>
-                                <p className="empty-title">{'\u0644\u0627 \u062a\u0648\u062c\u062f \u0628\u064a\u0627\u0646\u0627\u062a \u0628\u0639\u062f'}</p>
+                                <p className="empty-title">{t('dash_no_data')}</p>
                             </div>
                         ) : (
                             <div className="space-y-3">
@@ -221,8 +220,8 @@ export default function Dashboard() {
                                             <div className="flex justify-between items-center mb-1">
                                                 <span className="text-sm font-semibold truncate max-w-[140px]">{name}</span>
                                                 <div className="flex items-center gap-2 text-xs">
-                                                    <span className="text-slate-400">{data.count} {'\u0645\u0628\u064a\u0639\u0629'}</span>
-                                                    <span className="font-bold dir-ltr">{data.revenue.toLocaleString()} <span className="text-slate-400 font-normal">{'\u062c.\u0645'}</span></span>
+                                                    <span className="text-slate-400">{data.count} {t('dash_sale_count')}</span>
+                                                    <span className="font-bold dir-ltr">{data.revenue.toLocaleString('en-US')} <span className="text-slate-400 font-normal">{t('dash_currency')}</span></span>
                                                 </div>
                                             </div>
                                             <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
@@ -241,23 +240,23 @@ export default function Dashboard() {
                     <div className="sect-card-header">
                         <span className="sect-card-title flex items-center gap-2">
                             <i className="fa-solid fa-clock-rotate-left text-blue-500 text-sm"></i>
-                            {'\u0622\u062e\u0631 \u0627\u0644\u0645\u0628\u064a\u0639\u0627\u062a'}
+                            {t('dash_recent_sales')}
                         </span>
-                        <span className="text-xs text-slate-400">{'\u0623\u062d\u062f\u062b 5'}</span>
+                        <span className="text-xs text-slate-400">{t('dash_latest_5')}</span>
                     </div>
                     {recentSales.length === 0 ? (
                         <div className="empty-state py-10">
                             <div className="empty-icon"><i className="fa-solid fa-receipt"></i></div>
-                            <p className="empty-title">{'\u0644\u0627 \u062a\u0648\u062c\u062f \u0645\u0628\u064a\u0639\u0627\u062a \u0628\u0639\u062f'}</p>
+                            <p className="empty-title">{t('dash_no_sales')}</p>
                         </div>
                     ) : (
                         <table className="ds-table">
                             <thead className="ds-thead">
                                 <tr>
-                                    <th className="ds-th">{'\u0627\u0644\u0639\u0645\u064a\u0644'}</th>
-                                    <th className="ds-th">{'\u0627\u0644\u0645\u0646\u062a\u062c'}</th>
-                                    <th className="ds-th tc">{'\u0627\u0644\u0633\u0639\u0631'}</th>
-                                    <th className="ds-th tc">{'\u0627\u0644\u062d\u0627\u0644\u0629'}</th>
+                                    <th className="ds-th">{t('dash_col_client')}</th>
+                                    <th className="ds-th">{t('dash_col_product')}</th>
+                                    <th className="ds-th tc">{t('dash_col_price')}</th>
+                                    <th className="ds-th tc">{t('dash_col_status')}</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -266,16 +265,16 @@ export default function Dashboard() {
                                         <td className="ds-td">
                                             <div className="flex items-center gap-2">
                                                 <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-white text-xs font-bold flex-shrink-0 ${sale.isPaid ? 'bg-emerald-500' : 'bg-slate-400'}`}>
-                                                    {(sale.customerName || '\u0639').charAt(0).toUpperCase()}
+                                                    {(sale.customerName || 'C').charAt(0).toUpperCase()}
                                                 </div>
-                                                <span className="font-medium text-sm truncate max-w-[90px]">{sale.customerName || '\u0639\u0645\u064a\u0644'}</span>
+                                                <span className="font-medium text-sm truncate max-w-[90px]">{sale.customerName || t('dash_col_client')}</span>
                                             </div>
                                         </td>
                                         <td className="ds-td text-slate-500 text-xs">{sale.productName}</td>
-                                        <td className="ds-td tc font-semibold dir-ltr text-sm">{Number(sale.finalPrice).toLocaleString()}</td>
+                                        <td className="ds-td tc font-semibold dir-ltr text-sm">{Number(sale.finalPrice).toLocaleString('en-US')}</td>
                                         <td className="ds-td tc">
                                             <span className={`ds-badge ${sale.isActivated ? 'ds-purple' : sale.isPaid ? 'ds-ok' : 'ds-err'}`}>
-                                                {sale.isActivated ? '\u0645\u0641\u0639\u0651\u0644' : sale.isPaid ? '\u0645\u062f\u0641\u0648\u0639' : '\u0645\u0639\u0644\u0642'}
+                                                {sale.isActivated ? t('status_activated') : sale.isPaid ? t('status_paid') : t('status_unpaid')}
                                             </span>
                                         </td>
                                     </tr>

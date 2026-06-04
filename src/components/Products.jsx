@@ -1,8 +1,10 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { productsAPI, accountsAPI } from '../services/api';
 import { useConfirm } from './ConfirmDialog';
+import { useLang } from '../i18n/index';
 
 export default function Products() {
     const { user, hasPermission } = useAuth();
@@ -10,6 +12,7 @@ export default function Products() {
     const isAdmin = user?.role === 'admin' || hasPermission('products', 'edit') || hasPermission('all');
     const isAddOnly = hasPermission('products', 'add') && !hasPermission('products', 'edit');
     const { showConfirm, showAlert } = useConfirm();
+    const { t } = useLang();
 
     const [products, setProducts] = useState([]);
     const [inventorySections, setInventorySections] = useState([]);
@@ -128,20 +131,20 @@ export default function Products() {
                 <div className="flex items-center gap-3">
                     <div className="ph-icon" style={{backgroundColor:'#7c3aed'}}><i className="fa-solid fa-boxes-stacked text-sm"></i></div>
                     <div>
-                        <h1 className="ph-title">إدارة المنتجات</h1>
-                        <p className="ph-sub">إضافة وتعديل وإدارة جميع المنتجات المتاحة</p>
+                        <h1 className="ph-title">{t('products_title')}</h1>
+                        <p className="ph-sub">{t('products_subtitle')}</p>
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
-                    <span className="ds-badge ds-purple">{stats.total} منتج</span>
-                    <span className="ds-badge ds-mute">{stats.categories} تصنيف</span>
-                    <span className="ds-badge ds-info dir-ltr">متوسط {stats.avgPrice.toLocaleString()} ج.م</span>
+                    <span className="ds-badge ds-purple">{stats.total} {t('products_title')}</span>
+                    <span className="ds-badge ds-mute">{stats.categories}</span>
+                    <span className="ds-badge ds-info dir-ltr">{stats.avgPrice.toLocaleString('en-US')} {t('lbl_egp')}</span>
                 </div>
             </div>
             <div className="ds-toolbar">
                 <div className="relative flex-1 min-w-[200px]">
                     <i className="fa-solid fa-search absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
-                    <input type="text" className="ds-inp pr-8" placeholder="بحث بالاسم أو الوصف..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+                    <input type="text" className="ds-inp pr-8" placeholder={t('products_search_ph')} value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
                 </div>
                 {categories.length > 0 && (
                     <select value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)} className="ds-inp" style={{width:'auto'}}>
@@ -151,7 +154,7 @@ export default function Products() {
                 )}
                 {(isAdmin || isAddOnly) && (
                     <button onClick={openAddProduct} className="btn-p">
-                        <i className="fa-solid fa-plus"></i> إضافة منتج
+                        <i className="fa-solid fa-plus"></i> {t('products_new_btn')}
                     </button>
                 )}
             </div>
@@ -166,7 +169,7 @@ export default function Products() {
             ) : sortedProducts.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-20 bg-white rounded-3xl border-2 border-dashed border-slate-200 text-slate-400">
                     <i className="fa-solid fa-boxes-stacked text-5xl mb-4 opacity-30"></i>
-                    <p className="font-bold text-lg">لا توجد منتجات {searchTerm ? 'تطابق البحث' : 'بعد'}</p>
+                    <p className="font-bold text-lg">{searchTerm ? t('products_no_results') : t('products_no_products')}</p>
                     {!searchTerm && <p className="text-sm mt-1">أضف المنتجات المتوفرة عندك ليتمكن فريقك من البيع</p>}
                 </div>
             ) : (
@@ -178,7 +181,7 @@ export default function Products() {
                                 <div className="bg-purple-100 text-purple-700 px-4 py-1.5 rounded-xl text-sm font-extrabold flex items-center gap-2 border border-purple-200">
                                     <i className="fa-solid fa-folder"></i> {category}
                                 </div>
-                                <span className="text-xs text-slate-400 font-bold">{catProducts.length} منتج</span>
+                                <span className="text-xs text-slate-400 font-bold">{catProducts.length} {t('products_col_name')}</span>
                                 <div className="flex-1 h-px bg-slate-200"></div>
                             </div>
                             {/* Products Grid */}
@@ -250,8 +253,8 @@ export default function Products() {
                                         })()}
 
                                         <div className="flex justify-between items-center pt-3 border-t border-slate-100">
-                                            <span className="text-xs text-slate-400 font-bold">السعر</span>
-                                            <span className="text-2xl font-black text-slate-800 dir-ltr">{Number(p.price).toLocaleString()} <span className="text-sm text-slate-400">ج.م</span></span>
+                                            <span className="text-xs text-slate-400 font-bold">{t('products_col_price')}</span>
+                                            <span className="text-2xl font-black text-slate-800 dir-ltr">{Number(p.price).toLocaleString('en-US')} <span className="text-sm text-slate-400">{t('lbl_egp')}</span></span>
                                         </div>
                                     </div>
                                 ))}
@@ -262,13 +265,13 @@ export default function Products() {
             )}
 
             {/* ============ PRODUCT MODAL ============ */}
-            {showProductModal && (
-                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
+            {showProductModal && createPortal(
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in" style={{direction:'rtl',fontFamily:'Cairo,sans-serif'}}>
                     <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
                         <div className="p-6 bg-gradient-to-r from-purple-600 to-indigo-700 text-white flex justify-between items-center">
                             <h3 className="text-xl font-bold flex items-center gap-2">
                                 <i className={`fa-solid ${editingProduct ? 'fa-pen' : 'fa-plus-circle'}`}></i>
-                                {editingProduct ? 'تعديل المنتج' : 'إضافة منتج جديد'}
+                                {editingProduct ? t('products_edit_title') : t('products_add_title')}
                             </h3>
                             <button onClick={() => { setShowProductModal(false); setEditingProduct(null); }} className="bg-white/10 hover:bg-white/20 p-2 rounded-full transition"><i className="fa-solid fa-xmark text-lg"></i></button>
                         </div>
@@ -334,12 +337,12 @@ export default function Products() {
                                 </div>
                             </div>
                             <button type="submit" className="w-full bg-purple-600 text-white py-3.5 rounded-xl font-bold hover:bg-purple-700 shadow-lg shadow-purple-200 transition-all flex items-center justify-center gap-2">
-                                <i className="fa-solid fa-check"></i> حفظ المنتج
+                                <i className="fa-solid fa-check"></i> {t('btn_save')}
                             </button>
                         </form>
                     </div>
                 </div>
-            )}
+            , document.body)}
 
             <style>{`
                 .animate-fade-in { animation: fadeIn 0.3s ease-out forwards; }

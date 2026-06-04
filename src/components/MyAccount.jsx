@@ -1,10 +1,12 @@
 ﻿import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useLang } from '../i18n/index';
 import { useData } from '../context/DataContext';
 import { inventoryLogsAPI } from '../services/api';
 import { useConfirm } from './ConfirmDialog';
 
 export default function MyAccount() {
+    const { t } = useLang();
     const { user, changePassword } = useAuth();
     const { inventoryLogs, refreshData } = useData();
     const { showAlert, showConfirm } = useConfirm();

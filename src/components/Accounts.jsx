@@ -1,14 +1,17 @@
-﻿import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { accountsAPI, sectionsAPI, quickLinksAPI, inventoryLogsAPI } from '../services/api';
 import { useConfirm } from './ConfirmDialog';
+import { useLang } from '../i18n/index';
 
 export default function Accounts() {
     const { user, hasPermission } = useAuth();
     const isAdmin = user?.role === 'admin' || hasPermission('accounts', 'edit');
     const isAddOnly = hasPermission('accounts', 'add') && !hasPermission('accounts', 'edit');
     const { products, accounts: ctxAccounts, sections: ctxSections, inventoryLogs, refreshData } = useData();
+    const { t } = useLang();
 
     const [accounts, setAccounts] = useState([]);
     const [sections, setSections] = useState([]);
@@ -435,15 +438,15 @@ export default function Accounts() {
                         <div className="flex items-center gap-3">
                             <div className="ph-icon" style={{backgroundColor:'#7c3aed'}}><i className="fa-solid fa-boxes-stacked text-sm"></i></div>
                             <div>
-                                <h1 className="ph-title">المخزون والأكواد</h1>
-                                <p className="ph-sub">إدارة الحسابات والأكواد والسجلات</p>
+                                <h1 className="ph-title">{t('accounts_title')}</h1>
+                                <p className="ph-sub">{t('accounts_subtitle')}</p>
                             </div>
                         </div>
                         <div className="flex items-center gap-2 flex-wrap">
-                            <span className="ds-badge ds-purple">{globalStats.total} إجمالي</span>
-                            <span className="ds-badge ds-ok">{globalStats.available} متاح</span>
-                            <span className="ds-badge ds-warn">{globalStats.used} مستخدم</span>
-                            <span className="ds-badge ds-mute">{globalStats.full} مكتمل</span>
+                            <span className="ds-badge ds-purple">{globalStats.total} {t('lbl_all')}</span>
+                            <span className="ds-badge ds-ok">{globalStats.available} {t('accounts_status_avail')}</span>
+                            <span className="ds-badge ds-warn">{globalStats.used}</span>
+                            <span className="ds-badge ds-mute">{globalStats.full}</span>
                         </div>
                     </div>
 
@@ -451,7 +454,7 @@ export default function Accounts() {
                     {sections.length > 0 && (
                         <div className="sect-card">
                             <div className="sect-card-header">
-                                <span className="sect-card-title flex items-center gap-2"><i className="fa-solid fa-bolt text-emerald-500 text-sm"></i>سحب سريع</span>
+                                <span className="sect-card-title flex items-center gap-2"><i className="fa-solid fa-bolt text-emerald-500 text-sm"></i>{t('nav_quick_pull')}</span>
                                 <span className="text-xs text-slate-400">اسحب من أي سجل بدون ما تدخله</span>
                             </div>
                             <div className="flex flex-wrap gap-1.5 p-3">
@@ -481,7 +484,7 @@ export default function Accounts() {
                             <div className="flex items-center gap-3">
                                 <div className="w-10 h-10 bg-white/15 rounded-xl flex items-center justify-center"><i className="fa-solid fa-clock-rotate-left text-lg"></i></div>
                                 <div className="text-right">
-                                    <h3 className="font-extrabold text-sm">سجل نشاط المخزون</h3>
+                                    <h3 className="font-extrabold text-sm">{t('accounts_activity_log')}</h3>
                                     <p className="text-cyan-200 text-[10px] font-medium">تتبع جميع عمليات السحب والإضافة والإرجاع</p>
                                 </div>
                             </div>
@@ -494,21 +497,23 @@ export default function Accounts() {
 
                     {/* ===== QUICK LINKS ===== */}
                     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                        <button onClick={() => setLinksExpanded(!linksExpanded)} className="w-full p-4 flex items-center justify-between hover:bg-slate-50 transition-colors">
-                            <div className="flex items-center gap-3">
+                        <div className="flex items-center justify-between hover:bg-slate-50 transition-colors">
+                            {/* Clicking the title/icon area toggles expand */}
+                            <div className="flex items-center gap-3 p-4 flex-1 cursor-pointer" onClick={() => setLinksExpanded(v => !v)}>
                                 <div className="w-10 h-10 bg-violet-50 text-violet-600 rounded-xl flex items-center justify-center"><i className="fa-solid fa-link text-lg"></i></div>
                                 <div className="text-right">
                                     <h3 className="text-base font-extrabold text-slate-800">الروابط السريعة</h3>
                                     <p className="text-[10px] text-slate-400 font-medium">{quickLinks.length} رابط محفوظ</p>
                                 </div>
                             </div>
-                            <div className="flex items-center gap-2">
-                                <span onClick={(e) => { e.stopPropagation(); setShowLinkModal(true); }} className="w-8 h-8 flex items-center justify-center bg-violet-100 text-violet-600 rounded-lg hover:bg-violet-200 transition">
+                            {/* Separate action buttons — not nested inside the toggle div */}
+                            <div className="flex items-center gap-2 px-4 flex-shrink-0">
+                                <button type="button" onClick={() => setShowLinkModal(true)} className="w-8 h-8 flex items-center justify-center bg-violet-100 text-violet-600 rounded-lg hover:bg-violet-200 transition" title="إضافة رابط جديد">
                                     <i className="fa-solid fa-plus text-xs"></i>
-                                </span>
-                                <i className={`fa-solid fa-chevron-down text-slate-400 text-xs transition-transform ${linksExpanded ? 'rotate-180' : ''}`}></i>
+                                </button>
+                                <i className={`fa-solid fa-chevron-down text-slate-400 text-xs transition-transform cursor-pointer ${linksExpanded ? 'rotate-180' : ''}`} onClick={() => setLinksExpanded(v => !v)}></i>
                             </div>
-                        </button>
+                        </div>
 
                         {linksExpanded && (
                             <div className="px-4 pb-4">
@@ -559,7 +564,7 @@ export default function Accounts() {
                         </div>
                     {isAdmin && (
                         <button onClick={() => setShowSectionModal(true)} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-sm px-6 py-2.5 shadow-lg shadow-indigo-200 transition-all flex items-center justify-center gap-2 w-full md:w-auto">
-                            <i className="fa-solid fa-plus"></i> إنشاء سجل جديد
+                            <i className="fa-solid fa-plus"></i> {t('accounts_section_new')}
                         </button>
                     )}
                     </div>
@@ -569,7 +574,7 @@ export default function Accounts() {
                         <div>
                             <div className="flex items-center gap-2 mb-4">
                                 <div className="w-8 h-8 bg-indigo-100 text-indigo-600 rounded-lg flex items-center justify-center"><i className="fa-solid fa-user-shield text-sm"></i></div>
-                                <h3 className="text-lg font-extrabold text-slate-800">الحسابات</h3>
+                                <h3 className="text-lg font-extrabold text-slate-800">{t('accounts_sections_accounts')}</h3>
                                 <span className="text-xs px-2.5 py-0.5 bg-indigo-50 text-indigo-600 rounded-full font-bold border border-indigo-100">{accountSections.length}</span>
                             </div>
                             <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2 md:gap-4">
@@ -583,7 +588,7 @@ export default function Accounts() {
                         <div>
                             <div className="flex items-center gap-2 mb-4">
                                 <div className="w-8 h-8 bg-amber-100 text-amber-600 rounded-lg flex items-center justify-center"><i className="fa-solid fa-key text-sm"></i></div>
-                                <h3 className="text-lg font-extrabold text-slate-800">الأكواد</h3>
+                                <h3 className="text-lg font-extrabold text-slate-800">{t('accounts_sections_codes')}</h3>
                                 <span className="text-xs px-2.5 py-0.5 bg-amber-50 text-amber-600 rounded-full font-bold border border-amber-100">{codeSections.length}</span>
                             </div>
                             <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2 md:gap-4">
@@ -666,7 +671,7 @@ export default function Accounts() {
                         )}
                         <div className="flex gap-3 w-full md:w-auto">
                             <button onClick={() => handlePullNext()} className="bg-emerald-600 hover:bg-emerald-700 text-white w-full md:w-auto justify-center font-bold rounded-xl text-sm px-6 py-2.5 shadow-lg shadow-emerald-200 transition-all flex items-center gap-2">
-                                <i className="fa-solid fa-bolt"></i> سحب التالي
+                                <i className="fa-solid fa-bolt"></i> {t('accounts_pull_btn')}
                             </button>
                             <button onClick={() => setShowAddModal(true)} className={`w-full md:w-auto justify-center font-bold rounded-xl text-sm px-6 py-2.5 shadow-lg transition-all flex items-center gap-2 text-white ${isCodesSection ? 'bg-amber-600 hover:bg-amber-700 shadow-amber-200' : 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-200'}`}>
                                 <i className="fa-solid fa-plus"></i> إضافة {isCodesSection ? 'أكواد' : 'بيانات'}
@@ -678,7 +683,7 @@ export default function Accounts() {
                     {!isAddOnly && (
                     <div className="flex flex-wrap gap-3 items-center">
                         <div className="flex bg-white p-1.5 rounded-xl border border-slate-200 shadow-sm overflow-x-auto w-full md:w-auto scrollbar-hide">
-                            {[{ id: 'all', label: 'الكل', count: accountStats.total }, { id: 'available', label: 'متاح', count: accountStats.available }, { id: 'used', label: 'مستخدم', count: accountStats.used }, { id: 'completed', label: 'مكتمل', count: accountStats.full }, { id: 'damaged', label: 'تالف' }].map(f => (
+                            {[{ id: 'all', label: t('lbl_all'), count: accountStats.total }, { id: 'available', label: t('accounts_status_avail'), count: accountStats.available }, { id: 'used', label: t('accounts_status_used'), count: accountStats.used }, { id: 'completed', label: t('accounts_status_full'), count: accountStats.full }, { id: 'damaged', label: t('accounts_status_damaged') }].map(f => (
                                 <button key={f.id} onClick={() => setFilterStatus(f.id)} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all whitespace-nowrap flex-1 md:flex-none flex items-center justify-center gap-1.5 ${filterStatus === f.id ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}>
                                     {f.label}
                                     {f.count !== undefined && <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-black ${filterStatus === f.id ? 'bg-white/20' : 'bg-slate-100'}`}>{f.count}</span>}
@@ -775,11 +780,11 @@ export default function Accounts() {
                         </div>
                     )}
                 </>
-            )}
+            , document.body)}
 
             {/* ===== CREATE SECTION MODAL ===== */}
-            {showSectionModal && (
-                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[999] p-4 animate-fade-in">
+            {showSectionModal && createPortal(
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[999] p-4 animate-fade-in" style={{direction:'rtl',fontFamily:'Cairo,sans-serif'}}>
                     <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden">
                         <div className="p-6 bg-gradient-to-r from-purple-700 to-indigo-600 text-white flex justify-between items-center">
                             <h3 className="text-xl font-bold flex items-center gap-2"><i className="fa-solid fa-folder-plus"></i> إنشاء سجل جديد</h3>
@@ -816,11 +821,11 @@ export default function Accounts() {
                         </form>
                     </div>
                 </div>
-            )}
+            , document.body)}
 
             {/* ===== EDIT SECTION MODAL ===== */}
-            {editingSection && (
-                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[999] p-4 animate-fade-in">
+            {editingSection && createPortal(
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[999] p-4 animate-fade-in" style={{direction:'rtl',fontFamily:'Cairo,sans-serif'}}>
                     <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden">
                         <div className="p-6 bg-gradient-to-r from-blue-600 to-indigo-600 text-white flex justify-between items-center">
                             <h3 className="text-xl font-bold flex items-center gap-2"><i className="fa-solid fa-pen-to-square"></i> تعديل السجل</h3>
@@ -858,11 +863,11 @@ export default function Accounts() {
                         </form>
                     </div>
                 </div>
-            )}
+            , document.body)}
 
             {/* ===== ADD ITEM MODAL ===== */}
-            {showAddModal && currentSection && (
-                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[999] p-4 animate-fade-in">
+            {showAddModal && currentSection && createPortal(
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[999] p-4 animate-fade-in" style={{direction:'rtl',fontFamily:'Cairo,sans-serif'}}>
                     <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
                         <div className={`p-6 text-white flex justify-between items-center ${isCodesSection ? 'bg-gradient-to-r from-amber-600 to-orange-500' : 'bg-gradient-to-r from-purple-700 to-indigo-600'}`}>
                             <h3 className="text-xl font-bold flex items-center gap-2">
@@ -949,11 +954,11 @@ export default function Accounts() {
                         </form>
                     </div>
                 </div>
-            )}
+            , document.body)}
 
             {/* ===== EDIT MODAL ===== */}
-            {editingAccount && (
-                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[999] p-4 animate-fade-in">
+            {editingAccount && createPortal(
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[999] p-4 animate-fade-in" style={{direction:'rtl',fontFamily:'Cairo,sans-serif'}}>
                     <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
                         <div className="p-6 bg-white border-b border-slate-100 flex justify-between items-center">
                             <h3 className="text-xl font-extrabold text-slate-800 flex items-center gap-2"><i className="fa-solid fa-pen-to-square text-blue-600"></i> تعديل</h3>
@@ -1013,10 +1018,10 @@ export default function Accounts() {
                         </form>
                     </div>
                 </div>
-            )}
+            , document.body)}
 
             {/* ===== PULLED RESULT MODAL ===== */}
-            {pulledResult && (
+            {pulledResult && createPortal(
                 <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[999] p-4 animate-fade-in" onClick={() => setPulledResult(null)}>
                     <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden animate-scale-in max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
                         {pulledResult.empty ? (
@@ -1106,11 +1111,11 @@ export default function Accounts() {
                         )}
                     </div>
                 </div>
-            )}
+            , document.body)}
 
             {/* ===== ADD LINK MODAL ===== */}
-            {showLinkModal && (
-                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[999] p-4 animate-fade-in">
+            {showLinkModal && createPortal(
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[999] p-4 animate-fade-in" style={{direction:'rtl',fontFamily:'Cairo,sans-serif'}}>
                     <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden animate-scale-in">
                         <div className="p-6 bg-gradient-to-r from-violet-600 to-purple-600 text-white flex justify-between items-center">
                             <h3 className="text-xl font-bold flex items-center gap-2"><i className="fa-solid fa-link"></i> إضافة رابط سريع</h3>
@@ -1179,7 +1184,7 @@ export default function Accounts() {
                 };
 
                 return (
-                    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[999] p-4 animate-fade-in">
+                    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[999] p-4 animate-fade-in" style={{direction:'rtl',fontFamily:'Cairo,sans-serif'}}>
                         <div className="bg-white rounded-3xl w-full max-w-4xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
                             {/* Header */}
                             <div className="p-6 bg-gradient-to-r from-cyan-600 to-blue-600 text-white flex justify-between items-center flex-shrink-0">

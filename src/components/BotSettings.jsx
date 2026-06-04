@@ -90,6 +90,7 @@ const GROUP_COLOR = {
 };
 
 export default function BotSettings() {
+    const { t } = useLang();
     useEffect(() => { window.scrollTo(0, 0); }, []);
 
     const [prefs,      setPrefs]      = useState(telegram.getPrefs());

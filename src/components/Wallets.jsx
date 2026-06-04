@@ -1,6 +1,8 @@
-﻿import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
+import { useLang } from '../i18n/index';
 import { walletsAPI } from '../services/api';
 import { useConfirm } from './ConfirmDialog';
 
@@ -21,6 +23,7 @@ const CURRENCIES = [
 
 export default function Wallets() {
     useEffect(() => { window.scrollTo(0, 0); }, []);
+    const { t } = useLang();
     const { user } = useAuth();
     const { wallets: ctxWallets, transactions: ctxTransactions, refreshData } = useData();
 
@@ -123,7 +126,7 @@ export default function Wallets() {
             });
             setShowAddModal(false);
             await refreshData();
-        } catch (error) { console.error(error); showAlert({ title: 'خطأ!', message: 'حدث خطأ', type: 'danger' }); }
+        } catch (error) { console.error(error); showAlert({ title: t('err_title'), message: t('err_generic'), type: 'danger' }); }
     };
 
     // تعديل محفظة
@@ -140,10 +143,10 @@ export default function Wallets() {
     // حذف محفظة
     const handleDeleteWallet = async (id) => {
         const confirmed = await showConfirm({
-            title: 'حذف المحفظة',
-            message: 'هل أنت متأكد من حذف هذه المحفظة وجميع حركاتها؟',
-            confirmText: 'حذف',
-            cancelText: 'إلغاء',
+            title: t('wallets_delete_title'),
+            message: t('wallets_delete_msg'),
+            confirmText: t('lbl_delete'),
+            cancelText: t('lbl_cancel'),
             type: 'danger'
         });
         if (!confirmed) return;
@@ -162,13 +165,13 @@ export default function Wallets() {
         const description = fd.get('description') || '';
         const walletId = showTxnModal;
 
-        if (amount <= 0) { showAlert({ title: 'خطأ', message: 'المبلغ يجب أن يكون أكبر من صفر', type: 'warning' }); return; }
+        if (amount <= 0) { showAlert({ title: t('err_title'), message: t('wallets_err_amount'), type: 'warning' }); return; }
 
         const wallet = wallets.find(w => w.id === walletId);
         if (!wallet) return;
 
         if (txnType === 'withdraw' && amount > wallet.balance) {
-            showAlert({ title: 'رصيد غير كافي', message: 'الرصيد غير كافي!', type: 'danger' }); return;
+            showAlert({ title: t('err_no_balance'), message: t('err_no_balance_msg'), type: 'danger' }); return;
         }
 
         try {
@@ -179,16 +182,16 @@ export default function Wallets() {
             }
             setShowTxnModal(null);
             await refreshData();
-        } catch (error) { console.error(error); showAlert({ title: 'خطأ!', message: 'حدث خطأ', type: 'danger' }); }
+        } catch (error) { console.error(error); showAlert({ title: t('err_title'), message: t('err_generic'), type: 'danger' }); }
     };
 
     // حذف حركة
     const deleteTransaction = async (txn) => {
         const confirmed = await showConfirm({
-            title: 'حذف الحركة',
-            message: 'هل أنت متأكد من حذف هذه الحركة؟ سيتم تعديل رصيد المحفظة.',
-            confirmText: 'حذف',
-            cancelText: 'إلغاء',
+            title: t('wallets_txn_delete_title'),
+            message: t('wallets_txn_delete_msg'),
+            confirmText: t('lbl_delete'),
+            cancelText: t('lbl_cancel'),
             type: 'danger'
         });
         if (!confirmed) return;
@@ -207,7 +210,7 @@ export default function Wallets() {
             await walletsAPI.update(adjustBalanceWallet.id, { balance: newBalance });
             setAdjustBalanceWallet(null);
             await refreshData();
-        } catch (error) { console.error(error); showAlert({ title: 'خطأ!', message: 'حدث خطأ', type: 'danger' }); }
+        } catch (error) { console.error(error); showAlert({ title: t('err_title'), message: t('err_generic'), type: 'danger' }); }
     };
 
     const walletTxns = useMemo(() => {
@@ -223,17 +226,17 @@ export default function Wallets() {
                 <div className="flex items-center gap-3">
                     <div className="ph-icon" style={{backgroundColor:'#059669'}}><i className="fa-solid fa-vault text-sm"></i></div>
                     <div>
-                        <h1 className="ph-title">الخزينة والمحافظ</h1>
-                        <p className="ph-sub">إجمالي السيولة النقدية في جميع المحافظ</p>
+                        <h1 className="ph-title">{t('wallets_title')}</h1>
+                        <p className="ph-sub">{t('wallets_subtitle')}</p>
                     </div>
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
                     <span className="ds-badge ds-ok dir-ltr"><i className="fa-solid fa-flag"></i> EGP {totalEGP.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
                     <span className="ds-badge ds-info dir-ltr">$ {totalUSD.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
                     <span className="ds-badge ds-mute flex items-center gap-1">
-                        <span>$ = {usdRate} ج.م</span>
+                        <span>$ = {usdRate} {t('lbl_egp')}</span>
                         {rateLoading ? <i className="fa-solid fa-spinner fa-spin text-xs"></i>
-                            : <button onClick={() => fetchUsdRate(true)} className="hover:text-emerald-600 transition" title="تحديث"><i className="fa-solid fa-rotate text-[10px]"></i></button>}
+                            : <button onClick={() => fetchUsdRate(true)} className="hover:text-emerald-600 transition" title={t('lbl_update')}><i className="fa-solid fa-rotate text-[10px]"></i></button>}
                     </span>
                 </div>
             </div>
@@ -241,11 +244,11 @@ export default function Wallets() {
             {/* زر إضافة */}
             <div className="flex justify-between items-center">
                 <button onClick={() => setShowAddModal(true)} className="bg-emerald-600 text-white px-6 py-3 rounded-xl font-bold shadow-lg shadow-emerald-200 hover:bg-emerald-700 hover:-translate-y-0.5 transition-all flex items-center gap-2">
-                    <i className="fa-solid fa-plus text-lg"></i> إضافة محفظة جديدة
+                    <i className="fa-solid fa-plus text-lg"></i> {t('wallets_add_btn')}
                 </button>
                 {selectedWallet && (
                     <button onClick={() => setSelectedWallet(null)} className="text-slate-500 hover:text-slate-700 font-bold text-sm flex items-center gap-1">
-                        <i className="fa-solid fa-arrow-right"></i> عرض الكل
+                        <i className="fa-solid fa-arrow-right"></i> {t('wallets_show_all')}
                     </button>
                 )}
             </div>
@@ -256,8 +259,8 @@ export default function Wallets() {
                     {wallets.length === 0 ? (
                         <div className="col-span-full bg-white rounded-2xl border-2 border-dashed border-slate-200 p-16 text-center text-slate-400">
                             <i className="fa-solid fa-wallet text-5xl mb-4 block opacity-30"></i>
-                            <p className="font-bold text-lg">لا توجد محافظ بعد</p>
-                            <p className="text-sm mt-1">اضغط "إضافة محفظة جديدة" للبدء</p>
+                            <p className="font-bold text-lg">{t('wallets_no_wallets')}</p>
+                            <p className="text-sm mt-1">{t('wallets_no_wallets_hint')}</p>
                         </div>
                     ) : wallets.map(w => {
                         const st = walletStats[w.id] || { totalDeposits: 0, totalWithdrawals: 0 };
@@ -279,7 +282,7 @@ export default function Wallets() {
                                         </div>
                                     </div>
                                     <div className="mb-5">
-                                        <p className="text-xs text-slate-400 font-bold mb-1">الرصيد الحالي</p>
+                                        <p className="text-xs text-slate-400 font-bold mb-1">{t('wallets_balance')}</p>
                                         <p className="text-3xl font-black text-slate-800 dir-ltr">
                                             <span className="text-xs text-slate-400 ml-0.5">{ci.code}</span>
                                             {Number(w.balance).toLocaleString()}
@@ -287,25 +290,25 @@ export default function Wallets() {
                                     </div>
                                     <div className="grid grid-cols-2 gap-3 pt-4 border-t border-slate-100">
                                         <div className="text-center">
-                                            <p className="text-[10px] text-slate-400 font-bold mb-0.5">إجمالي الإيداع</p>
+                                            <p className="text-[10px] text-slate-400 font-bold mb-0.5">{t('wallets_total_deposits')}</p>
                                             <p className="text-sm font-black text-emerald-600 dir-ltr">{st.totalDeposits.toLocaleString()}+</p>
                                         </div>
                                         <div className="text-center">
-                                            <p className="text-[10px] text-slate-400 font-bold mb-0.5">إجمالي السحب</p>
+                                            <p className="text-[10px] text-slate-400 font-bold mb-0.5">{t('wallets_total_withdrawals')}</p>
                                             <p className="text-sm font-black text-red-600 dir-ltr">{st.totalWithdrawals.toLocaleString()}-</p>
                                         </div>
                                     </div>
-                                    <p className="text-[10px] text-slate-300 font-bold mt-3 text-center">الرصيد الافتتاحي: {Number(w.initialBalance || w.initial_balance || 0).toLocaleString()} {ci.symbol}</p>
+                                    <p className="text-[10px] text-slate-300 font-bold mt-3 text-center">{t('wallets_initial')} {Number(w.initialBalance || w.initial_balance || 0).toLocaleString()} {ci.symbol}</p>
                                 </div>
                                 <div className="flex border-t border-slate-100">
                                     <button onClick={(e) => { e.stopPropagation(); setShowTxnModal(w.id); setTxnType('deposit'); }} className="flex-1 py-3.5 text-center text-emerald-600 hover:bg-emerald-50 transition font-bold text-sm flex items-center justify-center gap-1.5 border-l border-slate-100">
-                                        <i className="fa-solid fa-plus-circle"></i> إيداع
+                                        <i className="fa-solid fa-plus-circle"></i> {t('wallets_deposit')}
                                     </button>
                                     <button onClick={(e) => { e.stopPropagation(); setShowTxnModal(w.id); setTxnType('withdraw'); }} className="flex-1 py-3.5 text-center text-red-600 hover:bg-red-50 transition font-bold text-sm flex items-center justify-center gap-1.5 border-l border-slate-100">
-                                        <i className="fa-solid fa-minus-circle"></i> سحب
+                                        <i className="fa-solid fa-minus-circle"></i> {t('wallets_withdraw')}
                                     </button>
                                     <button onClick={(e) => { e.stopPropagation(); setAdjustBalanceWallet(w); }} className="flex-1 py-3.5 text-center text-amber-600 hover:bg-amber-50 transition font-bold text-sm flex items-center justify-center gap-1.5">
-                                        <i className="fa-solid fa-pen-to-square"></i> تعديل
+                                        <i className="fa-solid fa-pen-to-square"></i> {t('wallets_adjust')}
                                     </button>
                                 </div>
                             </div>
@@ -319,18 +322,18 @@ export default function Wallets() {
                             <div className="w-11 h-11 bg-emerald-50 rounded-xl flex items-center justify-center text-lg border border-emerald-100">{getCurrencyInfo(selectedWallet.currency).flag}</div>
                             <div>
                                 <h3 className="text-xl font-extrabold text-slate-800">{selectedWallet.name}</h3>
-                                <p className="text-sm text-slate-400 font-bold">الرصيد: <span className="text-emerald-600 dir-ltr">{Number(selectedWallet.balance).toLocaleString()} {selectedWallet.currency || 'EGP'}</span></p>
+                                <p className="text-sm text-slate-400 font-bold">{t('wallets_balance')}: <span className="text-emerald-600 dir-ltr">{Number(selectedWallet.balance).toLocaleString()} {selectedWallet.currency || 'EGP'}</span></p>
                             </div>
                         </div>
                         <div className="flex gap-2">
-                            <button onClick={() => { setShowTxnModal(selectedWallet.id); setTxnType('deposit'); }} className="bg-emerald-600 text-white px-4 py-2 rounded-xl font-bold text-sm hover:bg-emerald-700 transition flex items-center gap-1.5"><i className="fa-solid fa-plus-circle"></i> إيداع</button>
-                            <button onClick={() => { setShowTxnModal(selectedWallet.id); setTxnType('withdraw'); }} className="bg-red-600 text-white px-4 py-2 rounded-xl font-bold text-sm hover:bg-red-700 transition flex items-center gap-1.5"><i className="fa-solid fa-minus-circle"></i> سحب</button>
+                            <button onClick={() => { setShowTxnModal(selectedWallet.id); setTxnType('deposit'); }} className="bg-emerald-600 text-white px-4 py-2 rounded-xl font-bold text-sm hover:bg-emerald-700 transition flex items-center gap-1.5"><i className="fa-solid fa-plus-circle"></i> {t('wallets_deposit')}</button>
+                            <button onClick={() => { setShowTxnModal(selectedWallet.id); setTxnType('withdraw'); }} className="bg-red-600 text-white px-4 py-2 rounded-xl font-bold text-sm hover:bg-red-700 transition flex items-center gap-1.5"><i className="fa-solid fa-minus-circle"></i> {t('wallets_withdraw')}</button>
                         </div>
                     </div>
                     <div className="p-6">
-                        <h4 className="text-sm font-extrabold text-slate-700 mb-4 flex items-center gap-2"><i className="fa-solid fa-clock-rotate-left text-indigo-500"></i> سجل الحركات</h4>
+                        <h4 className="text-sm font-extrabold text-slate-700 mb-4 flex items-center gap-2"><i className="fa-solid fa-clock-rotate-left text-indigo-500"></i> {t('wallets_txn_log')}</h4>
                         {walletTxns.length === 0 ? (
-                            <p className="text-slate-400 text-center py-12 font-bold">لا توجد حركات بعد</p>
+                            <p className="text-slate-400 text-center py-12 font-bold">{t('wallets_no_txns')}</p>
                         ) : (
                             <div className="space-y-3">
                                 {walletTxns.map(txn => (
@@ -340,7 +343,7 @@ export default function Wallets() {
                                                 <i className={`fa-solid ${txn.type === 'deposit' ? 'fa-arrow-down' : 'fa-arrow-up'}`}></i>
                                             </div>
                                             <div>
-                                                <p className="font-bold text-sm text-slate-800">{txn.type === 'deposit' ? 'إيداع' : 'سحب'}{txn.source ? ` — ${txn.source}` : ''}</p>
+                                                <p className="font-bold text-sm text-slate-800">{txn.type === 'deposit' ? t('wallets_txn_deposit') : t('wallets_txn_withdraw')}{txn.source ? ` — ${txn.source}` : ''}</p>
                                                 {txn.description && <p className="text-xs text-slate-400 mt-0.5">{txn.description}</p>}
                                                 <p className="text-[10px] text-slate-300 mt-0.5">{new Date(txn.date).toLocaleString('ar-EG')} — {txn.by || txn.created_by}</p>
                                             </div>
@@ -351,7 +354,7 @@ export default function Wallets() {
                                                     {txn.type === 'deposit' ? '+' : '-'}{Number(txn.amount).toLocaleString()}
                                                     <span className="text-[10px] text-slate-400 mr-1">{selectedWallet.currency || 'EGP'}</span>
                                                 </p>
-                                                <p className="text-[10px] text-slate-300 font-bold">الرصيد: {Number(txn.balanceAfter || txn.balance_after || 0).toLocaleString()}</p>
+                                                <p className="text-[10px] text-slate-300 font-bold">{t('wallets_balance_after')} {Number(txn.balanceAfter || txn.balance_after || 0).toLocaleString()}</p>
                                             </div>
                                             <button onClick={() => deleteTransaction(txn)} className="w-8 h-8 flex items-center justify-center text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition border border-transparent hover:border-red-100 opacity-0 group-hover:opacity-100" title="حذف الحركة">
                                                 <i className="fa-solid fa-trash text-xs"></i>
@@ -363,23 +366,23 @@ export default function Wallets() {
                         )}
                     </div>
                 </div>
-            )}
+            , document.body)}
 
             {/* MODAL: إضافة محفظة */}
-            {showAddModal && (
-                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
+            {showAddModal && createPortal(
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in" style={{direction:'rtl',fontFamily:'Cairo,sans-serif'}}>
                     <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden">
                         <div className="p-6 bg-slate-800 text-white flex justify-between items-center">
-                            <h3 className="text-xl font-bold flex items-center gap-2"><i className="fa-solid fa-wallet"></i> إضافة محفظة</h3>
+                            <h3 className="text-xl font-bold flex items-center gap-2"><i className="fa-solid fa-wallet"></i> {t('wallets_add_modal_title')}</h3>
                             <button onClick={() => setShowAddModal(false)} className="bg-white/10 hover:bg-white/20 p-2 rounded-full transition"><i className="fa-solid fa-xmark text-lg"></i></button>
                         </div>
                         <form onSubmit={handleAddWallet} className="p-8 space-y-5">
                             <div>
-                                <label className="block text-sm font-extrabold text-slate-800 mb-2">اسم المحفظة / طريقة الدفع</label>
-                                <input name="name" className="w-full bg-white border-2 border-slate-200 rounded-xl p-3.5 font-bold text-sm focus:ring-4 focus:ring-emerald-100 focus:border-emerald-600 outline-none transition-all" placeholder="مثال: فودافون كاش 010..." required />
+                                <label className="block text-sm font-extrabold text-slate-800 mb-2">{t('wallets_field_name')}</label>
+                                <input name="name" className="w-full bg-white border-2 border-slate-200 rounded-xl p-3.5 font-bold text-sm focus:ring-4 focus:ring-emerald-100 focus:border-emerald-600 outline-none transition-all" placeholder="" required />
                             </div>
                             <div>
-                                <label className="block text-sm font-extrabold text-slate-800 mb-2">العملة</label>
+                                <label className="block text-sm font-extrabold text-slate-800 mb-2">{t('wallets_field_currency')}</label>
                                 <div className="grid grid-cols-3 gap-2">
                                     {CURRENCIES.map(c => (
                                         <label key={c.code} className="flex items-center justify-center gap-2 p-3 rounded-xl border-2 cursor-pointer transition-all has-[:checked]:border-emerald-500 has-[:checked]:bg-emerald-50 border-slate-200 hover:border-emerald-200">
@@ -391,33 +394,33 @@ export default function Wallets() {
                                 </div>
                             </div>
                             <div>
-                                <label className="block text-sm font-extrabold text-slate-800 mb-2">الرصيد الافتتاحي</label>
+                                <label className="block text-sm font-extrabold text-slate-800 mb-2">{t('wallets_field_initial')}</label>
                                 <input name="initialBalance" type="number" step="0.01" defaultValue="0" className="w-full bg-white border-2 border-slate-200 rounded-xl p-3.5 font-bold text-sm focus:ring-4 focus:ring-emerald-100 focus:border-emerald-600 outline-none transition-all dir-ltr text-left" />
                             </div>
                             <div className="flex gap-3 pt-4 border-t border-slate-200">
-                                <button type="button" onClick={() => setShowAddModal(false)} className="flex-1 py-3 rounded-xl font-bold text-slate-600 bg-white border-2 border-slate-200 hover:bg-slate-50 transition">إلغاء</button>
-                                <button type="submit" className="flex-1 bg-emerald-600 text-white py-3 rounded-xl font-bold hover:bg-emerald-700 shadow-lg shadow-emerald-200 transition">حفظ المحفظة</button>
+                                <button type="button" onClick={() => setShowAddModal(false)} className="flex-1 py-3 rounded-xl font-bold text-slate-600 bg-white border-2 border-slate-200 hover:bg-slate-50 transition">{t('lbl_cancel')}</button>
+                                <button type="submit" className="flex-1 bg-emerald-600 text-white py-3 rounded-xl font-bold hover:bg-emerald-700 shadow-lg shadow-emerald-200 transition">{t('wallets_save_wallet')}</button>
                             </div>
                         </form>
                     </div>
                 </div>
-            )}
+            , document.body)}
 
             {/* MODAL: تعديل محفظة */}
-            {editingWallet && (
-                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
+            {editingWallet && createPortal(
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in" style={{direction:'rtl',fontFamily:'Cairo,sans-serif'}}>
                     <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden">
                         <div className="p-6 bg-white border-b border-slate-100 flex justify-between items-center">
-                            <h3 className="text-xl font-extrabold text-slate-800">تعديل المحفظة</h3>
+                            <h3 className="text-xl font-extrabold text-slate-800">{t('wallets_edit_modal_title')}</h3>
                             <button onClick={() => setEditingWallet(null)} className="bg-slate-50 hover:bg-slate-100 p-2 rounded-full transition text-slate-400"><i className="fa-solid fa-xmark text-lg"></i></button>
                         </div>
                         <form onSubmit={handleEditWallet} className="p-8 space-y-5">
                             <div>
-                                <label className="block text-sm font-extrabold text-slate-800 mb-2">اسم المحفظة</label>
+                                <label className="block text-sm font-extrabold text-slate-800 mb-2">{t('wallets_field_edit_name')}</label>
                                 <input name="name" defaultValue={editingWallet.name} className="w-full bg-white border-2 border-slate-200 rounded-xl p-3.5 font-bold text-sm focus:ring-4 focus:ring-emerald-100 focus:border-emerald-600 outline-none transition-all" required />
                             </div>
                             <div>
-                                <label className="block text-sm font-extrabold text-slate-800 mb-2">العملة</label>
+                                <label className="block text-sm font-extrabold text-slate-800 mb-2">{t('wallets_field_currency')}</label>
                                 <div className="grid grid-cols-3 gap-2">
                                     {CURRENCIES.map(c => (
                                         <label key={c.code} className="flex items-center justify-center gap-2 p-3 rounded-xl border-2 cursor-pointer transition-all has-[:checked]:border-emerald-500 has-[:checked]:bg-emerald-50 border-slate-200 hover:border-emerald-200">
@@ -429,38 +432,38 @@ export default function Wallets() {
                                 </div>
                             </div>
                             <div className="flex gap-3 pt-4 border-t border-slate-200">
-                                <button type="button" onClick={() => setEditingWallet(null)} className="flex-1 py-3 rounded-xl font-bold text-slate-600 bg-white border-2 border-slate-200 hover:bg-slate-50 transition">إلغاء</button>
-                                <button type="submit" className="flex-1 bg-blue-600 text-white py-3 rounded-xl font-bold hover:bg-blue-700 shadow-lg shadow-blue-200 transition">حفظ</button>
+                                <button type="button" onClick={() => setEditingWallet(null)} className="flex-1 py-3 rounded-xl font-bold text-slate-600 bg-white border-2 border-slate-200 hover:bg-slate-50 transition">{t('lbl_cancel')}</button>
+                                <button type="submit" className="flex-1 bg-blue-600 text-white py-3 rounded-xl font-bold hover:bg-blue-700 shadow-lg shadow-blue-200 transition">{t('wallets_save')}</button>
                             </div>
                         </form>
                     </div>
                 </div>
-            )}
+            , document.body)}
 
             {/* MODAL: إيداع / سحب */}
-            {showTxnModal && (
-                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
+            {showTxnModal && createPortal(
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in" style={{direction:'rtl',fontFamily:'Cairo,sans-serif'}}>
                     <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden">
                         <div className={`p-6 text-white flex justify-between items-center ${txnType === 'deposit' ? 'bg-gradient-to-r from-emerald-600 to-teal-600' : 'bg-gradient-to-r from-red-600 to-rose-600'}`}>
                             <h3 className="text-xl font-bold flex items-center gap-2">
                                 <i className={`fa-solid ${txnType === 'deposit' ? 'fa-plus-circle' : 'fa-minus-circle'}`}></i>
-                                {txnType === 'deposit' ? 'إيداع' : 'سحب'}
+                                {txnType === 'deposit' ? t('wallets_txn_deposit') : t('wallets_txn_withdraw')}
                             </h3>
                             <button onClick={() => setShowTxnModal(null)} className="bg-white/10 hover:bg-white/20 p-2 rounded-full transition"><i className="fa-solid fa-xmark text-lg"></i></button>
                         </div>
                         <form onSubmit={handleAddTransaction} className="p-8 space-y-5">
                             <div>
-                                <label className="block text-sm font-extrabold text-slate-800 mb-2">المبلغ</label>
+                                <label className="block text-sm font-extrabold text-slate-800 mb-2">{t('wallets_field_amount')}</label>
                                 <input name="amount" type="number" step="0.01" className="w-full bg-white border-2 border-slate-200 rounded-xl p-3.5 font-bold text-sm focus:ring-4 focus:ring-emerald-100 focus:border-emerald-600 outline-none transition-all dir-ltr text-left" placeholder="0.00" required />
                             </div>
                             <div>
-                                <label className="block text-sm font-extrabold text-slate-800 mb-2">وصف (اختياري)</label>
-                                <input name="description" className="w-full bg-white border-2 border-slate-200 rounded-xl p-3.5 font-bold text-sm focus:ring-4 focus:ring-slate-100 focus:border-slate-400 outline-none transition-all" placeholder="وصف الحركة..." />
+                                <label className="block text-sm font-extrabold text-slate-800 mb-2">{t('wallets_field_desc')}</label>
+                                <input name="description" className="w-full bg-white border-2 border-slate-200 rounded-xl p-3.5 font-bold text-sm focus:ring-4 focus:ring-slate-100 focus:border-slate-400 outline-none transition-all" placeholder={t('wallets_desc_ph')} />
                             </div>
                             <div className="flex gap-3 pt-4 border-t border-slate-200">
-                                <button type="button" onClick={() => setShowTxnModal(null)} className="flex-1 py-3 rounded-xl font-bold text-slate-600 bg-white border-2 border-slate-200 hover:bg-slate-50 transition">إلغاء</button>
+                                <button type="button" onClick={() => setShowTxnModal(null)} className="flex-1 py-3 rounded-xl font-bold text-slate-600 bg-white border-2 border-slate-200 hover:bg-slate-50 transition">{t('lbl_cancel')}</button>
                                 <button type="submit" className={`flex-1 text-white py-3 rounded-xl font-bold shadow-lg transition ${txnType === 'deposit' ? 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-200' : 'bg-red-600 hover:bg-red-700 shadow-red-200'}`}>
-                                    {txnType === 'deposit' ? 'تأكيد الإيداع' : 'تأكيد السحب'}
+                                    {txnType === 'deposit' ? t('wallets_confirm_deposit') : t('wallets_confirm_withdraw')}
                                 </button>
                             </div>
                         </form>
@@ -468,34 +471,34 @@ export default function Wallets() {
                 </div>
             )}
             {/* ============ ADJUST BALANCE MODAL ============ */}
-            {adjustBalanceWallet && (
-                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
+            {adjustBalanceWallet && createPortal(
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in" style={{direction:'rtl',fontFamily:'Cairo,sans-serif'}}>
                     <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden">
                         <div className="p-6 bg-gradient-to-r from-amber-500 to-orange-500 text-white">
                             <h3 className="text-xl font-bold flex items-center gap-2">
-                                <i className="fa-solid fa-pen-to-square"></i> تعديل رصيد المحفظة
+                                <i className="fa-solid fa-pen-to-square"></i> {t('wallets_adjust_title')}
                             </h3>
                             <p className="text-amber-100 text-sm font-medium mt-1">{adjustBalanceWallet.name}</p>
                         </div>
                         <form onSubmit={handleAdjustBalance} className="p-8 space-y-5">
                             <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-sm font-bold text-amber-800 flex items-start gap-2">
                                 <i className="fa-solid fa-circle-info mt-0.5"></i>
-                                <span>تعديل الرصيد مباشرة بدون تسجيل عملية إيداع أو سحب. مفيد لتصحيح الأرصدة.</span>
+                                <span>{t('wallets_adjust_info')}</span>
                             </div>
                             <div>
-                                <label className="block text-sm font-extrabold text-slate-800 mb-2">الرصيد الحالي</label>
+                                <label className="block text-sm font-extrabold text-slate-800 mb-2">{t('wallets_current_balance')}</label>
                                 <div className="text-2xl font-black text-slate-400 dir-ltr bg-slate-50 rounded-xl p-3 border border-slate-200">
                                     {Number(adjustBalanceWallet.balance).toLocaleString()} <span className="text-sm">{adjustBalanceWallet.currency || 'EGP'}</span>
                                 </div>
                             </div>
                             <div>
-                                <label className="block text-sm font-extrabold text-slate-800 mb-2">الرصيد الجديد</label>
+                                <label className="block text-sm font-extrabold text-slate-800 mb-2">{t('wallets_new_balance')}</label>
                                 <input name="newBalance" type="number" step="0.01" defaultValue={adjustBalanceWallet.balance} className="w-full bg-white border-2 border-amber-300 rounded-xl p-3.5 font-bold text-lg focus:ring-4 focus:ring-amber-100 focus:border-amber-500 outline-none transition-all text-amber-700" required autoFocus />
                             </div>
                             <div className="flex gap-3 pt-2">
-                                <button type="button" onClick={() => setAdjustBalanceWallet(null)} className="flex-1 py-3 rounded-xl font-bold text-slate-600 bg-slate-50 border-2 border-slate-200 hover:bg-slate-100 transition-all">إلغاء</button>
+                                <button type="button" onClick={() => setAdjustBalanceWallet(null)} className="flex-1 py-3 rounded-xl font-bold text-slate-600 bg-slate-50 border-2 border-slate-200 hover:bg-slate-100 transition-all">{t('lbl_cancel')}</button>
                                 <button type="submit" className="flex-1 py-3 rounded-xl font-bold text-white bg-amber-500 hover:bg-amber-600 shadow-lg shadow-amber-200 transition-all flex items-center justify-center gap-2">
-                                    <i className="fa-solid fa-check"></i> حفظ الرصيد
+                                    <i className="fa-solid fa-check"></i> {t('wallets_save_balance')}
                                 </button>
                             </div>
                         </form>

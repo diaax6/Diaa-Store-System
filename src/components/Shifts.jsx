@@ -1,8 +1,10 @@
 ﻿import { useEffect, useState, useMemo, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { useData } from '../context/DataContext';
 import { shiftsAPI, employeesAPI } from '../services/api';
 import { supabase } from '../lib/supabase';
 import { useConfirm } from './ConfirmDialog';
+import { useLang } from '../i18n/index';
 
 const SHIFT_COLORS = [
     { id: 'blue',   label: 'أزرق',   grad: 'from-blue-600 to-indigo-700',     ring: '#3b82f6', light: '#eff6ff' },
@@ -16,6 +18,7 @@ const SHIFT_COLORS = [
 const getColorDef = (colorId) => SHIFT_COLORS.find(c => c.id === colorId) || SHIFT_COLORS[0];
 
 export default function Shifts() {
+    const { t } = useLang();
     const { sales } = useData();
     const { showConfirm, showAlert } = useConfirm();
 
@@ -184,7 +187,7 @@ export default function Shifts() {
                 <div className="flex items-center gap-2">
                     <span className="ds-badge ds-info">{shifts.length} شيفت</span>
                     <span className="ds-badge ds-ok">{totalStats.orders} أوردر</span>
-                    <span className="ds-badge ds-emerald dir-ltr">{totalStats.revenue.toLocaleString()} ج.م</span>
+                    <span className="ds-badge ds-emerald dir-ltr">{totalStats.revenue.toLocaleString('en-US')} ج.م</span>
                 </div>
             </div>
             <div className="ds-toolbar">
@@ -256,7 +259,7 @@ export default function Shifts() {
                                             </div>
                                             <div className="bg-white/20 rounded-xl px-3 py-2 text-center flex-1">
                                                 <p className="text-white/60 text-[10px] font-bold">الإيراد</p>
-                                                <p className="text-lg font-black dir-ltr">{stats.revenue.toLocaleString()}</p>
+                                                <p className="text-lg font-black dir-ltr">{stats.revenue.toLocaleString('en-US')}</p>
                                             </div>
                                         </div>
                                     </div>
@@ -345,7 +348,7 @@ export default function Shifts() {
                                                 </div>
                                             </td>
                                             <td className="p-4 text-center font-black text-xl" style={{ color: cd.ring }}>{stats.count}</td>
-                                            <td className="p-4 text-center font-bold text-slate-700 dir-ltr">{stats.revenue.toLocaleString()} <span className="text-xs text-slate-400">ج.م</span></td>
+                                            <td className="p-4 text-center font-bold text-slate-700 dir-ltr">{stats.revenue.toLocaleString('en-US')} <span className="text-xs text-slate-400">ج.م</span></td>
                                         </tr>
                                     );
                                 })}
@@ -354,7 +357,7 @@ export default function Shifts() {
                                 <tr>
                                     <td className="p-4 font-extrabold text-slate-700" colSpan={3}>الإجمالي</td>
                                     <td className="p-4 text-center font-black text-xl text-indigo-700">{totalStats.orders}</td>
-                                    <td className="p-4 text-center font-black text-indigo-700 dir-ltr">{totalStats.revenue.toLocaleString()} <span className="text-xs text-slate-400">ج.م</span></td>
+                                    <td className="p-4 text-center font-black text-indigo-700 dir-ltr">{totalStats.revenue.toLocaleString('en-US')} <span className="text-xs text-slate-400">ج.م</span></td>
                                 </tr>
                             </tfoot>
                         </table>
@@ -363,8 +366,8 @@ export default function Shifts() {
             )}
 
             {/* ── Add/Edit Shift Modal ── */}
-            {showShiftModal && (
-                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in" onClick={() => setShowShiftModal(false)}>
+            {showShiftModal && createPortal(
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in" style={{direction:'rtl',fontFamily:'Cairo,sans-serif'}} onClick={() => setShowShiftModal(false)}>
                     <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
                         <div className={`p-5 bg-gradient-to-r ${getColorDef(form.color).grad} text-white flex justify-between items-center`}>
                             <h3 className="text-lg font-bold flex items-center gap-2">
@@ -422,11 +425,11 @@ export default function Shifts() {
                         </form>
                     </div>
                 </div>
-            )}
+            , document.body)}
 
             {/* ── Employee Assign Modal ── */}
-            {showEmpModal && (
-                <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-4 animate-fade-in" onClick={() => setShowEmpModal(null)}>
+            {showEmpModal && createPortal(
+                <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-4 animate-fade-in" style={{direction:'rtl',fontFamily:'Cairo,sans-serif'}} onClick={() => setShowEmpModal(null)}>
                     <div className="bg-white rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
 
                         {/* Header */}
@@ -517,7 +520,7 @@ export default function Shifts() {
                         </div>
                     </div>
                 </div>
-            )}
+            , document.body)}
 
             <style>{`
                 .animate-fade-in { animation: fadeIn 0.3s ease-out forwards; }

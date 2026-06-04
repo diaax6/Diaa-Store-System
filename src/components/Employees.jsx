@@ -1,8 +1,10 @@
 ﻿import { useState, useMemo, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { employeesAPI, salaryPaymentsAPI, employeeActionsAPI, usersAPI, walletsAPI } from '../services/api';
 import { supabase } from '../lib/supabase';
 import { useConfirm } from './ConfirmDialog';
 import { useAuth } from '../context/AuthContext';
+import { useLang } from '../i18n/index';
 
 const DAY_NAMES = { saturday: 'السبت', sunday: 'الأحد', monday: 'الاثنين', tuesday: 'الثلاثاء', wednesday: 'الأربعاء', thursday: 'الخميس', friday: 'الجمعة' };
 const DAY_EN = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
@@ -10,6 +12,7 @@ const PAY_CYCLES = { daily: 'يومي', weekly: 'أسبوعي', biweekly: 'نص�
 
 export default function Employees() {
     useEffect(() => { window.scrollTo(0, 0); }, []);
+    const { t } = useLang();
 
     const { user } = useAuth();
     const currentUsername = user?.username || 'Admin';
@@ -210,8 +213,8 @@ export default function Employees() {
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
                     <span className="ds-badge ds-info">{stats.active}/{stats.total} موظف</span>
-                    <span className="ds-badge ds-purple dir-ltr">{stats.totalSalaries.toLocaleString()} ج.م مرتبات</span>
-                    <span className="ds-badge ds-ok dir-ltr">{stats.totalPaid.toLocaleString()} مقبوض</span>
+                    <span className="ds-badge ds-purple dir-ltr">{stats.totalSalaries.toLocaleString('en-US')} ج.م مرتبات</span>
+                    <span className="ds-badge ds-ok dir-ltr">{stats.totalPaid.toLocaleString('en-US')} مقبوض</span>
                 </div>
             </div>
 
@@ -232,7 +235,7 @@ export default function Employees() {
                                     <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-amber-500 to-orange-500 text-white flex items-center justify-center font-bold text-sm">{emp.name?.charAt(0)}</div>
                                     <div className="min-w-0">
                                         <p className="font-bold text-sm text-slate-800 truncate">{emp.name}</p>
-                                        <p className="text-[10px] text-slate-500">صافي: {net.toLocaleString()} | مقبوض: {paid.toLocaleString()} | <span className={remaining > 0 ? 'text-red-600 font-bold' : 'text-emerald-600 font-bold'}>متبقي: {remaining.toLocaleString()}</span></p>
+                                        <p className="text-[10px] text-slate-500">صافي: {net.toLocaleString('en-US')} | مقبوض: {paid.toLocaleString('en-US')} | <span className={remaining > 0 ? 'text-red-600 font-bold' : 'text-emerald-600 font-bold'}>متبقي: {remaining.toLocaleString('en-US')}</span></p>
                                     </div>
                                     <button onClick={(e) => { e.stopPropagation(); setQuickAction({type:'pay', emp}); setQuickAmount(remaining > 0 ? String(remaining) : ''); }}
                                         className="bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-emerald-700 transition flex-shrink-0">
@@ -299,9 +302,9 @@ export default function Employees() {
                             </div>
 
                             <div className="space-y-1.5 text-xs mb-3">
-                                <div className="flex justify-between"><span className="text-slate-500">صافي المرتب</span><span className="font-bold text-purple-700 dir-ltr">{net.toLocaleString()}</span></div>
-                                <div className="flex justify-between"><span className="text-emerald-600">مقبوض</span><span className="font-bold text-emerald-600 dir-ltr">{totalPaid.toLocaleString()}</span></div>
-                                <div className="flex justify-between border-t border-dashed border-slate-200 pt-1.5"><span className={`font-bold ${remaining > 0 ? 'text-red-600' : 'text-emerald-600'}`}>متبقي</span><span className={`font-black ${remaining > 0 ? 'text-red-600' : 'text-emerald-600'} dir-ltr`}>{remaining.toLocaleString()}</span></div>
+                                <div className="flex justify-between"><span className="text-slate-500">صافي المرتب</span><span className="font-bold text-purple-700 dir-ltr">{net.toLocaleString('en-US')}</span></div>
+                                <div className="flex justify-between"><span className="text-emerald-600">مقبوض</span><span className="font-bold text-emerald-600 dir-ltr">{totalPaid.toLocaleString('en-US')}</span></div>
+                                <div className="flex justify-between border-t border-dashed border-slate-200 pt-1.5"><span className={`font-bold ${remaining > 0 ? 'text-red-600' : 'text-emerald-600'}`}>متبقي</span><span className={`font-black ${remaining > 0 ? 'text-red-600' : 'text-emerald-600'} dir-ltr`}>{remaining.toLocaleString('en-US')}</span></div>
                             </div>
 
                             {/* Quick Action Buttons */}
@@ -318,68 +321,64 @@ export default function Employees() {
             </div>
 
             {/* ============ QUICK ACTION MODAL ============ */}
-            {quickAction && (() => {
-                const c = quickConfig[quickAction.type];
-                const colorClasses = { emerald: 'from-emerald-600 to-green-700', red: 'from-red-600 to-rose-700', orange: 'from-orange-500 to-amber-600', blue: 'from-blue-600 to-indigo-700' };
-                return (
-                    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[70] p-4 animate-fade-in" onClick={() => setQuickAction(null)}>
-                        <div className="bg-white rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
-                            <div className={`p-5 bg-gradient-to-r ${colorClasses[c.color]} text-white flex justify-between items-center`}>
-                                <h3 className="text-lg font-bold flex items-center gap-2"><i className={`fa-solid ${c.icon}`}></i> {c.title}</h3>
-                                <button onClick={() => setQuickAction(null)} className="bg-white/10 hover:bg-white/20 p-2 rounded-full transition"><i className="fa-solid fa-xmark"></i></button>
-                            </div>
-                            <div className="p-6 space-y-4">
-                                <div className="flex items-center gap-3 bg-slate-50 p-3 rounded-xl border border-slate-200">
-                                    <div className="w-9 h-9 rounded-lg bg-purple-600 text-white flex items-center justify-center font-bold text-sm">{quickAction.emp.name?.charAt(0)}</div>
-                                    <div><p className="font-bold text-sm">{quickAction.emp.name}</p><p className="text-[10px] text-slate-400">{quickAction.emp.role || ''}</p></div>
+            {quickAction && createPortal(
+                (() => {
+                    const c = quickConfig[quickAction.type];
+                    const colorClasses = { emerald: 'from-emerald-600 to-green-700', red: 'from-red-600 to-rose-700', orange: 'from-orange-500 to-amber-600', blue: 'from-blue-600 to-indigo-700' };
+                    return (
+                        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[70] p-4 animate-fade-in" style={{direction:'rtl',fontFamily:'Cairo,sans-serif'}} onClick={() => setQuickAction(null)}>
+                            <div className="bg-white rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
+                                <div className={`p-5 bg-gradient-to-r ${colorClasses[c.color]} text-white flex justify-between items-center`}>
+                                    <h3 className="text-lg font-bold flex items-center gap-2"><i className={`fa-solid ${c.icon}`}></i> {c.title}</h3>
+                                    <button onClick={() => setQuickAction(null)} className="bg-white/10 hover:bg-white/20 p-2 rounded-full transition"><i className="fa-solid fa-xmark"></i></button>
                                 </div>
-                                <div>
-                                    <label className="block text-sm font-extrabold text-slate-800 mb-1.5">{c.label}</label>
-                                    <input type="number" min="0" value={quickAmount} onChange={e => setQuickAmount(e.target.value)} className="w-full bg-white border-2 border-slate-200 rounded-xl p-3 font-bold text-lg focus:ring-4 focus:ring-purple-100 focus:border-purple-600 outline-none transition-all dir-ltr text-right" placeholder={c.placeholder} autoFocus />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-extrabold text-slate-800 mb-1.5">{quickAction.type === 'deduction' || quickAction.type === 'bonus' ? 'السبب *' : 'ملاحظة (اختياري)'}</label>
-                                    <input type="text" value={quickDesc} onChange={e => setQuickDesc(e.target.value)} className="w-full bg-white border-2 border-slate-200 rounded-xl p-3 font-bold text-sm focus:ring-4 focus:ring-purple-100 focus:border-purple-600 outline-none transition-all" placeholder={quickAction.type === 'deduction' ? 'سبب الخصم...' : quickAction.type === 'bonus' ? 'سبب المكافأة...' : 'ملاحظة...'} required={quickAction.type === 'deduction' || quickAction.type === 'bonus'} />
-                                </div>
-                                {/* Wallet picker — only for pay types */}
-                                {(quickAction.type === 'pay' || quickAction.type === 'payDaily') && (
-                                    <div>
-                                        <label className="block text-sm font-extrabold text-slate-800 mb-1.5">
-                                            <i className="fa-solid fa-wallet text-emerald-500 ml-1"></i>
-                                            المحفظة <span className="text-slate-400 font-normal">(مطلوبة للخصم من الرصيد)</span>
-                                        </label>
-                                        <select
-                                            value={quickWalletId}
-                                            onChange={e => setQuickWalletId(e.target.value)}
-                                            className="w-full bg-white border-2 border-emerald-200 rounded-xl p-3 font-bold text-sm focus:ring-4 focus:ring-emerald-100 focus:border-emerald-600 outline-none"
-                                        >
-                                            <option value="">— بدون خصم من محفظة —</option>
-                                            {wallets.map(w => (
-                                                <option key={w.id} value={w.id}>
-                                                    {w.name} — رصيد: {Number(w.balance).toLocaleString()} ج.م
-                                                </option>
-                                            ))}
-                                        </select>
+                                <div className="p-6 space-y-4">
+                                    <div className="flex items-center gap-3 bg-slate-50 p-3 rounded-xl border border-slate-200">
+                                        <div className="w-9 h-9 rounded-lg bg-purple-600 text-white flex items-center justify-center font-bold text-sm">{quickAction.emp.name?.charAt(0)}</div>
+                                        <div><p className="font-bold text-sm">{quickAction.emp.name}</p><p className="text-[10px] text-slate-400">{quickAction.emp.role || ''}</p></div>
                                     </div>
-                                )}
-                                <div>
-                                    <label className="block text-sm font-extrabold text-slate-800 mb-1.5">التاريخ</label>
-                                    <input type="date" value={quickDate} onChange={e => setQuickDate(e.target.value)} className="w-full bg-white border-2 border-slate-200 rounded-xl p-3 font-bold text-sm focus:ring-4 focus:ring-purple-100 focus:border-purple-600 outline-none transition-all" />
-                                </div>
-                                <div className="flex gap-3">
-                                    <button onClick={() => setQuickAction(null)} className="flex-1 py-3 rounded-xl font-bold text-slate-600 bg-white border-2 border-slate-200 hover:bg-slate-50 transition">إلغاء</button>
-                                    <button onClick={handleQuickAction} className={`flex-1 bg-gradient-to-r ${colorClasses[c.color]} text-white py-3 rounded-xl font-bold transition shadow-lg flex items-center justify-center gap-2`}>
-                                        <i className="fa-solid fa-check"></i> تأكيد
-                                    </button>
+                                    <div>
+                                        <label className="block text-sm font-extrabold text-slate-800 mb-1.5">{c.label}</label>
+                                        <input type="number" min="0" value={quickAmount} onChange={e => setQuickAmount(e.target.value)} className="w-full bg-white border-2 border-slate-200 rounded-xl p-3 font-bold text-lg focus:ring-4 focus:ring-purple-100 focus:border-purple-600 outline-none transition-all dir-ltr text-right" placeholder={c.placeholder} autoFocus />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-extrabold text-slate-800 mb-1.5">{quickAction.type === 'deduction' || quickAction.type === 'bonus' ? 'السبب *' : 'ملاحظة (اختياري)'}</label>
+                                        <input type="text" value={quickDesc} onChange={e => setQuickDesc(e.target.value)} className="w-full bg-white border-2 border-slate-200 rounded-xl p-3 font-bold text-sm focus:ring-4 focus:ring-purple-100 focus:border-purple-600 outline-none transition-all" placeholder={quickAction.type === 'deduction' ? 'سبب الخصم...' : quickAction.type === 'bonus' ? 'سبب المكافأة...' : 'ملاحظة...'} required={quickAction.type === 'deduction' || quickAction.type === 'bonus'} />
+                                    </div>
+                                    {/* Wallet picker — only for pay types */}
+                                    {(quickAction.type === 'pay' || quickAction.type === 'payDaily') && (
+                                        <div>
+                                            <label className="block text-sm font-extrabold text-slate-800 mb-1.5">
+                                                <i className="fa-solid fa-wallet text-emerald-500 ml-1"></i>
+                                                المحفظة <span className="text-slate-400 font-normal">(مطلوبة للخصم من الرصيد)</span>
+                                            </label>
+                                            <select value={quickWalletId} onChange={e => setQuickWalletId(e.target.value)} className="w-full bg-white border-2 border-emerald-200 rounded-xl p-3 font-bold text-sm focus:ring-4 focus:ring-emerald-100 focus:border-emerald-600 outline-none">
+                                                <option value="">— بدون خصم من محفظة —</option>
+                                                {wallets.map(w => (
+                                                    <option key={w.id} value={w.id}>{w.name} — رصيد: {Number(w.balance).toLocaleString('en-US')} ج.م</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    )}
+                                    <div>
+                                        <label className="block text-sm font-extrabold text-slate-800 mb-1.5">التاريخ</label>
+                                        <input type="date" value={quickDate} onChange={e => setQuickDate(e.target.value)} className="w-full bg-white border-2 border-slate-200 rounded-xl p-3 font-bold text-sm focus:ring-4 focus:ring-purple-100 focus:border-purple-600 outline-none transition-all" />
+                                    </div>
+                                    <div className="flex gap-3">
+                                        <button onClick={() => setQuickAction(null)} className="flex-1 py-3 rounded-xl font-bold text-slate-600 bg-white border-2 border-slate-200 hover:bg-slate-50 transition">إلغاء</button>
+                                        <button onClick={handleQuickAction} className={`flex-1 bg-gradient-to-r ${colorClasses[c.color]} text-white py-3 rounded-xl font-bold transition shadow-lg flex items-center justify-center gap-2`}>
+                                            <i className="fa-solid fa-check"></i> تأكيد
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                    </div>
-                );
-            })()}
+                    );
+                })()
+            , document.body)}
 
             {/* ============ DETAILS MODAL ============ */}
-            {selectedEmp && (
+            {selectedEmp && createPortal(
                 <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in" onClick={() => setSelectedEmp(null)}>
                     <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl flex flex-col max-h-[90vh] overflow-hidden" onClick={e => e.stopPropagation()}>
                         <div className="p-5 bg-gradient-to-r from-violet-700 to-purple-600 text-white flex justify-between items-start flex-shrink-0">
@@ -396,15 +395,15 @@ export default function Employees() {
                         <div className="p-5 overflow-y-auto flex-1 space-y-4">
                             {/* Salary Breakdown */}
                             <div className="grid grid-cols-2 gap-2">
-                                <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 text-center"><span className="text-[10px] text-slate-500 font-bold block">أساسي</span><span className="text-base font-black text-slate-800">{Number(selectedEmp.baseSalary||0).toLocaleString()}</span></div>
-                                <div className="bg-emerald-50 p-3 rounded-xl border border-emerald-200 text-center"><span className="text-[10px] text-emerald-600 font-bold block">مكافآت</span><span className="text-base font-black text-emerald-700">+{Number(selectedEmp.bonus||0).toLocaleString()}</span></div>
-                                <div className="bg-red-50 p-3 rounded-xl border border-red-200 text-center"><span className="text-[10px] text-red-600 font-bold block">خصومات</span><span className="text-base font-black text-red-600">-{Number(selectedEmp.deductions||0).toLocaleString()}</span></div>
-                                <div className="bg-orange-50 p-3 rounded-xl border border-orange-200 text-center"><span className="text-[10px] text-orange-600 font-bold block">غياب ({selectedEmp.absenceDays||0} يوم)</span><span className="text-base font-black text-orange-600">-{((selectedEmp.absenceDays||0)*(selectedEmp.absenceDeductionPerDay||0)).toLocaleString()}</span></div>
+                                <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 text-center"><span className="text-[10px] text-slate-500 font-bold block">أساسي</span><span className="text-base font-black text-slate-800">{Number(selectedEmp.baseSalary||0).toLocaleString('en-US')}</span></div>
+                                <div className="bg-emerald-50 p-3 rounded-xl border border-emerald-200 text-center"><span className="text-[10px] text-emerald-600 font-bold block">مكافآت</span><span className="text-base font-black text-emerald-700">+{Number(selectedEmp.bonus||0).toLocaleString('en-US')}</span></div>
+                                <div className="bg-red-50 p-3 rounded-xl border border-red-200 text-center"><span className="text-[10px] text-red-600 font-bold block">خصومات</span><span className="text-base font-black text-red-600">-{Number(selectedEmp.deductions||0).toLocaleString('en-US')}</span></div>
+                                <div className="bg-orange-50 p-3 rounded-xl border border-orange-200 text-center"><span className="text-[10px] text-orange-600 font-bold block">غياب ({selectedEmp.absenceDays||0} يوم)</span><span className="text-base font-black text-orange-600">-{((selectedEmp.absenceDays||0)*(selectedEmp.absenceDeductionPerDay||0)).toLocaleString('en-US')}</span></div>
                             </div>
 
                             <div className="bg-purple-50 p-4 rounded-xl border border-purple-200 flex justify-between items-center">
                                 <span className="font-bold text-purple-700">صافي المرتب</span>
-                                <span className="font-black text-xl text-purple-700 dir-ltr">{calcNet(selectedEmp).toLocaleString()} ج.م</span>
+                                <span className="font-black text-xl text-purple-700 dir-ltr">{calcNet(selectedEmp).toLocaleString('en-US')} ج.م</span>
                             </div>
 
                             {/* Payments Log */}
@@ -416,7 +415,7 @@ export default function Employees() {
                                     <div className="space-y-1.5 max-h-40 overflow-y-auto">
                                         {empPayments.map(p => (
                                             <div key={p.id} className="bg-emerald-50 p-2.5 rounded-xl border border-emerald-100 flex justify-between items-center text-xs">
-                                                <div><span className="font-bold text-emerald-700">{Number(p.amount).toLocaleString()} ج.م</span> <span className="text-slate-400 mr-2">{p.notes && `— ${p.notes}`}</span></div>
+                                                <div><span className="font-bold text-emerald-700">{Number(p.amount).toLocaleString('en-US')} ج.م</span> <span className="text-slate-400 mr-2">{p.notes && `— ${p.notes}`}</span></div>
                                                 <span className="text-slate-400 font-mono text-[10px]">{new Date(p.paymentDate).toLocaleDateString('en-GB')}</span>
                                             </div>
                                         ))}
@@ -436,7 +435,7 @@ export default function Employees() {
                                             const labels = { deduction: '🔻 خصم', absence: '📅 غياب', bonus: '🎁 مكافأة' };
                                             return (
                                                 <div key={a.id} className={`p-2.5 rounded-xl border flex justify-between items-center text-xs ${colors[a.actionType] || 'bg-slate-50 border-slate-100'}`}>
-                                                    <div><span className="font-bold">{labels[a.actionType] || a.actionType}</span> — {a.actionType === 'absence' ? `${a.amount} يوم` : `${Number(a.amount).toLocaleString()} ج.م`} {a.description && <span className="text-slate-500">({a.description})</span>}</div>
+                                                    <div><span className="font-bold">{labels[a.actionType] || a.actionType}</span> — {a.actionType === 'absence' ? `${a.amount} يوم` : `${Number(a.amount).toLocaleString('en-US')} ج.م`} {a.description && <span className="text-slate-500">({a.description})</span>}</div>
                                                     <span className="text-slate-400 font-mono text-[10px]">{new Date(a.actionDate).toLocaleDateString('en-GB')}</span>
                                                 </div>
                                             );
@@ -453,10 +452,10 @@ export default function Employees() {
                         </div>
                     </div>
                 </div>
-            )}
+            , document.body)}
 
             {/* ============ ADD/EDIT MODAL ============ */}
-            {showModal && (
+            {showModal && createPortal(
                 <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4 animate-fade-in" onClick={() => setShowModal(false)}>
                     <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
                         <div className="p-5 bg-gradient-to-r from-purple-600 to-violet-700 text-white flex justify-between items-center flex-shrink-0">
@@ -515,7 +514,7 @@ export default function Employees() {
 
                             <div className="bg-purple-50 p-3 rounded-xl border border-purple-200 flex justify-between items-center">
                                 <span className="font-bold text-purple-700 text-sm">صافي المرتب</span>
-                                <span className="font-black text-lg text-purple-700 dir-ltr">{calcNet(form).toLocaleString()} ج.م</span>
+                                <span className="font-black text-lg text-purple-700 dir-ltr">{calcNet(form).toLocaleString('en-US')} ج.م</span>
                             </div>
 
                             <div className="flex gap-3 pt-1">
@@ -527,10 +526,10 @@ export default function Employees() {
                         </form>
                     </div>
                 </div>
-            )}
+            , document.body)}
 
             {/* ============ CONFIRM DELETE MODAL ============ */}
-            {confirmDelete && (
+            {confirmDelete && createPortal(
                 <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[80] p-4 animate-fade-in" onClick={() => setConfirmDelete(null)}>
                     <div className="bg-white rounded-3xl w-full max-w-xs shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
                         <div className="p-6 text-center space-y-4">

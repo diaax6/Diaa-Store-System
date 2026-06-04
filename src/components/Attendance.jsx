@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 import { attendanceAPI, usersAPI } from '../services/api';
@@ -274,8 +275,8 @@ export default function Attendance () {
             {/* --- Modals --- */}
 
             {/* 1. Edit Data Modal */}
-            {showEditModal && (
-                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
+            {showEditModal && createPortal(
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in" style={{direction:'rtl',fontFamily:'Cairo,sans-serif'}}>
                     <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl p-8 transform scale-100 transition-all">
                         <div className="flex justify-between items-center mb-6">
                             <h3 className="text-xl font-extrabold text-slate-800">{isUserAdmin ? "تعديل بيانات الموظف" : "تحديث بياناتي"}</h3>
@@ -288,11 +289,11 @@ export default function Attendance () {
                         </form>
                     </div>
                 </div>
-            )}
+            , document.body)}
 
             {/* 2. Bonus Modal */}
-            {showBonusModal && (
-                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
+            {showBonusModal && createPortal(
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in" style={{direction:'rtl',fontFamily:'Cairo,sans-serif'}}>
                     <div className="bg-white rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden flex flex-col transform transition-all scale-100 font-sans">
                         <div className="p-6 bg-gradient-to-r from-orange-500 to-amber-500 text-white flex justify-between items-center shadow-md"><h3 className="text-xl font-bold flex items-center gap-2"><i className="fa-solid fa-gift"></i> إضافة بونص</h3><button onClick={() => setShowBonusModal(false)} className="bg-white/20 hover:bg-white/30 p-2 rounded-full transition"><i className="fa-solid fa-xmark"></i></button></div>
                         <div className="p-8 bg-slate-50/50">
@@ -304,11 +305,11 @@ export default function Attendance () {
                         </div>
                     </div>
                 </div>
-            )}
+            , document.body)}
 
             {/* 3. Deduction Modal */}
-            {showDeductionModal && (
-                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
+            {showDeductionModal && createPortal(
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in" style={{direction:'rtl',fontFamily:'Cairo,sans-serif'}}>
                     <div className="bg-white rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden flex flex-col transform transition-all scale-100 font-sans">
                         <div className="p-6 bg-gradient-to-r from-red-500 to-pink-600 text-white flex justify-between items-center shadow-md"><h3 className="text-xl font-bold flex items-center gap-2"><i className="fa-solid fa-circle-minus"></i> إضافة خصم</h3><button onClick={() => setShowDeductionModal(false)} className="bg-white/20 hover:bg-white/30 p-2 rounded-full transition"><i className="fa-solid fa-xmark"></i></button></div>
                         <div className="p-8 bg-slate-50/50">
@@ -320,11 +321,11 @@ export default function Attendance () {
                         </div>
                     </div>
                 </div>
-            )}
+            , document.body)}
 
             {/* 4. History Modal */}
-            {showHistoryModal && (
-                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
+            {showHistoryModal && createPortal(
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in" style={{direction:'rtl',fontFamily:'Cairo,sans-serif'}}>
                     <div className="bg-white rounded-3xl w-full max-w-4xl shadow-2xl overflow-hidden flex flex-col h-[90vh] font-sans">
                         <div className="p-6 bg-white border-b border-slate-100 flex justify-between items-center">
                             <div><h3 className="text-xl font-extrabold text-slate-800">سجل الحضور التفصيلي</h3><p className="text-slate-500 text-xs font-bold">{currentUser?.username}</p></div>
@@ -361,7 +362,7 @@ export default function Attendance () {
                         </div>
                     </div>
                 </div>
-            )}
+            , document.body)}
 
             {/* CSS Styles Injection */}
             <style>{`

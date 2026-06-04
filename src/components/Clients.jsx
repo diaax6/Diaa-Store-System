@@ -1,12 +1,15 @@
 import { useState, useMemo, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useData } from '../context/DataContext';
 import { customersAPI, salesAPI } from '../services/api';
 import { useConfirm } from './ConfirmDialog';
+import { useLang } from '../i18n/index';
 
 export default function Clients() {
     useEffect(() => { window.scrollTo(0, 0); }, []);
 
     const { sales: ctxSales, customers: ctxCustomers, refreshData } = useData();
+    const { t } = useLang();
 
     const [sales, setSales] = useState([]);
     const [customers, setCustomers] = useState([]);
@@ -232,14 +235,14 @@ export default function Clients() {
                 <div className="flex items-center gap-3">
                     <div className="ph-icon"><i className="fa-solid fa-users text-sm"></i></div>
                     <div>
-                        <h1 className="ph-title">قائمة العملاء</h1>
-                        <p className="ph-sub">إدارة ومتابعة بيانات العملاء</p>
+                        <h1 className="ph-title">{t('clients_title')}</h1>
+                        <p className="ph-sub">{t('clients_subtitle')}</p>
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
-                    <span className="ds-badge ds-info"><i className="fa-solid fa-users"></i> {customers.length} عميل</span>
-                    <span className="ds-badge ds-mute">{sales.length} أوردر</span>
-                    <span className="ds-badge ds-ok dir-ltr">{clientsList.reduce((s, c) => s + c.totalSpent, 0).toLocaleString()} ج.م</span>
+                    <span className="ds-badge ds-info"><i className="fa-solid fa-users"></i> {customers.length} {t('clients_col_name')}</span>
+                    <span className="ds-badge ds-mute">{sales.length} {t('dash_orders')}</span>
+                    <span className="ds-badge ds-ok dir-ltr">{clientsList.reduce((s, c) => s + c.totalSpent, 0).toLocaleString()} {t('lbl_egp')}</span>
                 </div>
             </div>
 
@@ -247,18 +250,18 @@ export default function Clients() {
             <div className="ds-toolbar flex-wrap">
                 <div className="relative flex-1 min-w-[200px]">
                     <i className="fa-solid fa-search absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
-                    <input type="text" className="ds-inp pr-8" placeholder="بحث بالاسم أو الرقم أو الإيميل أو ID..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+                    <input type="text" className="ds-inp pr-8" placeholder={t('clients_search_ph')} value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
                 </div>
                 <button onClick={() => setShowDuplicatesOnly(!showDuplicatesOnly)}
                     className={`ds-badge text-xs px-3 py-1.5 cursor-pointer transition-all ${showDuplicatesOnly ? 'ds-err font-bold' : 'ds-mute hover:ds-err'}`}>
                     <i className="fa-solid fa-clone"></i> مكرر ({duplicateClientIds.size})
                 </button>
                 <select value={sortOption} onChange={e => setSortOption(e.target.value)} className="ds-inp" style={{width:'auto'}}>
-                    <option value="ordersCount">الأكثر طلباً</option>
-                    <option value="totalSpent">الأكثر إنفاقاً</option>
-                    <option value="name">حسب الاسم</option>
-                    <option value="newest">الأحدث</option>
-                    <option value="expiringSoon">قرب الانتهاء</option>
+                    <option value="ordersCount">{t('clients_sort_orders')}</option>
+                    <option value="totalSpent">{t('clients_sort_spent')}</option>
+                    <option value="name">{t('clients_sort_name')}</option>
+                    <option value="newest">{t('clients_sort_newest')}</option>
+                    <option value="expiringSoon">{t('clients_sort_expiry')}</option>
                 </select>
             </div>
 
@@ -268,15 +271,15 @@ export default function Clients() {
                     <table className="w-full text-sm">
                         <thead className="bg-slate-50 border-b border-slate-200">
                             <tr>
-                                <th className="text-right p-4 font-black text-slate-600 text-xs uppercase tracking-wider">العميل</th>
+                                <th className="text-right p-4 font-black text-slate-600 text-xs uppercase tracking-wider">{t('clients_col_name')}</th>
                                 <th className="text-right p-4 font-black text-slate-600 text-xs uppercase tracking-wider">ID</th>
-                                <th className="text-center p-4 font-black text-slate-600 text-xs uppercase tracking-wider">التواصل</th>
-                                <th className="text-center p-4 font-black text-slate-600 text-xs uppercase tracking-wider">الأوردرات</th>
-                                <th className="text-center p-4 font-black text-slate-600 text-xs uppercase tracking-wider">التجديدات</th>
-                                <th className="text-center p-4 font-black text-slate-600 text-xs uppercase tracking-wider">المنتجات</th>
-                                <th className="text-center p-4 font-black text-slate-600 text-xs uppercase tracking-wider">المدفوعات</th>
-                                <th className="text-center p-4 font-black text-slate-600 text-xs uppercase tracking-wider">الحالة</th>
-                                <th className="text-center p-4 font-black text-slate-600 text-xs uppercase tracking-wider w-20">الإجراء</th>
+                                <th className="text-center p-4 font-black text-slate-600 text-xs uppercase tracking-wider">{t('clients_col_contact')}</th>
+                                <th className="text-center p-4 font-black text-slate-600 text-xs uppercase tracking-wider">{t('clients_col_orders')}</th>
+                                <th className="text-center p-4 font-black text-slate-600 text-xs uppercase tracking-wider">{t('clients_col_renewals')}</th>
+                                <th className="text-center p-4 font-black text-slate-600 text-xs uppercase tracking-wider">{t('nav_products')}</th>
+                                <th className="text-center p-4 font-black text-slate-600 text-xs uppercase tracking-wider">{t('clients_col_spent')}</th>
+                                <th className="text-center p-4 font-black text-slate-600 text-xs uppercase tracking-wider">{t('dash_status')}</th>
+                                <th className="text-center p-4 font-black text-slate-600 text-xs uppercase tracking-wider w-20">{t('clients_col_actions')}</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
@@ -284,7 +287,7 @@ export default function Clients() {
                                 <tr>
                                     <td colSpan="9" className="p-16 text-center text-slate-400">
                                         <i className="fa-solid fa-user-slash text-4xl mb-4 block opacity-30"></i>
-                                        <p className="font-bold text-lg">{searchTerm ? 'لا يوجد عملاء يطابقوا البحث' : 'لا يوجد عملاء بعد'}</p>
+                                        <p className="font-bold text-lg">{searchTerm ? t('clients_no_results') : t('clients_no_clients')}</p>
                                         <p className="text-sm mt-1">{!searchTerm && 'سجل أوردر جديد من صفحة المبيعات لإضافة عميل'}</p>
                                     </td>
                                 </tr>
@@ -380,10 +383,10 @@ export default function Clients() {
                         عرض المزيد ({filteredClients.length - visibleCount}) <i className="fa-solid fa-chevron-down mr-1"></i>
                     </button>
                 </div>
-            )}
+            , document.body)}
 
             {/* ============ CLIENT DETAILS MODAL ============ */}
-            {selectedClient && (
+            {selectedClient && createPortal(
                 <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in" onClick={() => setSelectedClient(null)}>
                     <div className="bg-white rounded-3xl w-full max-w-4xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden" onClick={e => e.stopPropagation()}>
 
@@ -514,10 +517,10 @@ export default function Clients() {
                         </div>
                     </div>
                 </div>
-            )}
+            , document.body)}
 
             {/* ============ EDIT CLIENT MODAL ============ */}
-            {editingClient && (
+            {editingClient && createPortal(
                 <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4 animate-fade-in" onClick={() => setEditingClient(null)}>
                     <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
                         <div className="p-6 bg-gradient-to-r from-blue-600 to-indigo-700 text-white flex justify-between items-center">
@@ -556,9 +559,9 @@ export default function Clients() {
                                 </div>
                             </div>
                             <div className="flex gap-3 pt-2">
-                                <button type="button" onClick={() => setEditingClient(null)} className="flex-1 py-3 rounded-xl font-bold text-slate-600 bg-white border-2 border-slate-200 hover:bg-slate-50 transition">إلغاء</button>
+                                <button type="button" onClick={() => setEditingClient(null)} className="flex-1 py-3 rounded-xl font-bold text-slate-600 bg-white border-2 border-slate-200 hover:bg-slate-50 transition">{t('btn_cancel')}</button>
                                 <button type="submit" className="flex-1 bg-indigo-600 text-white py-3 rounded-xl font-bold hover:bg-indigo-700 shadow-lg shadow-indigo-200 transition flex items-center justify-center gap-2">
-                                    <i className="fa-solid fa-check"></i> حفظ التعديلات
+                                    <i className="fa-solid fa-check"></i> {t('btn_save')}
                                 </button>
                             </div>
                         </form>

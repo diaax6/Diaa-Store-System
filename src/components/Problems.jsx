@@ -1,8 +1,10 @@
-﻿import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { problemsAPI } from '../services/api';
 import { useConfirm } from './ConfirmDialog';
+import { useLang } from '../i18n/index';
 
 export default function Problems () {
     useEffect(() => {
@@ -12,6 +14,7 @@ export default function Problems () {
     const { user } = useAuth();
     const { problems, sales, accounts, refreshData, renewalTarget, setRenewalTarget } = useData();
     const currentUser = user?.username || 'Admin';
+    const { t } = useLang();
 
     const [showModal, setShowModal] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
@@ -22,6 +25,8 @@ export default function Problems () {
     const [replacementAccountId, setReplacementAccountId] = useState('');
     const [description, setDescription] = useState('');
     const { showConfirm, showAlert } = useConfirm();
+    const [copiedPhone, setCopiedPhone]   = useState(null);
+    const [saleSearch, setSaleSearch]     = useState('');   // بحث سريع في قائمة الأوردرات
 
     // الاستماع للبيانات القادمة من صفحة العملاء
     useEffect(() => {
@@ -79,6 +84,7 @@ export default function Problems () {
             setSelectedSaleId('');
             setReplacementAccountId('');
             setDescription('');
+            setSaleSearch('');
             refreshData();
         } catch (error) {
             console.error(error);
@@ -125,10 +131,44 @@ export default function Problems () {
         }
     };
 
+    // قائمة الأوردرات مرتبة مرة واحدة فقط (memoized) — تمنع إعادة الترتيب في كل render
+    const sortedSales = useMemo(
+        () => [...sales].sort((a, b) => new Date(b.date) - new Date(a.date)),
+        [sales]
+    );
+
+    // تصفية الأوردرات بناءً على نص البحث — تحد الـ render من 1000+ خيار لأقل من 100
+    const filteredSaleOptions = useMemo(() => {
+        const q = saleSearch.trim().toLowerCase();
+        if (!q) return sortedSales.slice(0, 100); // عرض أحدث 100 فقط لو مفيش بحث
+        return sortedSales
+            .filter(s =>
+                (s.customerName || '').toLowerCase().includes(q) ||
+                (s.productName  || '').toLowerCase().includes(q) ||
+                (s.customerEmail || '').toLowerCase().includes(q)
+            )
+            .slice(0, 100);
+    }, [sortedSales, saleSearch]);
+
     // دالة لجلب تفاصيل الأوردر المختار عشان نعرف المنتج ونعرض بدائل مناسبة
     const selectedSaleDetails = useMemo(() => {
         return sales.find(s => s.id == selectedSaleId);
     }, [selectedSaleId, sales]);
+
+    // تنسيق رقم الهاتف لـ WhatsApp — يحول 010XXXXXXXX لـ 20010XXXXXXXX
+    const formatPhoneWA = (phone) => {
+        if (!phone) return '';
+        const digits = String(phone).replace(/\D/g, '');
+        if (digits.startsWith('20')) return digits;
+        if (digits.startsWith('0'))  return '2' + digits;
+        return digits;
+    };
+
+    const handleCopyPhone = (id, phone) => {
+        navigator.clipboard.writeText(phone);
+        setCopiedPhone(id);
+        setTimeout(() => setCopiedPhone(null), 1500);
+    };
 
     return (
         <div className="space-y-6 animate-fade-in pb-20 font-sans text-slate-800">
@@ -138,16 +178,16 @@ export default function Problems () {
                 <div className="flex items-center gap-3">
                     <div className="ph-icon" style={{backgroundColor:'#dc2626'}}><i className="fa-solid fa-triangle-exclamation text-sm"></i></div>
                     <div>
-                        <h1 className="ph-title">سجل المشاكل</h1>
-                        <p className="ph-sub">متابعة وحل مشكلات العملاء</p>
+                        <h1 className="ph-title">{t('problems_title')}</h1>
+                        <p className="ph-sub">{t('problems_subtitle')}</p>
                     </div>
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
-                    <span className="stat-card-pill pill-red">{stats.total} مشكلة</span>
-                    <span className="stat-card-pill pill-amber">{stats.open} مفتوحة</span>
-                    <span className="stat-card-pill pill-green">{stats.resolved} محلولة</span>
+                    <span className="stat-card-pill pill-red">{stats.total}</span>
+                    <span className="stat-card-pill pill-amber">{stats.open} {t('problems_filter_open')}</span>
+                    <span className="stat-card-pill pill-green">{stats.resolved} {t('problems_filter_resolved')}</span>
                     <button onClick={() => { setSelectedSaleId(''); setReplacementAccountId(''); setDescription(''); setShowModal(true); }} className="btn-d text-xs">
-                        <i className="fa-solid fa-plus"></i> تسجيل مشكلة
+                        <i className="fa-solid fa-plus"></i> {t('problems_new_btn')}
                     </button>
                 </div>
             </div>
@@ -156,13 +196,13 @@ export default function Problems () {
             <div className="ds-toolbar flex-wrap">
                 <div className="relative flex-1 min-w-[200px]">
                     <i className="fa-solid fa-search absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
-                    <input type="text" placeholder="بحث في المشاكل..." className="ds-inp pr-8" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+                    <input type="text" placeholder={t('problems_search_ph')} className="ds-inp pr-8" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
                 </div>
                 <div className="flex gap-1 bg-slate-100 p-1 rounded-lg">
                     {[
-                        { id: 'all', label: 'الكل', count: stats.total },
-                        { id: 'open', label: 'مفتوحة', count: stats.open },
-                        { id: 'resolved', label: 'محلولة', count: stats.resolved },
+                        { id: 'all',      label: t('problems_filter_all'),      count: stats.total },
+                        { id: 'open',     label: t('problems_filter_open'),     count: stats.open },
+                        { id: 'resolved', label: t('problems_filter_resolved'), count: stats.resolved },
                     ].map(f => (
                         <button key={f.id} onClick={() => setStatusFilter(f.id)}
                             className={`px-3 py-1 rounded-md text-xs font-semibold transition flex items-center gap-1.5 ${statusFilter === f.id ? 'bg-white text-red-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
@@ -178,7 +218,7 @@ export default function Problems () {
                 {filteredProblems.length === 0 ? (
                     <div className="text-center py-20 bg-white rounded-3xl border-2 border-dashed border-slate-200 text-slate-400">
                         <i className="fa-solid fa-check-circle text-4xl mb-4 opacity-50 text-emerald-500"></i>
-                        <p className="font-bold">لا توجد مشاكل مسجلة</p>
+                        <p className="font-bold">{t('problems_no_problems')}</p>
                     </div>
                 ) : (
                     filteredProblems.map(prob => (
@@ -189,14 +229,34 @@ export default function Problems () {
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-2 mb-1 flex-wrap">
                                         <h4 className="font-bold text-lg text-slate-800">{prob.customerName || 'عميل غير معروف'}</h4>
-                                        <span className="text-xs bg-slate-100 text-slate-500 px-2 py-0.5 rounded border border-slate-200 font-mono">{prob.phoneNumber}</span>
+                                        <div className="flex items-center gap-1 flex-shrink-0">
+                                            <span className="text-xs bg-slate-100 text-slate-500 px-2 py-0.5 rounded border border-slate-200 font-mono">{prob.phoneNumber}</span>
+                                            {prob.phoneNumber && (<>
+                                                <a href={`https://wa.me/${formatPhoneWA(prob.phoneNumber)}`} target="_blank" rel="noopener noreferrer"
+                                                    className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-green-100 text-green-600 hover:bg-green-200 border border-green-200 transition flex-shrink-0"
+                                                    title="واتساب">
+                                                    <i className="fa-brands fa-whatsapp text-[9px]"></i>
+                                                </a>
+                                                <a href={`tel:${prob.phoneNumber}`}
+                                                    className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-blue-100 text-blue-600 hover:bg-blue-200 border border-blue-200 transition flex-shrink-0"
+                                                    title="اتصال">
+                                                    <i className="fa-solid fa-phone text-[9px]"></i>
+                                                </a>
+                                                <button type="button"
+                                                    onClick={() => handleCopyPhone(prob.id, prob.phoneNumber)}
+                                                    className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 border border-slate-200 transition flex-shrink-0"
+                                                    title="نسخ الرقم">
+                                                    <i className={`fa-solid ${copiedPhone === prob.id ? 'fa-check text-emerald-500' : 'fa-copy'} text-[9px]`}></i>
+                                                </button>
+                                            </>)}
+                                        </div>
                                         {prob.isResolved ? (
                                             <span className="text-[10px] bg-emerald-100 text-emerald-700 px-2.5 py-0.5 rounded-full font-bold border border-emerald-200 flex items-center gap-1">
-                                                <i className="fa-solid fa-check-circle text-[8px]"></i> تم الحل
+                                                <i className="fa-solid fa-check-circle text-[8px]"></i> {t('problems_status_resolved')}
                                             </span>
                                         ) : (
                                             <span className="text-[10px] bg-orange-100 text-orange-700 px-2.5 py-0.5 rounded-full font-bold border border-orange-200 flex items-center gap-1">
-                                                <i className="fa-solid fa-clock text-[8px]"></i> قيد المتابعة
+                                                <i className="fa-solid fa-clock text-[8px]"></i> {t('problems_filter_open')}
                                             </span>
                                         )}
                                     </div>
@@ -223,14 +283,14 @@ export default function Problems () {
                                             className="flex items-center gap-2 px-4 py-2.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-xl font-bold text-xs hover:bg-emerald-100 transition-all shadow-sm"
                                             title="تعليم كمحلولة">
                                             <i className="fa-solid fa-check-circle"></i>
-                                            <span className="hidden md:inline">تم الحل</span>
+                                            <span className="hidden md:inline">{t('problems_resolve_btn')}</span>
                                         </button>
                                     )}
                                     <button onClick={() => handleDelete(prob.id)}
                                         className="flex items-center gap-2 px-4 py-2.5 bg-red-50 text-red-600 border border-red-200 rounded-xl font-bold text-xs hover:bg-red-100 transition-all shadow-sm"
                                         title="حذف">
                                         <i className="fa-solid fa-trash"></i>
-                                        <span className="hidden md:inline">حذف</span>
+                                        <span className="hidden md:inline">{t('btn_delete')}</span>
                                     </button>
                                 </div>
                             </div>
@@ -240,14 +300,14 @@ export default function Problems () {
             </div>
 
             {/* Modal */}
-            {showModal && (
-                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
+            {showModal && createPortal(
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in" style={{direction:'rtl',fontFamily:'Cairo,sans-serif'}}>
                     <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
                         <div className="p-6 bg-gradient-to-r from-red-600 to-rose-600 text-white flex justify-between items-center">
                             <h3 className="text-xl font-bold flex items-center gap-2">
-                                <i className="fa-solid fa-triangle-exclamation"></i> تسجيل مشكلة جديدة
+                                <i className="fa-solid fa-triangle-exclamation"></i> {t('problems_add_title')}
                             </h3>
-                            <button onClick={() => setShowModal(false)} className="bg-white/10 hover:bg-white/20 p-2 rounded-full transition"><i className="fa-solid fa-xmark text-lg"></i></button>
+                            <button onClick={() => { setShowModal(false); setSaleSearch(''); }} className="bg-white/10 hover:bg-white/20 p-2 rounded-full transition"><i className="fa-solid fa-xmark text-lg"></i></button>
                         </div>
 
                         <form onSubmit={handleSubmit} className="p-8 space-y-5 overflow-y-auto custom-scrollbar">
@@ -255,22 +315,44 @@ export default function Problems () {
                             {/* 1. اختيار الأوردر */}
                             <div>
                                 <label className="block text-sm font-extrabold text-slate-800 mb-2 ml-1">الأوردر المتضرر</label>
+                                {/* حقل بحث سريع — يرسم فقط الـ 100 نتيجة الأولى */}
+                                <div className="relative mb-2">
+                                    <i className="fa-solid fa-magnifying-glass absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs pointer-events-none"></i>
+                                    <input
+                                        type="text"
+                                        placeholder="ابحث بالاسم أو المنتج..."
+                                        value={saleSearch}
+                                        onChange={e => setSaleSearch(e.target.value)}
+                                        className="w-full bg-slate-50 border-2 border-slate-200 text-slate-800 text-sm font-bold rounded-xl focus:ring-4 focus:ring-red-100 focus:border-red-400 block pr-9 p-3 transition-all outline-none"
+                                    />
+                                    {saleSearch && (
+                                        <button type="button" onClick={() => setSaleSearch('')} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                                            <i className="fa-solid fa-xmark text-xs"></i>
+                                        </button>
+                                    )}
+                                </div>
                                 <div className="relative">
                                     <select
                                         className="w-full bg-white border-2 border-slate-200 text-slate-900 text-sm font-bold rounded-xl focus:ring-4 focus:ring-red-100 focus:border-red-500 block p-3.5 transition-all outline-none appearance-none"
                                         value={selectedSaleId}
                                         onChange={(e) => setSelectedSaleId(e.target.value)}
                                         required
+                                        size={Math.min(filteredSaleOptions.length + 1, 6)}
                                     >
-                                        <option value="">-- اختر العميل / الأوردر --</option>
-                                        {sales.sort((a, b) => new Date(b.date) - new Date(a.date)).map(sale => (
+                                        <option value="">-- اختر الأوردر --</option>
+                                        {filteredSaleOptions.map(sale => (
                                             <option key={sale.id} value={sale.id}>
-                                                {sale.customerName} - {sale.productName} ({new Date(sale.date).toLocaleDateString('en-GB')})
+                                                {sale.customerName} — {sale.productName} ({new Date(sale.date).toLocaleDateString('en-GB')})
                                             </option>
                                         ))}
                                     </select>
-                                    <i className="fa-solid fa-chevron-down absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"></i>
                                 </div>
+                                {saleSearch && filteredSaleOptions.length === 0 && (
+                                    <p className="text-xs text-slate-400 mt-1.5 text-center">لا توجد نتائج</p>
+                                )}
+                                {!saleSearch && sales.length > 100 && (
+                                    <p className="text-[10px] text-slate-400 mt-1 text-left">يعرض أحدث 100 أوردر — ابحث للعثور على المزيد</p>
+                                )}
                             </div>
 
                             {/* 2. اختيار التعويض */}
@@ -327,12 +409,12 @@ export default function Problems () {
                                 type="submit"
                                 className="w-full bg-red-600 text-white py-3.5 rounded-xl font-bold hover:bg-red-700 shadow-lg shadow-red-200 transition hover:-translate-y-0.5 flex justify-center items-center gap-2"
                             >
-                                <i className="fa-solid fa-paper-plane"></i> حفظ وتسجيل
+                                <i className="fa-solid fa-paper-plane"></i> {t('btn_save')}
                             </button>
                         </form>
                     </div>
                 </div>
-            )}
+            , document.body)}
 
             <style>{`
                 .custom-scrollbar::-webkit-scrollbar { height: 6px; width: 6px; }

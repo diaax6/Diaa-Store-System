@@ -1,11 +1,14 @@
 import { useEffect, useState, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { expensesAPI, walletsAPI, employeesAPI } from '../services/api';
 import { useConfirm } from './ConfirmDialog';
+import { useLang } from '../i18n/index';
 
 export default function Expenses () {
     useEffect(() => { window.scrollTo(0, 0); }, []);
+    const { t } = useLang();
 
     const { user } = useAuth();
     const { expenses: ctxExpenses, wallets: ctxWallets, accounts: ctxAccounts, sales: ctxSales, refreshData } = useData();
@@ -189,14 +192,14 @@ export default function Expenses () {
     };
 
     const getCategoryBadge = (cat) => {
-        if (cat === 'stock') return { label: 'مخزون / استوك', color: 'bg-purple-50 text-purple-700 border-purple-200', icon: 'fa-boxes-stacked' };
-        if (cat === 'salary') return { label: 'مرتبات', color: 'bg-violet-50 text-violet-700 border-violet-200', icon: 'fa-users' };
-        return { label: 'يومي / تشغيلي', color: 'bg-amber-50 text-amber-700 border-amber-200', icon: 'fa-clock' };
+        if (cat === 'stock') return { label: t('exp_cat_stock'), color: 'bg-purple-50 text-purple-700 border-purple-200', icon: 'fa-boxes-stacked' };
+        if (cat === 'salary') return { label: t('exp_cat_salary'), color: 'bg-violet-50 text-violet-700 border-violet-200', icon: 'fa-users' };
+        return { label: t('exp_cat_daily'), color: 'bg-amber-50 text-amber-700 border-amber-200', icon: 'fa-clock' };
     };
 
     const getStatusBadge = (status) => {
-        if (status === 'paid') return { label: 'تم الدفع', color: 'bg-emerald-50 text-emerald-700 border-emerald-200', icon: 'fa-check-circle' };
-        return { label: 'معلق', color: 'bg-amber-50 text-amber-700 border-amber-200', icon: 'fa-clock' };
+        if (status === 'paid') return { label: t('exp_status_paid'), color: 'bg-emerald-50 text-emerald-700 border-emerald-200', icon: 'fa-check-circle' };
+        return { label: t('exp_status_pending'), color: 'bg-amber-50 text-amber-700 border-amber-200', icon: 'fa-clock' };
     };
 
     return (
@@ -209,66 +212,66 @@ export default function Expenses () {
                         <div className="flex items-center gap-3">
                             <div className="w-9 h-9 rounded-lg bg-amber-50 flex items-center justify-center flex-shrink-0"><i className="fa-solid fa-hourglass-half text-amber-500"></i></div>
                             <div>
-                                <p className="font-semibold text-sm text-slate-700">مصروفات معلقة — تحتاج تأكيد</p>
-                                <p className="text-xs text-slate-400 mt-0.5">{pendingExpenses.length} مصروف · إجمالي {pendingTotal.toLocaleString()} ج.م</p>
+                                <p className="font-semibold text-sm text-slate-700">{t('exp_pending_banner')}</p>
+                                <p className="text-xs text-slate-400 mt-0.5">{pendingExpenses.length} {t('exp_pending_count')} · {t('exp_pending_total')} {pendingTotal.toLocaleString('en-US')} ج.م</p>
                                 {pendingByEmployee.length > 0 && (
                                     <div className="flex flex-wrap gap-1.5 mt-1.5">
                                         {pendingByEmployee.map(([name, info]) => (
-                                            <span key={name} className="ds-badge ds-warn">{name} · {info.amount.toLocaleString()}</span>
+                                            <span key={name} className="ds-badge ds-warn">{name} · {info.amount.toLocaleString('en-US')}</span>
                                         ))}
                                     </div>
                                 )}
                             </div>
                         </div>
                         <button onClick={() => setStatusFilter(statusFilter === 'pending' ? 'all' : 'pending')} className="btn-s text-xs">
-                            <i className="fa-solid fa-filter"></i> {statusFilter === 'pending' ? 'عرض الكل' : 'المعلقات'}
+                            <i className="fa-solid fa-filter"></i> {statusFilter === 'pending' ? t('exp_show_all') : t('exp_show_pending')}
                         </button>
                     </div>
                 </div>
-            )}
+            , document.body)}
 
             {/* ── Date filter banner ── */}
             {dateFilter && (
                 <div className="bg-indigo-600 text-white rounded-2xl px-5 py-3 flex items-center justify-between shadow-lg">
                     <div className="flex items-center gap-2 font-bold text-sm">
                         <i className="fa-solid fa-calendar-day text-indigo-200"></i>
-                        تصفية بتاريخ:
+                        {t('exp_date_filter_label')}
                         <span className="bg-white/20 px-2 py-0.5 rounded-lg font-mono">
                             {new Date(dateFilter).toLocaleDateString('ar-EG', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
                         </span>
                     </div>
                     <button onClick={() => setDateFilter('')} className="bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1">
-                        <i className="fa-solid fa-xmark"></i> إلغاء الفلترة
+                        <i className="fa-solid fa-xmark"></i> {t('exp_clear_filter')}
                     </button>
                 </div>
-            )}
+            , document.body)}
 
             {/* Stats Cards */}
             <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
                 <div className="stat-card stat-red">
-                    <span className="stat-card-lbl">مدفوع (مؤكد)</span>
-                    <span className="stat-card-val dir-ltr">{stats.totalPaid.toLocaleString()}</span>
-                    <span className="stat-card-sub">ج.م{stats.totalSalary > 0 ? ` · رواتب ${stats.totalSalary.toLocaleString()}` : ''}</span>
+                    <span className="stat-card-lbl">{t('exp_stat_paid')}</span>
+                    <span className="stat-card-val dir-ltr">{stats.totalPaid.toLocaleString('en-US')}</span>
+                    <span className="stat-card-sub">ج.م{stats.totalSalary > 0 ? ` · رواتب ${stats.totalSalary.toLocaleString('en-US')}` : ''}</span>
                 </div>
                 <div className="stat-card stat-amber">
-                    <span className="stat-card-lbl">معلق</span>
-                    <span className="stat-card-val dir-ltr">{stats.totalPending.toLocaleString()}</span>
+                    <span className="stat-card-lbl">{t('exp_stat_pending')}</span>
+                    <span className="stat-card-val dir-ltr">{stats.totalPending.toLocaleString('en-US')}</span>
                     <span className="stat-card-sub">ج.م · لم يتم تأكيده</span>
                 </div>
                 <div className="stat-card stat-blue">
-                    <span className="stat-card-lbl">يومي (مؤكد)</span>
-                    <span className="stat-card-val dir-ltr">{stats.totalDaily.toLocaleString()}</span>
+                    <span className="stat-card-lbl">{t('exp_stat_daily')}</span>
+                    <span className="stat-card-val dir-ltr">{stats.totalDaily.toLocaleString('en-US')}</span>
                     <span className="stat-card-sub">ج.م</span>
                 </div>
                 <div className="stat-card stat-violet">
-                    <span className="stat-card-lbl">مخزون + رواتب</span>
-                    <span className="stat-card-val dir-ltr">{(stats.totalStock + stats.totalSalary).toLocaleString()}</span>
+                    <span className="stat-card-lbl">{t('exp_stat_stock_sal')}</span>
+                    <span className="stat-card-val dir-ltr">{(stats.totalStock + stats.totalSalary).toLocaleString('en-US')}</span>
                     <span className="stat-card-sub">ج.م</span>
                 </div>
                 <div className={`stat-card col-span-2 lg:col-span-1 ${stats.todayProfit >= 0 ? 'stat-emerald' : 'stat-red'}`}>
-                    <span className="stat-card-lbl">ربح اليوم</span>
-                    <span className={`stat-card-val dir-ltr ${stats.todayProfit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>{stats.todayProfit.toLocaleString()}</span>
-                    <span className="stat-card-sub dir-ltr">{stats.todayRevenue.toLocaleString()} - {stats.todayDailyTotal.toLocaleString()}</span>
+                    <span className="stat-card-lbl">{t('exp_stat_today_profit')}</span>
+                    <span className={`stat-card-val dir-ltr ${stats.todayProfit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>{stats.todayProfit.toLocaleString('en-US')}</span>
+                    <span className="stat-card-sub dir-ltr">{stats.todayRevenue.toLocaleString('en-US')} - {stats.todayDailyTotal.toLocaleString('en-US')}</span>
                 </div>
             </div>
 
@@ -277,12 +280,12 @@ export default function Expenses () {
                 <div className="flex items-center gap-3">
                     <div className="ph-icon" style={{backgroundColor:'#dc2626'}}><i className="fa-solid fa-money-bill-wave text-sm"></i></div>
                     <div>
-                        <h1 className="ph-title">سجل المصروفات</h1>
-                        <p className="ph-sub">المعلق لا يُحسب في الربح حتى تأكيد الدفع</p>
+                        <h1 className="ph-title">{t('exp_title')}</h1>
+                        <p className="ph-sub">{t('exp_subtitle')}</p>
                     </div>
                 </div>
                 <button onClick={() => setShowAddModal(true)} className="btn-d">
-                    <i className="fa-solid fa-plus"></i> إضافة مصروف
+                    <i className="fa-solid fa-plus"></i> {t('exp_add_btn')}
                 </button>
             </div>
             <div className="ds-toolbar flex-wrap">
@@ -292,13 +295,13 @@ export default function Expenses () {
                     {dateFilter && <button onClick={() => setDateFilter('')} className="text-slate-400 hover:text-rose-500 transition"><i className="fa-solid fa-xmark text-xs"></i></button>}
                 </div>
                 <div className="flex gap-1 bg-slate-100 p-1 rounded-lg">
-                    {[{id:'all',label:'الكل'},{id:'daily',label:'يومي'},{id:'stock',label:'مخزون'},{id:'salary',label:'رواتب'}].map(f => (
+                    {[{id:'all',label:t('exp_filter_all')},{id:'daily',label:t('exp_filter_daily')},{id:'stock',label:t('exp_filter_stock')},{id:'salary',label:t('exp_filter_salary')}].map(f => (
                         <button key={f.id} onClick={() => setCategoryFilter(f.id)}
                             className={`px-3 py-1 rounded-md text-xs font-semibold transition ${categoryFilter === f.id ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>{f.label}</button>
                     ))}
                 </div>
                 <div className="flex gap-1 bg-slate-100 p-1 rounded-lg">
-                    {[{id:'all',label:'الكل'},{id:'pending',label:'معلق'},{id:'paid',label:'مدفوع'}].map(f => (
+                    {[{id:'all',label:t('exp_filter_all')},{id:'pending',label:t('exp_filter_pending')},{id:'paid',label:t('exp_filter_paid')}].map(f => (
                         <button key={f.id} onClick={() => setStatusFilter(f.id)}
                             className={`px-3 py-1 rounded-md text-xs font-semibold transition ${statusFilter === f.id ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>{f.label}</button>
                     ))}
@@ -311,19 +314,19 @@ export default function Expenses () {
                     <table className="ds-table whitespace-nowrap">
                         <thead className="ds-thead">
                             <tr>
-                                <th className="ds-th">الحالة</th>
-                                <th className="ds-th">التاريخ</th>
-                                <th className="ds-th">التصنيف</th>
-                                <th className="ds-th">النوع</th>
-                                <th className="ds-th">المحفظة</th>
-                                <th className="ds-th">الوصف</th>
-                                <th className="ds-th">المبلغ</th>
-                                <th className="ds-th tc">إجراءات</th>
+                                <th className="ds-th">{t('exp_col_status')}</th>
+                                <th className="ds-th">{t('exp_col_date')}</th>
+                                <th className="ds-th">{t('exp_col_category')}</th>
+                                <th className="ds-th">{t('exp_col_type')}</th>
+                                <th className="ds-th">{t('exp_col_wallet')}</th>
+                                <th className="ds-th">{t('exp_col_desc')}</th>
+                                <th className="ds-th">{t('exp_col_amount')}</th>
+                                <th className="ds-th tc">{t('exp_col_actions')}</th>
                             </tr>
                         </thead>
                         <tbody>
                             {filteredExpenses.length === 0 ? (
-                                <tr><td colSpan="8"><div className="empty-state"><div className="empty-icon"><i className="fa-solid fa-money-bill"></i></div><p className="empty-title">لا توجد مصروفات مسجلة</p></div></td></tr>
+                                <tr><td colSpan="8"><div className="empty-state"><div className="empty-icon"><i className="fa-solid fa-money-bill"></i></div><p className="empty-title">{t('exp_no_data')}</p></div></td></tr>
                             ) : (
                                 filteredExpenses.map(exp => {
                                     const catBadge = getCategoryBadge(exp.expenseCategory);
@@ -333,7 +336,7 @@ export default function Expenses () {
                                             <td className="ds-td">
                                                 <span className={`ds-badge ${isPending ? 'ds-warn' : 'ds-ok'}`}>
                                                     <i className={`fa-solid ${isPending ? 'fa-clock' : 'fa-check-circle'}`}></i>
-                                                    {isPending ? 'معلق' : 'مدفوع'}
+                                                    {isPending ? t('exp_status_pending') : t('exp_status_paid')}
                                                 </span>
                                             </td>
                                             <td className="ds-td font-mono text-slate-500 text-xs">{new Date(exp.date).toLocaleDateString('en-GB')}</td>
@@ -351,7 +354,7 @@ export default function Expenses () {
                                                 ) : <span className="text-slate-300 text-xs">-</span>}
                                             </td>
                                             <td className="ds-td text-slate-500 max-w-xs truncate text-xs">{exp.description || '-'}</td>
-                                            <td className="ds-td font-semibold text-red-600 dir-ltr">-{Number(exp.amount).toLocaleString()} <span className="text-xs text-red-300">ج.م</span></td>
+                                            <td className="ds-td font-semibold text-red-600 dir-ltr">-{Number(exp.amount).toLocaleString('en-US')} <span className="text-xs text-red-300">ج.م</span></td>
                                             <td className="ds-td tc">
                                                 <div className="flex justify-center gap-1">
                                                     {isPending && (
@@ -373,92 +376,91 @@ export default function Expenses () {
             </div>
 
             {/* ============ PAY CONFIRMATION MODAL ============ */}
-            {payModal && (
-                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
+            {payModal && createPortal(
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in" style={{direction:'rtl',fontFamily:'Cairo,sans-serif'}}>
                     <div className="bg-white rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden">
                         <div className="p-5 bg-gradient-to-r from-emerald-600 to-green-700 text-white flex justify-between items-center">
-                            <h3 className="text-lg font-bold flex items-center gap-2"><i className="fa-solid fa-check-circle"></i> تأكيد الدفع</h3>
+                            <h3 className="text-lg font-bold flex items-center gap-2"><i className="fa-solid fa-check-circle"></i> {t('exp_pay_modal_title')}</h3>
                             <button onClick={() => setPayModal(null)} className="bg-white/10 hover:bg-white/20 p-2 rounded-full transition"><i className="fa-solid fa-xmark"></i></button>
                         </div>
                         <div className="p-6 space-y-4">
                             <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
                                 <p className="text-sm font-bold text-slate-800 mb-1">{payModal.type}</p>
                                 <p className="text-xs text-slate-500">{payModal.description || '-'}</p>
-                                <p className="text-xl font-black text-rose-600 mt-2 dir-ltr">{Number(payModal.amount).toLocaleString()} EGP</p>
+                                <p className="text-xl font-black text-rose-600 mt-2 dir-ltr">{Number(payModal.amount).toLocaleString('en-US')} EGP</p>
                             </div>
                             <div>
                                 <label className="block text-sm font-extrabold text-slate-800 mb-1.5">
-                                    <i className="fa-solid fa-wallet text-emerald-500 ml-1"></i> المحفظة (اختياري)
+                                    <i className="fa-solid fa-wallet text-emerald-500 ml-1"></i> {t('exp_wallet_label')}
                                 </label>
                                 <select value={payWalletId} onChange={e => setPayWalletId(e.target.value)}
                                     className="w-full bg-white border-2 border-emerald-200 rounded-xl p-3 font-bold text-sm focus:ring-4 focus:ring-emerald-100 focus:border-emerald-600 outline-none">
-                                    <option value="">— بدون خصم من محفظة —</option>
+                                    <option value="">{t('exp_wallet_no_deduct')}</option>
                                     {wallets.map(w => (
                                         <option key={w.id} value={w.id}>
-                                            {w.name} — رصيد: {Number(w.balance).toLocaleString()} ج.م
+                                            {w.name} — {t('exp_wallet_balance')} {Number(w.balance).toLocaleString('en-US')} ج.م
                                         </option>
                                     ))}
                                 </select>
                             </div>
                             <div className="flex gap-3">
-                                <button onClick={() => setPayModal(null)} className="flex-1 py-3 rounded-xl font-bold text-slate-600 bg-white border-2 border-slate-200 hover:bg-slate-50 transition">إلغاء</button>
+                                <button onClick={() => setPayModal(null)} className="flex-1 py-3 rounded-xl font-bold text-slate-600 bg-white border-2 border-slate-200 hover:bg-slate-50 transition">{t('lbl_cancel')}</button>
                                 <button onClick={handleConfirmPay} className="flex-1 bg-emerald-600 text-white py-3 rounded-xl font-bold hover:bg-emerald-700 transition shadow-lg flex items-center justify-center gap-2">
-                                    <i className="fa-solid fa-check"></i> تأكيد الدفع
+                                    <i className="fa-solid fa-check"></i> {t('exp_confirm_pay_btn')}
                                 </button>
                             </div>
                         </div>
                     </div>
                 </div>
-            )}
+            , document.body)}
 
             {/* Add Modal */}
-            {showAddModal && (
-                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
+            {showAddModal && createPortal(
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in" style={{direction:'rtl',fontFamily:'Cairo,sans-serif'}}>
                     <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col">
                         <div className="flex justify-between items-center p-6 bg-gradient-to-r from-rose-600 to-pink-600 text-white shadow-md">
-                            <h3 className="text-xl font-bold flex items-center gap-2"><i className="fa-solid fa-money-bill-transfer"></i> تسجيل مصروف</h3>
+                            <h3 className="text-xl font-bold flex items-center gap-2"><i className="fa-solid fa-money-bill-transfer"></i> {t('exp_add_modal_title')}</h3>
                             <button onClick={() => setShowAddModal(false)} className="text-white/70 hover:text-white bg-white/10 hover:bg-white/20 p-2 rounded-full transition"><i className="fa-solid fa-xmark text-lg"></i></button>
                         </div>
                         <div className="p-8 bg-slate-50/50">
                             <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-5 flex items-center gap-2 text-xs font-bold text-amber-700">
                                 <i className="fa-solid fa-info-circle text-amber-500"></i>
-                                سيتم تسجيل المصروف كـ «معلق» ويحتاج تأكيد الدفع بعد ذلك
+                                {t('exp_add_info')}
                             </div>
                             <form onSubmit={handleAddExpense} className="space-y-5">
 
-                                {/* تصنيف المصروف */}
                                 <div>
-                                    <label className="label-style">تصنيف المصروف</label>
+                                    <label className="label-style">{t('exp_category_label')}</label>
                                     <div className="grid grid-cols-3 gap-3">
                                         <label className="flex flex-col items-center gap-2 p-3 rounded-2xl border-2 cursor-pointer transition-all has-[:checked]:border-amber-500 has-[:checked]:bg-amber-50 border-slate-200 hover:border-amber-200 text-center">
                                             <input type="radio" name="expenseCategory" value="daily" defaultChecked className="hidden" />
                                             <div className="w-10 h-10 bg-amber-100 text-amber-600 rounded-xl flex items-center justify-center text-lg"><i className="fa-solid fa-clock"></i></div>
-                                            <span className="text-xs font-extrabold text-slate-700">يومي</span>
+                                            <span className="text-xs font-extrabold text-slate-700">{t('exp_filter_daily')}</span>
                                         </label>
                                         <label className="flex flex-col items-center gap-2 p-3 rounded-2xl border-2 cursor-pointer transition-all has-[:checked]:border-purple-500 has-[:checked]:bg-purple-50 border-slate-200 hover:border-purple-200 text-center">
                                             <input type="radio" name="expenseCategory" value="stock" className="hidden" />
                                             <div className="w-10 h-10 bg-purple-100 text-purple-600 rounded-xl flex items-center justify-center text-lg"><i className="fa-solid fa-boxes-stacked"></i></div>
-                                            <span className="text-xs font-extrabold text-slate-700">مخزون</span>
+                                            <span className="text-xs font-extrabold text-slate-700">{t('exp_filter_stock')}</span>
                                         </label>
                                         <label className="flex flex-col items-center gap-2 p-3 rounded-2xl border-2 cursor-pointer transition-all has-[:checked]:border-violet-500 has-[:checked]:bg-violet-50 border-slate-200 hover:border-violet-200 text-center">
                                             <input type="radio" name="expenseCategory" value="salary" className="hidden" />
                                             <div className="w-10 h-10 bg-violet-100 text-violet-600 rounded-xl flex items-center justify-center text-lg"><i className="fa-solid fa-users"></i></div>
-                                            <span className="text-xs font-extrabold text-slate-700">مرتبات</span>
+                                            <span className="text-xs font-extrabold text-slate-700">{t('exp_filter_salary')}</span>
                                         </label>
                                     </div>
                                 </div>
 
                                 <div>
-                                    <label className="label-style">نوع المصروف</label>
+                                    <label className="label-style">{t('exp_type_label')}</label>
                                     <div className="relative">
                                         <select name="type" className="input-style appearance-none" required>
-                                            <option value="">اختر النوع...</option>
-                                            <option value="إعلان">إعلان (Ads)</option>
-                                            <option value="اشتراكات تطبيقات">أدوات واشتراكات</option>
-                                            <option value="رواتب">رواتب</option>
-                                            <option value="شراء استوك">شراء استوك / حسابات</option>
-                                            <option value="شراء أكواد">شراء أكواد</option>
-                                            <option value="مصاريف أخرى">نثريات / أخرى</option>
+                                            <option value="">{t('exp_type_placeholder')}</option>
+                                            <option value="إعلان">{t('exp_type_ads')}</option>
+                                            <option value="اشتراكات تطبيقات">{t('exp_type_tools')}</option>
+                                            <option value="رواتب">{t('exp_type_salaries')}</option>
+                                            <option value="شراء استوك">{t('exp_type_buy_stock')}</option>
+                                            <option value="شراء أكواد">{t('exp_type_buy_codes')}</option>
+                                            <option value="مصاريف أخرى">{t('exp_type_other')}</option>
                                         </select>
                                         <i className="fa-solid fa-chevron-down absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"></i>
                                     </div>
@@ -466,24 +468,24 @@ export default function Expenses () {
 
                                 <div className="grid grid-cols-2 gap-5">
                                     <div>
-                                        <label className="label-style">المبلغ</label>
+                                        <label className="label-style">{t('exp_amount_label')}</label>
                                         <div className="relative">
                                             <input type="number" step="0.01" name="amount" className="input-style pl-12 text-rose-600" placeholder="0.00" required />
                                             <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">EGP</span>
                                         </div>
                                     </div>
                                     <div>
-                                        <label className="label-style">التاريخ</label>
+                                        <label className="label-style">{t('exp_date_label')}</label>
                                         <input type="date" name="date" defaultValue={new Date().toISOString().split('T')[0]} className="input-style" required />
                                     </div>
                                 </div>
                                 <div>
-                                    <label className="label-style">الوصف (اختياري)</label>
-                                    <textarea name="description" className="input-style h-24 resize-none" placeholder="تفاصيل إضافية..."></textarea>
+                                    <label className="label-style">{t('exp_desc_label')}</label>
+                                    <textarea name="description" className="input-style h-24 resize-none" placeholder={t('exp_desc_placeholder')}></textarea>
                                 </div>
                                 <div className="flex justify-end gap-3 pt-4 border-t border-slate-200">
-                                    <button type="button" onClick={() => setShowAddModal(false)} className="px-6 py-3 rounded-xl font-bold text-slate-600 bg-white border-2 border-slate-200 hover:bg-slate-100 transition shadow-sm">إلغاء</button>
-                                    <button type="submit" className="bg-rose-600 text-white px-8 py-3 rounded-xl font-bold hover:bg-rose-700 shadow-lg shadow-rose-200 transition hover:-translate-y-0.5">حفظ (معلق)</button>
+                                    <button type="button" onClick={() => setShowAddModal(false)} className="px-6 py-3 rounded-xl font-bold text-slate-600 bg-white border-2 border-slate-200 hover:bg-slate-100 transition shadow-sm">{t('lbl_cancel')}</button>
+                                    <button type="submit" className="bg-rose-600 text-white px-8 py-3 rounded-xl font-bold hover:bg-rose-700 shadow-lg shadow-rose-200 transition hover:-translate-y-0.5">{t('exp_save_pending')}</button>
                                 </div>
                             </form>
                         </div>
@@ -492,70 +494,69 @@ export default function Expenses () {
             )}
 
             {/* Edit Modal */}
-            {editingExpense && (
-                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
+            {editingExpense && createPortal(
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in" style={{direction:'rtl',fontFamily:'Cairo,sans-serif'}}>
                     <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col">
                         <div className="flex justify-between items-center p-6 bg-white border-b border-slate-100">
-                            <h3 className="text-xl font-extrabold text-slate-800">تعديل المصروف</h3>
+                            <h3 className="text-xl font-extrabold text-slate-800">{t('exp_edit_modal_title')}</h3>
                             <button onClick={() => setEditingExpense(null)} className="text-slate-400 hover:text-slate-600 bg-slate-50 p-2 rounded-full transition"><i className="fa-solid fa-xmark text-lg"></i></button>
                         </div>
                         <div className="p-8 bg-slate-50/50">
                             <form onSubmit={handleUpdateExpense} className="space-y-5">
-                                {/* تصنيف المصروف */}
                                 <div>
-                                    <label className="label-style">تصنيف المصروف</label>
+                                    <label className="label-style">{t('exp_category_label')}</label>
                                     <div className="grid grid-cols-3 gap-3">
                                         <label className="flex flex-col items-center gap-2 p-3 rounded-2xl border-2 cursor-pointer transition-all has-[:checked]:border-amber-500 has-[:checked]:bg-amber-50 border-slate-200 hover:border-amber-200 text-center">
                                             <input type="radio" name="expenseCategory" value="daily" defaultChecked={(editingExpense.expenseCategory || 'daily') === 'daily'} className="hidden" />
                                             <div className="w-10 h-10 bg-amber-100 text-amber-600 rounded-xl flex items-center justify-center text-lg"><i className="fa-solid fa-clock"></i></div>
-                                            <span className="text-xs font-extrabold text-slate-700">يومي</span>
+                                            <span className="text-xs font-extrabold text-slate-700">{t('exp_filter_daily')}</span>
                                         </label>
                                         <label className="flex flex-col items-center gap-2 p-3 rounded-2xl border-2 cursor-pointer transition-all has-[:checked]:border-purple-500 has-[:checked]:bg-purple-50 border-slate-200 hover:border-purple-200 text-center">
                                             <input type="radio" name="expenseCategory" value="stock" defaultChecked={editingExpense.expenseCategory === 'stock'} className="hidden" />
                                             <div className="w-10 h-10 bg-purple-100 text-purple-600 rounded-xl flex items-center justify-center text-lg"><i className="fa-solid fa-boxes-stacked"></i></div>
-                                            <span className="text-xs font-extrabold text-slate-700">مخزون</span>
+                                            <span className="text-xs font-extrabold text-slate-700">{t('exp_filter_stock')}</span>
                                         </label>
                                         <label className="flex flex-col items-center gap-2 p-3 rounded-2xl border-2 cursor-pointer transition-all has-[:checked]:border-violet-500 has-[:checked]:bg-violet-50 border-slate-200 hover:border-violet-200 text-center">
                                             <input type="radio" name="expenseCategory" value="salary" defaultChecked={editingExpense.expenseCategory === 'salary'} className="hidden" />
                                             <div className="w-10 h-10 bg-violet-100 text-violet-600 rounded-xl flex items-center justify-center text-lg"><i className="fa-solid fa-users"></i></div>
-                                            <span className="text-xs font-extrabold text-slate-700">مرتبات</span>
+                                            <span className="text-xs font-extrabold text-slate-700">{t('exp_filter_salary')}</span>
                                         </label>
                                     </div>
                                 </div>
                                 <div>
-                                    <label className="label-style">نوع المصروف</label>
+                                    <label className="label-style">{t('exp_type_label')}</label>
                                     <div className="relative">
                                         <select name="type" defaultValue={editingExpense.type} className="input-style appearance-none" required>
-                                            <option value="إعلان">إعلان (Ads)</option>
-                                            <option value="اشتراكات تطبيقات">أدوات واشتراكات</option>
-                                            <option value="رواتب">رواتب</option>
-                                            <option value="شراء استوك">شراء استوك / حسابات</option>
-                                            <option value="شراء أكواد">شراء أكواد</option>
-                                            <option value="مصاريف أخرى">نثريات / أخرى</option>
+                                            <option value="إعلان">{t('exp_type_ads')}</option>
+                                            <option value="اشتراكات تطبيقات">{t('exp_type_tools')}</option>
+                                            <option value="رواتب">{t('exp_type_salaries')}</option>
+                                            <option value="شراء استوك">{t('exp_type_buy_stock')}</option>
+                                            <option value="شراء أكواد">{t('exp_type_buy_codes')}</option>
+                                            <option value="مصاريف أخرى">{t('exp_type_other')}</option>
                                         </select>
                                         <i className="fa-solid fa-chevron-down absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"></i>
                                     </div>
                                 </div>
                                 <div className="grid grid-cols-2 gap-5">
                                     <div>
-                                        <label className="label-style">المبلغ</label>
+                                        <label className="label-style">{t('exp_amount_label')}</label>
                                         <div className="relative">
                                             <input type="number" step="0.01" name="amount" defaultValue={editingExpense.amount} className="input-style pl-12 text-rose-600" required />
                                             <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">EGP</span>
                                         </div>
                                     </div>
                                     <div>
-                                        <label className="label-style">التاريخ</label>
+                                        <label className="label-style">{t('exp_date_label')}</label>
                                         <input type="date" name="date" defaultValue={editingExpense.date ? editingExpense.date.split(' ')[0] : ''} className="input-style" required />
                                     </div>
                                 </div>
                                 <div>
-                                    <label className="label-style">الوصف</label>
+                                    <label className="label-style">{t('exp_desc_edit_label')}</label>
                                     <textarea name="description" defaultValue={editingExpense.description} className="input-style h-24 resize-none"></textarea>
                                 </div>
                                 <div className="flex justify-end gap-3 pt-4 border-t border-slate-200">
-                                    <button type="button" onClick={() => setEditingExpense(null)} className="px-6 py-3 rounded-xl font-bold text-slate-600 bg-white border-2 border-slate-200 hover:bg-slate-100 transition shadow-sm">إلغاء</button>
-                                    <button type="submit" className="bg-blue-600 text-white px-8 py-3 rounded-xl font-bold hover:bg-blue-700 shadow-lg shadow-blue-200 transition hover:-translate-y-0.5">حفظ التعديلات</button>
+                                    <button type="button" onClick={() => setEditingExpense(null)} className="px-6 py-3 rounded-xl font-bold text-slate-600 bg-white border-2 border-slate-200 hover:bg-slate-100 transition shadow-sm">{t('lbl_cancel')}</button>
+                                    <button type="submit" className="bg-blue-600 text-white px-8 py-3 rounded-xl font-bold hover:bg-blue-700 shadow-lg shadow-blue-200 transition hover:-translate-y-0.5">{t('exp_save_edits')}</button>
                                 </div>
                             </form>
                         </div>

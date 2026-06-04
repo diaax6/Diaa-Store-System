@@ -1,10 +1,11 @@
-﻿import { useState, useMemo, useEffect, useRef } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { salesAPI, accountsAPI, walletsAPI, customersAPI, usersAPI, employeesAPI } from '../services/api';
 import * as XLSX from 'xlsx';
 import { useConfirm } from './ConfirmDialog';
+import { useLang } from '../i18n/index';
 
 export default function Sales() {
     const { user, hasPermission } = useAuth();
@@ -12,6 +13,7 @@ export default function Sales() {
     const isAdmin = user?.role === 'admin' || hasPermission('all');
     const canManageActivation = isAdmin || hasPermission('manage_activation');
     const { showConfirm, showAlert } = useConfirm();
+    const { t } = useLang();
 
     // Activation modal state (admin/director only)
     const [activateModal, setActivateModal] = useState(null); // { saleId, sale }
@@ -611,15 +613,15 @@ export default function Sales() {
                 <div className="flex items-center gap-3">
                     <div className="ph-icon"><i className="fa-solid fa-receipt text-sm"></i></div>
                     <div>
-                        <h1 className="ph-title">المبيعات والأوردرات</h1>
-                        <p className="ph-sub">إدارة جميع المبيعات والأوردرات</p>
+                        <h1 className="ph-title">{t('sales_title')}</h1>
+                        <p className="ph-sub">{t('sales_subtitle')}</p>
                     </div>
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
-                    <span className="ds-badge ds-info">{stats.count} أوردر</span>
-                    <span className="ds-badge ds-ok dir-ltr">{stats.dailyRevenue.toLocaleString()} ج.م اليوم ({stats.dailyCount})</span>
-                    {stats.renewalAlerts > 0 && <span className="ds-badge ds-warn">{stats.renewalAlerts} تجديد</span>}
-                    {stats.totalDebtCount > 0 && <span className="ds-badge ds-err dir-ltr">{stats.totalRemaining.toLocaleString()} ج.م مديونية</span>}
+                    <span className="ds-badge ds-info">{stats.count} {t('dash_orders')}</span>
+                    <span className="ds-badge ds-ok dir-ltr">{stats.dailyRevenue.toLocaleString('en-US')} {t('lbl_egp')} ({stats.dailyCount})</span>
+                    {stats.renewalAlerts > 0 && <span className="ds-badge ds-warn">{stats.renewalAlerts} {t('sales_renewal_hint')}</span>}
+                    {stats.totalDebtCount > 0 && <span className="ds-badge ds-err dir-ltr">{stats.totalRemaining.toLocaleString('en-US')} {t('lbl_egp')}</span>}
                 </div>
             </div>
 
@@ -629,18 +631,18 @@ export default function Sales() {
                     <div className="ds-toolbar flex-wrap">
                         <div className="relative flex-1 min-w-[200px]">
                             <i className="fa-solid fa-search absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
-                            <input type="text" className="ds-inp pr-8" placeholder="بحث بالاسم أو الرقم أو الإيميل أو المنتج..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+                            <input type="text" className="ds-inp pr-8" placeholder={t('sales_search_ph')} value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
                         </div>
-                        <button onClick={exportExcel} className="btn-s" title="تصدير Excel"><i className="fa-solid fa-file-excel text-emerald-600"></i></button>
+                        <button onClick={exportExcel} className="btn-s" title={t('sales_export_btn')}><i className="fa-solid fa-file-excel text-emerald-600"></i></button>
                         <button onClick={openAddSale} className="btn-p">
-                            <i className="fa-solid fa-plus"></i> بيع جديد
+                            <i className="fa-solid fa-plus"></i> {t('sales_new_btn')}
                         </button>
                     </div>
 
                     {/* Filters */}
                     <div className="flex flex-wrap gap-3 items-center">
                         <div className="flex bg-white p-1.5 rounded-xl border border-slate-200 shadow-sm flex-wrap">
-                            {[{ id: 'all', label: 'الكل' }, { id: 'new_orders', label: 'جديد' }, { id: 'processing', label: 'قيد التنفيذ' }, { id: 'activated', label: 'مفعّل' }, { id: 'paid', label: 'مدفوع' }, { id: 'unpaid', label: 'غير مدفوع' }, { id: 'notActivated', label: 'غير مفعّل' }, { id: 'hasDiscount', label: 'خصومات' }, { id: 'duplicates', label: `مكرر (${duplicateEmails.size})` }].map(f => (
+                            {[{ id: 'all', label: t('sales_filter_all') }, { id: 'new_orders', label: t('lbl_new') }, { id: 'processing', label: t('sales_filter_processing') }, { id: 'activated', label: t('sales_filter_activated') }, { id: 'paid', label: t('sales_filter_paid') }, { id: 'unpaid', label: t('sales_filter_unpaid') }, { id: 'notActivated', label: t('sales_filter_not_activated') }, { id: 'hasDiscount', label: t('sales_discount') }, { id: 'duplicates', label: `${t('sales_duplicates')} (${duplicateEmails.size})` }].map(f => (
                                 <button key={f.id} onClick={() => setStatusFilter(f.id)} className={`px-3 md:px-4 py-2 rounded-lg text-xs md:text-sm font-bold transition-all ${statusFilter === f.id ? (f.id === 'duplicates' ? 'bg-red-600 text-white shadow-md' : f.id === 'processing' ? 'bg-yellow-500 text-white shadow-md' : f.id === 'new_orders' ? 'bg-cyan-600 text-white shadow-md' : 'bg-indigo-600 text-white shadow-md') : 'text-slate-500 hover:bg-slate-50'}`}>{f.label}</button>
                             ))}
                         </div>
@@ -655,7 +657,7 @@ export default function Sales() {
                                 }}
                                 className={`appearance-none bg-white border-2 rounded-xl py-2 pr-4 pl-9 text-sm font-bold cursor-pointer outline-none transition-all ${productFilters.length > 0 ? 'border-indigo-400 text-indigo-700 bg-indigo-50' : 'border-slate-200 text-slate-600 hover:border-indigo-200'}`}
                             >
-                                <option value="">كل المنتجات</option>
+                                <option value="">{t('sales_filter_all')}</option>
                                 {products.map(p => (
                                     <option key={p.id} value={p.name}>{p.name}</option>
                                 ))}
@@ -664,7 +666,7 @@ export default function Sales() {
                         </div>
                         {productFilters.length > 0 && (
                             <button onClick={() => setProductFilters([])} className="px-3 py-2 rounded-xl text-xs font-bold bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 transition flex items-center gap-1">
-                                <i className="fa-solid fa-xmark"></i> مسح الفلتر
+                                <i className="fa-solid fa-xmark"></i> {t('btn_clear_filter')}
                             </button>
                         )}
                     </div>
@@ -674,7 +676,7 @@ export default function Sales() {
                         {filteredSales.length === 0 ? (
                             <div className="flex flex-col items-center justify-center py-20 bg-white rounded-3xl border-2 border-dashed border-slate-200 text-slate-400">
                                 <i className="fa-regular fa-folder-open text-5xl mb-4 opacity-30"></i>
-                                <p className="font-bold text-lg">لا توجد مبيعات</p>
+                                <p className="font-bold text-lg">{t('sales_no_sales')}</p>
                             </div>
                         ) : (
                             filteredSales.slice(0, visibleCount).map(sale => {
@@ -698,31 +700,31 @@ export default function Sales() {
                                                     {sale.customerPhone && <span className="text-[10px] text-slate-400 font-mono dir-ltr hidden sm:inline">{sale.customerPhone}</span>}
                                                 </div>
                                                 <div className="flex items-center gap-1 mt-0.5 flex-wrap">
-                                                    <span className={`inline-flex items-center gap-0.5 text-[9px] px-1.5 py-0.5 rounded font-bold ${sale.isPaid ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-600'}`}>{sale.isPaid ? '✓ مدفوع' : '○ غير مدفوع'}</span>
+                                                    <span className={`inline-flex items-center gap-0.5 text-[9px] px-1.5 py-0.5 rounded font-bold ${sale.isPaid ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-600'}`}>{sale.isPaid ? `✓ ${t('status_paid')}` : `○ ${t('status_unpaid')}`}</span>
                                                     {sale.isActivated ? (
-                                                        <span className="inline-flex items-center gap-0.5 text-[9px] px-1.5 py-0.5 rounded font-bold bg-emerald-100 text-emerald-700">✅ تم التفعيل</span>
+                                                        <span className="inline-flex items-center gap-0.5 text-[9px] px-1.5 py-0.5 rounded font-bold bg-emerald-100 text-emerald-700">✅ {t('status_activated')}</span>
                                                     ) : sale.processingStatus === 'processing' ? (
-                                                        <span className="inline-flex items-center gap-0.5 text-[9px] px-2 py-0.5 rounded-full font-bold bg-yellow-100 text-yellow-700 animate-pulse">⚙️ قيد التنفيذ</span>
+                                                        <span className="inline-flex items-center gap-0.5 text-[9px] px-2 py-0.5 rounded-full font-bold bg-yellow-100 text-yellow-700 animate-pulse">⚙️ {t('status_processing')}</span>
                                                     ) : (
-                                                        <span className="inline-flex items-center gap-0.5 text-[9px] px-1.5 py-0.5 rounded font-bold bg-cyan-100 text-cyan-700">🆕 جديد</span>
+                                                        <span className="inline-flex items-center gap-0.5 text-[9px] px-1.5 py-0.5 rounded font-bold bg-cyan-100 text-cyan-700">🆕 {t('status_new')}</span>
                                                     )}
                                                     {sale.discount > 0 && <span className="text-[9px] px-1.5 py-0.5 rounded font-bold bg-orange-100 text-orange-700">-{sale.discount}</span>}
                                                 </div>
                                                 {sale.processingStatus === 'processing' && sale.processingBy && !sale.isActivated && (
                                                     <div className="mt-1 text-[9px] font-bold text-yellow-600 bg-yellow-50 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
-                                                        <i className="fa-solid fa-user-gear text-[8px]"></i> يعمل عليه: {sale.processingBy}
+                                                        <i className="fa-solid fa-user-gear text-[8px]"></i> {t('by')}: {sale.processingBy}
                                                     </div>
                                                 )}
                                                 {sale.isActivated && sale.activatedBy && (
                                                     <div className="mt-1 text-[9px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
-                                                        <i className="fa-solid fa-circle-check text-[8px]"></i> فعّله: {sale.activatedBy}
+                                                        <i className="fa-solid fa-circle-check text-[8px]"></i> {t('by')}: {sale.activatedBy}
                                                     </div>
                                                 )}
                                             </div>
                                             <div className="text-left flex-shrink-0">
-                                                <div className="text-lg font-black text-slate-800 dir-ltr leading-tight">{Number(sale.finalPrice).toLocaleString()}</div>
-                                                <div className="text-[10px] text-slate-400 font-bold text-center">ج.م</div>
-                                                {!sale.isPaid && sale.remainingAmount > 0 && <div className="text-[9px] font-bold text-red-600 bg-red-50 px-1.5 py-0.5 rounded text-center mt-0.5">متبقي {sale.remainingAmount}</div>}
+                                                <div className="text-lg font-black text-slate-800 dir-ltr leading-tight">{Number(sale.finalPrice).toLocaleString('en-US')}</div>
+                                                <div className="text-[10px] text-slate-400 font-bold text-center">{t('lbl_egp')}</div>
+                                                {!sale.isPaid && sale.remainingAmount > 0 && <div className="text-[9px] font-bold text-red-600 bg-red-50 px-1.5 py-0.5 rounded text-center mt-0.5">{t('status_remaining')} {sale.remainingAmount}</div>}
                                             </div>
                                         </div>
 
@@ -741,8 +743,8 @@ export default function Sales() {
                                             <span className="inline-flex items-center gap-1 bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-[10px] font-bold"><i className={`fa-brands text-[8px] ${sale.contactChannel === 'واتساب' ? 'fa-whatsapp text-green-600' : sale.contactChannel === 'ماسنجر' ? 'fa-facebook-messenger text-blue-600' : 'fa-telegram text-sky-500'}`}></i>{sale.contactChannel}</span>
                                             {sale.paymentMethod && <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded text-[10px] font-bold"><i className="fa-solid fa-wallet text-[8px]"></i>{sale.paymentMethod}</span>}
                                             {sale.fromInventory && sale.assignedAccountEmail && <button onClick={() => showAccountDetails(sale)} className="inline-flex items-center gap-1 bg-purple-50 text-purple-700 px-2 py-0.5 rounded text-[10px] font-bold hover:bg-purple-100 transition"><i className="fa-solid fa-server text-[8px]"></i>{sale.assignedAccountEmail}</button>}
-                                            {sale.duration && <span className="inline-flex items-center gap-1 bg-blue-50 text-blue-700 px-2 py-0.5 rounded text-[10px] font-bold"><i className="fa-solid fa-hourglass-half text-[8px]"></i>{sale.duration}ي</span>}
-                                            {daysLeft !== null && <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold ${isExpired ? 'bg-red-100 text-red-700' : isSoon ? 'bg-orange-100 text-orange-700' : 'bg-teal-50 text-teal-700'}`}><i className={`fa-solid text-[8px] ${isExpired ? 'fa-triangle-exclamation' : 'fa-clock'}`}></i>{isExpired ? `منتهي ${Math.abs(daysLeft)}ي` : `${daysLeft}ي`}</span>}
+                                            {sale.duration && <span className="inline-flex items-center gap-1 bg-blue-50 text-blue-700 px-2 py-0.5 rounded text-[10px] font-bold"><i className="fa-solid fa-hourglass-half text-[8px]"></i>{sale.duration}{t('lbl_days')}</span>}
+                                            {daysLeft !== null && <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold ${isExpired ? 'bg-red-100 text-red-700' : isSoon ? 'bg-orange-100 text-orange-700' : 'bg-teal-50 text-teal-700'}`}><i className={`fa-solid text-[8px] ${isExpired ? 'fa-triangle-exclamation' : 'fa-clock'}`}></i>{isExpired ? `${t('status_expired')} ${Math.abs(daysLeft)}${t('lbl_days')}` : `${daysLeft}${t('lbl_days')}`}</span>}
                                             {sale.saleType === 'workspace' && sale.workspaceEmail && <span className="inline-flex items-center gap-1 bg-cyan-50 text-cyan-700 px-2 py-0.5 rounded text-[10px] font-bold"><i className="fa-solid fa-users text-[8px]"></i>{sale.workspaceEmail}</span>}
                                         </div>
                                         {sale.notes && <p className="text-[10px] text-slate-400 mb-2 leading-relaxed"><i className="fa-solid fa-sticky-note text-[8px] ml-1"></i>{sale.notes}</p>}
@@ -761,16 +763,16 @@ export default function Sales() {
                                             {/* Status Action Buttons */}
                                             <div className="flex flex-wrap items-center gap-1.5">
                                                 {/* Payment Button */}
-                                                <button onClick={() => togglePaid(sale.id)} className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-extrabold transition-all duration-200 ${sale.isPaid ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-sm shadow-emerald-200 hover:shadow-md hover:shadow-emerald-300' : 'bg-slate-100 text-slate-500 hover:bg-orange-50 hover:text-orange-600 border border-slate-200'}`} title={sale.isPaid ? 'إلغاء الدفع' : 'تأكيد الدفع'}>
+                                                <button onClick={() => togglePaid(sale.id)} className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-extrabold transition-all duration-200 ${sale.isPaid ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-sm shadow-emerald-200 hover:shadow-md hover:shadow-emerald-300' : 'bg-slate-100 text-slate-500 hover:bg-orange-50 hover:text-orange-600 border border-slate-200'}`} title={sale.isPaid ? t('status_paid') : t('status_unpaid')}>
                                                     <i className={`fa-solid ${sale.isPaid ? 'fa-check-double' : 'fa-coins'} text-[9px]`}></i>
-                                                    {sale.isPaid ? 'مدفوع ✓' : 'غير مدفوع'}
+                                                    {sale.isPaid ? t('status_paid') : t('status_unpaid')}
                                                 </button>
 
                                                 {/* Processing Button — only show if not activated */}
                                                 {canManageActivation && !sale.isActivated && (
-                                                    <button onClick={() => setProcessingStatus(sale.id)} className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-extrabold transition-all duration-200 ${sale.processingStatus === 'processing' ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-sm shadow-amber-200 hover:shadow-md hover:shadow-amber-300' : 'bg-slate-100 text-slate-500 hover:bg-amber-50 hover:text-amber-600 border border-slate-200'}`} title={sale.processingStatus === 'processing' ? `إلغاء التنفيذ (${sale.processingBy || ''})` : 'قيد التنفيذ'}>
+                                                    <button onClick={() => setProcessingStatus(sale.id)} className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-extrabold transition-all duration-200 ${sale.processingStatus === 'processing' ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-sm shadow-amber-200 hover:shadow-md hover:shadow-amber-300' : 'bg-slate-100 text-slate-500 hover:bg-amber-50 hover:text-amber-600 border border-slate-200'}`} title={sale.processingStatus === 'processing' ? `${t('status_processing_revert')}` : t('status_processing')}>
                                                         <i className={`fa-solid ${sale.processingStatus === 'processing' ? 'fa-gear fa-spin' : 'fa-gear'} text-[9px]`}></i>
-                                                        {sale.processingStatus === 'processing' ? 'قيد التنفيذ ⟵' : 'قيد التنفيذ'}
+                                                        {sale.processingStatus === 'processing' ? t('status_processing') : t('status_processing')}
                                                     </button>
                                                 )}
 
@@ -789,10 +791,10 @@ export default function Sales() {
                                                             }
                                                         }}
                                                         className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-extrabold transition-all duration-200 ${sale.isActivated ? 'bg-gradient-to-r from-violet-500 to-purple-600 text-white shadow-sm shadow-violet-200 hover:shadow-md hover:shadow-violet-300' : 'bg-slate-100 text-slate-500 hover:bg-violet-50 hover:text-violet-600 border border-slate-200'}`}
-                                                        title={sale.isActivated ? 'إلغاء التفعيل' : 'تفعيل'}
+                                                        title={sale.isActivated ? t('status_activated') : t('btn_activate')}
                                                     >
                                                         <i className={`fa-solid ${sale.isActivated ? 'fa-bolt' : 'fa-power-off'} text-[9px]`}></i>
-                                                        {sale.isActivated ? 'مفعّل ✓' : 'تفعيل'}
+                                                        {sale.isActivated ? t('status_activated') : t('btn_activate')}
                                                     </button>
                                                 )}
 
@@ -800,8 +802,8 @@ export default function Sales() {
                                                 <div className="flex-1"></div>
 
                                                 {/* Edit & Delete */}
-                                                <button onClick={() => openEditSale(sale)} className="w-7 h-7 rounded-lg flex items-center justify-center bg-slate-100 text-slate-400 hover:bg-indigo-100 hover:text-indigo-600 transition-all text-xs" title="تعديل"><i className="fa-solid fa-pen-to-square"></i></button>
-                                                <button onClick={() => deleteSale(sale.id)} className="w-7 h-7 rounded-lg flex items-center justify-center bg-slate-100 text-slate-400 hover:bg-red-100 hover:text-red-600 transition-all text-xs" title="حذف"><i className="fa-solid fa-trash-can"></i></button>
+                                                <button onClick={() => openEditSale(sale)} className="w-7 h-7 rounded-lg flex items-center justify-center bg-slate-100 text-slate-400 hover:bg-indigo-100 hover:text-indigo-600 transition-all text-xs" title={t('btn_edit')}><i className="fa-solid fa-pen-to-square"></i></button>
+                                                <button onClick={() => deleteSale(sale.id)} className="w-7 h-7 rounded-lg flex items-center justify-center bg-slate-100 text-slate-400 hover:bg-red-100 hover:text-red-600 transition-all text-xs" title={t('btn_delete')}><i className="fa-solid fa-trash-can"></i></button>
                                             </div>
                                         </div>
                                     </div>
@@ -828,7 +830,7 @@ export default function Sales() {
                         <div className="p-6 bg-gradient-to-r from-indigo-700 to-blue-600 text-white flex justify-between items-center shadow-md">
                             <h3 className="text-xl font-bold flex items-center gap-2">
                                 <i className={`fa-solid ${editingSale ? 'fa-pen-to-square' : 'fa-plus-circle'}`}></i>
-                                {editingSale ? 'تعديل البيع' : 'بيع جديد'}
+                                {editingSale ? t('sales_edit_title') : t('sales_add_title')}
                             </h3>
                             <button onClick={() => { setShowSaleModal(false); setEditingSale(null); }} className="bg-white/10 hover:bg-white/20 p-2 rounded-full transition"><i className="fa-solid fa-xmark text-lg"></i></button>
                         </div>
@@ -1050,9 +1052,9 @@ export default function Sales() {
                             </form>
                         </div>
                         <div className="p-6 border-t border-slate-100 bg-white flex justify-end gap-3">
-                            <button onClick={() => { setShowSaleModal(false); setEditingSale(null); }} className="px-6 py-3 rounded-xl font-bold text-slate-600 bg-slate-50 border-2 border-slate-200 hover:bg-slate-100 transition-all">إلغاء</button>
+                            <button onClick={() => { setShowSaleModal(false); setEditingSale(null); }} className="px-6 py-3 rounded-xl font-bold text-slate-600 bg-slate-50 border-2 border-slate-200 hover:bg-slate-100 transition-all">{t('btn_cancel')}</button>
                             <button type="submit" form="saleForm" className="bg-indigo-600 text-white px-8 py-3 rounded-xl font-bold hover:bg-indigo-700 shadow-lg shadow-indigo-200 transition-all flex items-center gap-2">
-                                <i className="fa-solid fa-check"></i> حفظ البيع
+                                <i className="fa-solid fa-check"></i> {t('btn_save')}
                             </button>
                         </div>
                     </div>
@@ -1116,7 +1118,7 @@ export default function Sales() {
                             </div>
 
                             <button onClick={() => setAssignedAccountDetails(null)} className="mt-4 w-full bg-slate-800 text-white py-3.5 rounded-xl font-bold hover:bg-slate-900 shadow-lg shadow-slate-200 transition-all">
-                                حسناً، إغلاق نافذة الحساب
+                                {t('btn_close')}
                             </button>
                         </div>
                     </div>
@@ -1187,7 +1189,7 @@ export default function Sales() {
                             <div className="flex gap-3 pt-4 border-t border-slate-200">
                                 <button disabled={deleteLoading} onClick={() => setDeleteModal(null)}
                                     className="flex-1 py-3 rounded-xl font-bold text-slate-600 bg-white border-2 border-slate-200 hover:bg-slate-50 transition disabled:opacity-50">
-                                    إلغاء
+                                    {t('btn_cancel')}
                                 </button>
                                 <button disabled={deleteLoading} onClick={() => confirmDeleteWithInventory(null)}
                                     className="flex-1 py-3 rounded-xl font-bold text-red-600 bg-red-50 border-2 border-red-200 hover:bg-red-100 transition flex items-center justify-center gap-2 disabled:opacity-50">
@@ -1271,9 +1273,9 @@ export default function Sales() {
 
                             {/* Actions */}
                             <div className="flex gap-3">
-                                <button onClick={() => setActivateModal(null)} className="flex-1 py-3 rounded-xl font-bold text-slate-600 bg-slate-50 border-2 border-slate-200 hover:bg-slate-100 transition">إلغاء</button>
+                                <button onClick={() => setActivateModal(null)} className="flex-1 py-3 rounded-xl font-bold text-slate-600 bg-slate-50 border-2 border-slate-200 hover:bg-slate-100 transition">{t('btn_cancel')}</button>
                                 <button onClick={confirmActivate} className="flex-1 py-3 rounded-xl font-bold text-white bg-emerald-600 hover:bg-emerald-700 shadow-lg shadow-emerald-200 transition flex items-center justify-center gap-2">
-                                    <i className="fa-solid fa-check"></i> تفعيل الأوردر
+                                    <i className="fa-solid fa-check"></i> {t('sales_mark_activated')}
                                 </button>
                             </div>
                         </div>
