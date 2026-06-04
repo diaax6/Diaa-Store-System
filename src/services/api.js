@@ -6,94 +6,68 @@ import telegram from './telegram';
 // ==========================================
 
 // ============ AUTH ============
+// All auth operations run through Supabase Edge Functions (server-side).
+// No bcrypt in the browser. No password hashes returned to the client.
 export const authAPI = {
     async login(username, password) {
         const cleanUsername = (username || '').trim();
         const cleanPassword = (password || '').trim();
-
-        const { data, error } = await supabase
-            .from('users')
-            .select('*')
-            .eq('username', cleanUsername)
-            .single();
-
-        if (error || !data) {
-            console.error('Supabase Login Error:', error, 'Data:', data);
-            return { status: 'error', message: 'بيانات خطأ' };
-        }
-
-        // Import bcryptjs dynamically for password comparison
-        let bcrypt;
         try {
-            bcrypt = await import('bcryptjs');
-            if (bcrypt.default) bcrypt = bcrypt.default;
-        } catch (e) {
-            console.error('Bcrypt import error:', e);
-            return { status: 'error', message: 'خطأ داخلي' };
-        }
-        
-        const valid = await bcrypt.compare(cleanPassword, data.password);
-        if (!valid) {
-            console.error('Password mismatch');
-            return { status: 'error', message: 'بيانات خطأ' };
-        }
-
-        // Generate token
-        const token = crypto.randomUUID() + '-' + Date.now();
-        await supabase.from('users').update({ token }).eq('id', data.id);
-
-        return {
-            status: 'success',
-            token,
-            user: {
-                id: data.id,
-                username: data.username,
-                role: data.role,
-                permissions: data.permissions || [],
-                base_salary: data.base_salary,
-                vodafone_cash: data.vodafone_cash
+            const { data, error } = await supabase.functions.invoke('auth-login', {
+                body: { username: cleanUsername, password: cleanPassword },
+            });
+            if (error) {
+                console.error('auth-login edge function error:', error);
+                return { status: 'error', message: 'خطأ في الاتصال بالخادم' };
             }
-        };
+            return data;
+        } catch (e) {
+            console.error('auth-login exception:', e);
+            return { status: 'error', message: 'خطأ في الاتصال بالإنترنت' };
+        }
     },
 
     async checkAuth(token) {
         if (!token) return null;
-        const { data, error } = await supabase
-            .from('users')
-            .select('*')
-            .eq('token', token)
-            .single();
-        if (error || !data) return null;
-        return {
-            id: data.id,
-            username: data.username,
-            role: data.role,
-            permissions: data.permissions || [],
-            base_salary: data.base_salary,
-            vodafone_cash: data.vodafone_cash
-        };
+        try {
+            const { data, error } = await supabase.functions.invoke('auth-check', {
+                body: { token },
+            });
+            if (error) return null;
+            return data || null;
+        } catch (e) {
+            console.error('auth-check exception:', e);
+            return null;
+        }
     },
 
     async logout(token) {
         if (!token) return;
-        await supabase.from('users').update({ token: null }).eq('token', token);
+        try {
+            await supabase.functions.invoke('auth-logout', {
+                body: { token },
+            });
+        } catch (e) {
+            // Logout errors are non-critical — local session is cleared regardless
+            console.warn('auth-logout exception (non-critical):', e);
+        }
     },
 
+    // userId kept for API compatibility — token is used server-side for validation
     async changePassword(userId, oldPassword, newPassword) {
-        if (!userId || !oldPassword || !newPassword) return { success: false, message: 'بيانات ناقصة' };
-        // Get user
-        const { data: user, error: fetchErr } = await supabase.from('users').select('*').eq('id', userId).single();
-        if (fetchErr || !user) return { success: false, message: 'مستخدم غير موجود' };
-        // Verify old password
-        let bcrypt;
-        try { bcrypt = await import('bcryptjs'); if (bcrypt.default) bcrypt = bcrypt.default; } catch { return { success: false, message: 'خطأ داخلي' }; }
-        const valid = await bcrypt.compare(oldPassword, user.password);
-        if (!valid) return { success: false, message: 'كلمة المرور الحالية غير صحيحة' };
-        // Hash and update
-        const hashed = await bcrypt.hash(newPassword, 10);
-        const { error: updErr } = await supabase.from('users').update({ password: hashed }).eq('id', userId);
-        if (updErr) return { success: false, message: 'حدث خطأ أثناء التحديث' };
-        return { success: true, message: 'تم تغيير كلمة المرور بنجاح' };
+        if (!oldPassword || !newPassword) return { success: false, message: 'بيانات ناقصة' };
+        const token = localStorage.getItem('diaa-store_token') || '';
+        if (!token) return { success: false, message: 'غير مسجل الدخول' };
+        try {
+            const { data, error } = await supabase.functions.invoke('auth-change-password', {
+                body: { token, oldPassword, newPassword },
+            });
+            if (error) return { success: false, message: 'خطأ في الاتصال بالخادم' };
+            return data;
+        } catch (e) {
+            console.error('auth-change-password exception:', e);
+            return { success: false, message: 'خطأ في الاتصال بالإنترنت' };
+        }
     }
 };
 
@@ -330,21 +304,36 @@ export const accountsAPI = {
     },
 
     async pullNext(sectionName, actionBy) {
-        // Get next available account for a section
-        const { data } = await supabase
+        // OPTIMIZED: two targeted LIMIT queries instead of fetching all accounts client-side
+
+        // Step 1: Fast path — try to get a purely 'available' account first (LIMIT 1)
+        const { data: availableData } = await supabase
             .from('accounts')
             .select('*')
             .eq('product_name', sectionName)
-            .in('status', ['available', 'used'])
-            .order('created_at', { ascending: true });
+            .eq('status', 'available')
+            .order('created_at', { ascending: true })
+            .limit(1);
 
-        const available = (data || []).filter(a =>
-            a.status === 'available' || (a.status === 'used' && (a.allowed_uses === -1 || a.current_uses < a.allowed_uses))
-        );
+        let target = availableData?.[0] || null;
 
-        if (available.length === 0) return { empty: true };
+        // Step 2: Fallback — check 'used' accounts that still have remaining capacity (multi-use)
+        if (!target) {
+            const { data: usedData } = await supabase
+                .from('accounts')
+                .select('*')
+                .eq('product_name', sectionName)
+                .eq('status', 'used')
+                .order('created_at', { ascending: true })
+                .limit(50); // limit transfer — we only need the first usable one
 
-        const target = available[0];
+            target = (usedData || []).find(a =>
+                a.allowed_uses === -1 || a.current_uses < a.allowed_uses
+            ) || null;
+        }
+
+        if (!target) return { empty: true };
+
         const newUses = target.current_uses + 1;
         const newStatus = (target.allowed_uses !== -1 && newUses >= target.allowed_uses) ? 'completed' : 'used';
 
@@ -353,6 +342,14 @@ export const accountsAPI = {
             status: newStatus
         }).eq('id', target.id);
 
+        // Lightweight count query for Telegram notification (HEAD = no data transfer)
+        const { count: remainingCount } = await supabase
+            .from('accounts')
+            .select('*', { count: 'exact', head: true })
+            .eq('product_name', sectionName)
+            .eq('status', 'available');
+        const availableAfter = Math.max(0, (remainingCount || 0) - (target.status === 'available' ? 1 : 0));
+
         const result = {
             ...target,
             current_uses: newUses,
@@ -360,9 +357,9 @@ export const accountsAPI = {
             productName: target.product_name,
             twoFA: target.two_fa,
         };
-        telegram.inventoryPulled(sectionName, target.email, actionBy, available.length - 1);
+        telegram.inventoryPulled(sectionName, target.email, actionBy, availableAfter);
         // Log the pull operation
-        inventoryLogsAPI.create({ action_type: 'pull', section_name: sectionName, account_email: target.email, account_id: target.id, details: target.password ? `Pass: ${target.password}` : '', quantity: 1, performed_by: actionBy || 'Admin', available_before: available.length, available_after: available.length - 1 }).catch(e => console.warn('Log error:', e));
+        inventoryLogsAPI.create({ action_type: 'pull', section_name: sectionName, account_email: target.email, account_id: target.id, details: target.password ? `Pass: ${target.password}` : '', quantity: 1, performed_by: actionBy || 'Admin', available_before: availableAfter + 1, available_after: availableAfter }).catch(e => console.warn('Log error:', e));
         return result;
     }
 };
@@ -875,9 +872,13 @@ export const walletsAPI = {
         return newBalance;
     },
 
-    async getTransactions(walletId) {
-        const query = supabase.from('wallet_transactions').select('*').order('date', { ascending: false });
-        if (walletId) query.eq('wallet_id', walletId);
+    async getTransactions(walletId, limit) {
+        // Supabase JS v2: .eq() returns a new query object — must reassign, not discard
+        // Note: wallet_transactions has no 'date' column — sort by created_at
+        // limit: optional — pass a number to cap results (e.g. 1000 for global context fetch)
+        let query = supabase.from('wallet_transactions').select('*').order('created_at', { ascending: false });
+        if (walletId) query = query.eq('wallet_id', walletId);
+        if (limit)    query = query.limit(limit);
         const { data } = await query;
         return (data || []).map(t => ({
             ...t,
@@ -914,35 +915,13 @@ export const usersAPI = {
     },
 
     async save(userData) {
-        if (userData.id) {
-            // Update existing
-            const updates = {
-                username: userData.username,
-                role: userData.role || 'moderator',
-                permissions: userData.permissions || [],
-                base_salary: userData.base_salary || 0,
-                vodafone_cash: userData.vodafone_cash || '',
-            };
-            if (userData.password) {
-                const bcrypt = await import('bcryptjs');
-                updates.password = await bcrypt.hash(userData.password, 10);
-            }
-            const { error } = await supabase.from('users').update(updates).eq('id', userData.id);
-            if (error) { console.error('Update user error:', error); throw error; }
-        } else {
-            // Create new
-            const bcrypt = await import('bcryptjs');
-            const hashedPassword = await bcrypt.hash(userData.password, 10);
-            const { error } = await supabase.from('users').insert({
-                username: userData.username,
-                password: hashedPassword,
-                role: userData.role || 'moderator',
-                permissions: userData.permissions || [],
-                base_salary: userData.base_salary || 0,
-                vodafone_cash: userData.vodafone_cash || '',
-            });
-            if (error) { console.error('Create user error:', error); throw error; }
-        }
+        // Handled server-side: admin validation + bcrypt hashing via Edge Function
+        const token = localStorage.getItem('diaa-store_token') || '';
+        const { data, error } = await supabase.functions.invoke('auth-save-user', {
+            body: { token, userData },
+        });
+        if (error) { console.error('auth-save-user error:', error); throw new Error(error.message || 'خطأ في الاتصال بالخادم'); }
+        if (data && !data.success) { console.error('auth-save-user rejected:', data.message); throw new Error(data.message || 'حدث خطأ'); }
     },
 
     async delete(id) {
@@ -1052,7 +1031,11 @@ export const problemsAPI = {
             is_resolved: false,
         }).select().single();
         if (error) throw error;
-        telegram.newProblem({ accountEmail: problem.customerName, description: problem.description }, problem.actionBy);
+        telegram.newProblem({
+            customerName: problem.customerName || '',
+            accountEmail: problem.accountEmail || '',
+            description: problem.description,
+        }, problem.actionBy);
         return data;
     },
 
@@ -1062,7 +1045,11 @@ export const problemsAPI = {
             resolved_at: new Date().toISOString(),
         }).eq('id', id);
         if (error) throw error;
-        if (problemInfo) telegram.problemResolved({ accountEmail: problemInfo.customerName, description: problemInfo.description }, problemInfo.actionBy);
+        if (problemInfo) telegram.problemResolved({
+            customerName: problemInfo.customerName || '',
+            accountEmail: problemInfo.accountEmail || '',
+            description: problemInfo.description,
+        }, problemInfo.actionBy);
     },
 
     async delete(id) {
@@ -1189,6 +1176,10 @@ export const salaryPaymentsAPI = {
         // Record as expense
         if (payment.amount > 0) {
             const expDate = payment.paymentDate || new Date().toISOString().split('T')[0];
+            // Record as expense — mark 'paid' immediately if a wallet was specified (wallet already deducted)
+            const salaryApprovalStatus = payment.walletId ? 'paid' : 'pending';
+            const salaryApprovedAt = payment.walletId ? new Date().toISOString() : null;
+            const salaryApprovedBy = payment.walletId ? (payment.actionBy || 'System') : null;
             await supabase.from('expenses').insert({
                 type: 'قبض موظف',
                 amount: payment.amount,
@@ -1197,7 +1188,9 @@ export const salaryPaymentsAPI = {
                 wallet_id: payment.walletId || '',
                 wallet_name: payment.walletName || '',
                 expense_category: 'salary',
-                approval_status: 'pending',
+                approval_status: salaryApprovalStatus,
+                approved_by: salaryApprovedBy,
+                approved_at: salaryApprovedAt,
                 employee_id: payment.employeeId || null,
             });
 

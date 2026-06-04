@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from 'react';
+﻿import { useState, useMemo, useEffect, useRef } from 'react';
 import { employeesAPI, salaryPaymentsAPI, employeeActionsAPI, usersAPI, walletsAPI } from '../services/api';
 import { supabase } from '../lib/supabase';
 import { useConfirm } from './ConfirmDialog';
@@ -200,30 +200,18 @@ export default function Employees() {
         <div className="space-y-4 md:space-y-6 animate-fade-in pb-20 font-sans text-slate-800">
 
             {/* Header */}
-            <div className="bg-gradient-to-r from-violet-700 to-purple-600 rounded-2xl p-5 md:p-8 text-white relative overflow-hidden shadow-xl">
-                <div className="absolute -left-10 -bottom-10 text-[120px] opacity-10"><i className="fa-solid fa-id-card-clip"></i></div>
-                <div className="relative z-10">
-                    <div className="flex items-center gap-3 mb-4">
-                        <div className="bg-white/20 p-3 rounded-xl"><i className="fa-solid fa-id-card-clip text-2xl"></i></div>
-                        <div>
-                            <h2 className="text-xl md:text-2xl font-extrabold">إدارة الموظفين</h2>
-                            <p className="text-purple-100 text-xs md:text-sm">المرتبات والمكافآت والخصومات والغياب</p>
-                        </div>
+            <div className="ph-bar">
+                <div className="flex items-center gap-3">
+                    <div className="ph-icon" style={{backgroundColor:'#7c3aed'}}><i className="fa-solid fa-id-card-clip text-sm"></i></div>
+                    <div>
+                        <h1 className="ph-title">إدارة الموظفين</h1>
+                        <p className="ph-sub">المرتبات والمكافآت والخصومات والغياب</p>
                     </div>
-                    <div className="flex flex-wrap gap-3 mt-5">
-                        <div className="bg-white/15 backdrop-blur-sm rounded-2xl px-4 py-3 border border-white/20">
-                            <p className="text-purple-100 text-[10px] font-bold mb-1">الموظفين</p>
-                            <p className="text-xl font-black">{stats.active} <span className="text-sm opacity-60">/ {stats.total}</span></p>
-                        </div>
-                        <div className="bg-white/15 backdrop-blur-sm rounded-2xl px-4 py-3 border border-white/20">
-                            <p className="text-purple-100 text-[10px] font-bold mb-1">إجمالي المرتبات</p>
-                            <p className="text-xl font-black dir-ltr">{stats.totalSalaries.toLocaleString()} <span className="text-sm opacity-60">ج.م</span></p>
-                        </div>
-                        <div className="bg-white/15 backdrop-blur-sm rounded-2xl px-4 py-3 border border-white/20">
-                            <p className="text-purple-100 text-[10px] font-bold mb-1">إجمالي المقبوض</p>
-                            <p className="text-xl font-black text-emerald-300 dir-ltr">{stats.totalPaid.toLocaleString()}</p>
-                        </div>
-                    </div>
+                </div>
+                <div className="flex items-center gap-2 flex-wrap">
+                    <span className="ds-badge ds-info">{stats.active}/{stats.total} موظف</span>
+                    <span className="ds-badge ds-purple dir-ltr">{stats.totalSalaries.toLocaleString()} ج.م مرتبات</span>
+                    <span className="ds-badge ds-ok dir-ltr">{stats.totalPaid.toLocaleString()} مقبوض</span>
                 </div>
             </div>
 
@@ -258,21 +246,19 @@ export default function Employees() {
             )}
 
             {/* Toolbar */}
-            <div className="bg-white p-3 md:p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col md:flex-row gap-3 items-center justify-between sticky top-2 z-30 bg-white/95 backdrop-blur-md">
-                <div className="relative w-full md:w-80">
-                    <i className="fa-solid fa-search absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
-                    <input type="text" className="w-full bg-white border-2 border-slate-200 text-slate-900 text-sm font-semibold rounded-xl pr-10 p-3 focus:ring-4 focus:ring-purple-100 focus:border-purple-600 outline-none transition-all placeholder-slate-400" placeholder="بحث بالاسم أو الرقم أو الوظيفة..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+            <div className="ds-toolbar flex-wrap">
+                <div className="relative flex-1 min-w-[200px]">
+                    <i className="fa-solid fa-search absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                    <input type="text" className="ds-inp pr-8" placeholder="بحث بالاسم أو الرقم أو الوظيفة..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
                 </div>
-                <div className="flex gap-2 w-full md:w-auto flex-wrap">
-                    <div className="flex bg-white p-1 rounded-xl border border-slate-200 shadow-sm">
-                        {[{id:'all',label:'الكل'},{id:'active',label:'نشط'},{id:'inactive',label:'متوقف'}].map(f => (
-                            <button key={f.id} onClick={() => setFilterActive(f.id)} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${filterActive === f.id ? 'bg-purple-600 text-white' : 'text-slate-500 hover:bg-slate-50'}`}>{f.label}</button>
-                        ))}
-                    </div>
-                    <button onClick={openAdd} className="bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl text-sm px-5 py-2.5 shadow-lg shadow-purple-200 transition-all flex items-center gap-2">
-                        <i className="fa-solid fa-plus"></i> <span className="hidden sm:inline">موظف جديد</span>
-                    </button>
+                <div className="flex gap-1 bg-slate-100 p-1 rounded-lg">
+                    {[{id:'all',label:'الكل'},{id:'active',label:'نشط'},{id:'inactive',label:'متوقف'}].map(f => (
+                        <button key={f.id} onClick={() => setFilterActive(f.id)} className={`px-3 py-1 rounded-md text-xs font-semibold transition ${filterActive === f.id ? 'bg-white text-violet-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>{f.label}</button>
+                    ))}
                 </div>
+                <button onClick={openAdd} className="btn-p">
+                    <i className="fa-solid fa-plus"></i> موظف جديد
+                </button>
             </div>
 
             {/* Grid */}
@@ -564,3 +550,4 @@ export default function Employees() {
         </div>
     );
 }
+

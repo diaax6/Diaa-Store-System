@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+﻿import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { inventoryLogsAPI } from '../services/api';
@@ -120,37 +120,21 @@ export default function MyAccount() {
         <div className="space-y-4 md:space-y-6 animate-fade-in pb-24 font-sans text-slate-800">
 
             {/* Profile Header */}
-            <div className="bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-500 rounded-2xl p-6 md:p-8 text-white shadow-xl relative overflow-hidden">
-                <div className="absolute -left-8 -bottom-8 text-[120px] opacity-5"><i className="fa-solid fa-user-circle"></i></div>
-                <div className="absolute top-0 right-0 w-48 h-48 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/4"></div>
-                <div className="relative z-10">
-                    <div className="flex items-center gap-4 mb-4">
-                        <div className="w-16 h-16 bg-white/15 backdrop-blur-sm rounded-2xl flex items-center justify-center text-3xl border border-white/20 shadow-lg">
-                            {user?.username?.charAt(0)?.toUpperCase() || 'U'}
-                        </div>
-                        <div>
-                            <h2 className="text-2xl font-black tracking-tight">{user?.username}</h2>
-                            <span className="text-sm font-bold text-white/70 bg-white/10 px-3 py-1 rounded-full inline-block mt-1">{getRoleLabel(user?.role)}</span>
-                        </div>
+            <div className="ph-bar">
+                <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center text-lg font-black shadow-sm">
+                        {user?.username?.charAt(0)?.toUpperCase() || 'U'}
                     </div>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-6">
-                        <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3 text-center border border-white/10">
-                            <p className="text-2xl font-black">{stats.todayPulls}</p>
-                            <p className="text-[10px] font-bold text-white/60 mt-0.5">سحبات اليوم</p>
-                        </div>
-                        <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3 text-center border border-white/10">
-                            <p className="text-2xl font-black">{stats.totalPulls}</p>
-                            <p className="text-[10px] font-bold text-white/60 mt-0.5">إجمالي السحبات</p>
-                        </div>
-                        <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3 text-center border border-white/10">
-                            <p className="text-2xl font-black">{stats.totalAdds}</p>
-                            <p className="text-[10px] font-bold text-white/60 mt-0.5">الإضافات</p>
-                        </div>
-                        <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3 text-center border border-white/10">
-                            <p className="text-2xl font-black">{stats.totalReturns}</p>
-                            <p className="text-[10px] font-bold text-white/60 mt-0.5">الإرجاعات</p>
-                        </div>
+                    <div>
+                        <h1 className="ph-title">{user?.username}</h1>
+                        <p className="ph-sub">{getRoleLabel(user?.role)}</p>
                     </div>
+                </div>
+                <div className="flex items-center gap-2 flex-wrap">
+                    <span className="ds-badge ds-info"><i className="fa-solid fa-arrow-up-from-bracket text-[10px]"></i> {stats.todayPulls} سحب اليوم</span>
+                    <span className="ds-badge ds-mute">{stats.totalPulls} إجمالي السحبات</span>
+                    <span className="ds-badge ds-ok">{stats.totalAdds} إضافة</span>
+                    <span className="ds-badge ds-purple">{stats.totalReturns} إرجاع</span>
                 </div>
             </div>
 
@@ -307,3 +291,4 @@ export default function MyAccount() {
         </div>
     );
 }
+

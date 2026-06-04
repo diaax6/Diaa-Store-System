@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+﻿import { useState, useMemo, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { walletsAPI } from '../services/api';
@@ -219,50 +219,22 @@ export default function Wallets() {
         <div className="space-y-8 animate-fade-in pb-20 font-sans text-slate-800">
 
             {/* Header */}
-            <div className="bg-gradient-to-r from-emerald-700 to-teal-600 rounded-2xl p-8 text-white relative overflow-hidden shadow-xl">
-                <div className="absolute -left-10 -bottom-10 text-[150px] opacity-10"><i className="fa-solid fa-vault"></i></div>
-                <div className="relative z-10">
-                    <div className="flex items-center gap-3 mb-4">
-                        <div className="bg-white/20 p-3 rounded-xl backdrop-blur-sm"><i className="fa-solid fa-vault text-2xl"></i></div>
-                        <div>
-                            <h2 className="text-2xl font-extrabold">الخزينة والمحافظ</h2>
-                            <p className="text-emerald-100 text-sm font-medium">إجمالي السيولة النقدية المتاحة في جميع المحافظ</p>
-                        </div>
+            <div className="ph-bar">
+                <div className="flex items-center gap-3">
+                    <div className="ph-icon" style={{backgroundColor:'#059669'}}><i className="fa-solid fa-vault text-sm"></i></div>
+                    <div>
+                        <h1 className="ph-title">الخزينة والمحافظ</h1>
+                        <p className="ph-sub">إجمالي السيولة النقدية في جميع المحافظ</p>
                     </div>
-                    <div className="flex flex-wrap gap-4 mt-6">
-                        <div className="bg-white/15 backdrop-blur-sm rounded-2xl px-8 py-4 border border-white/20">
-                            <p className="text-emerald-100 text-xs font-bold mb-1">🇪🇬 إجمالي بالمصري</p>
-                            <p className="text-3xl font-black tracking-tight dir-ltr">
-                                <span className="text-sm font-bold ml-1 opacity-80">EGP</span>
-                                {totalEGP.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                            </p>
-                        </div>
-                        <div className="bg-white/15 backdrop-blur-sm rounded-2xl px-8 py-4 border border-white/20">
-                            <p className="text-emerald-100 text-xs font-bold mb-1">🇺🇸 إجمالي بالدولار</p>
-                            <p className="text-3xl font-black tracking-tight dir-ltr">
-                                <span className="text-sm font-bold ml-1 opacity-80">$</span>
-                                {totalUSD.toLocaleString(undefined, { maximumFractionDigits: 2 })}
-                            </p>
-                        </div>
-                        <div className="bg-white/10 backdrop-blur-sm rounded-2xl px-6 py-4 border border-white/10 flex items-center gap-3">
-                            <div className="flex items-center gap-2 text-sm font-bold">
-                                <i className="fa-solid fa-dollar-sign"></i>
-                                <span>سعر الدولار: {usdRate} ج.م</span>
-                                {rateLoading ? (
-                                    <i className="fa-solid fa-spinner fa-spin text-xs opacity-70"></i>
-                                ) : (
-                                    <button onClick={() => fetchUsdRate(true)} className="bg-white/10 hover:bg-white/20 p-1.5 rounded-lg transition" title="تحديث السعر">
-                                        <i className="fa-solid fa-rotate text-xs"></i>
-                                    </button>
-                                )}
-                            </div>
-                            {rateLastUpdate && (
-                                <span className="text-[9px] text-emerald-200 opacity-70">
-                                    آخر تحديث: {rateLastUpdate.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}
-                                </span>
-                            )}
-                        </div>
-                    </div>
+                </div>
+                <div className="flex items-center gap-2 flex-wrap">
+                    <span className="ds-badge ds-ok dir-ltr"><i className="fa-solid fa-flag"></i> EGP {totalEGP.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                    <span className="ds-badge ds-info dir-ltr">$ {totalUSD.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+                    <span className="ds-badge ds-mute flex items-center gap-1">
+                        <span>$ = {usdRate} ج.م</span>
+                        {rateLoading ? <i className="fa-solid fa-spinner fa-spin text-xs"></i>
+                            : <button onClick={() => fetchUsdRate(true)} className="hover:text-emerald-600 transition" title="تحديث"><i className="fa-solid fa-rotate text-[10px]"></i></button>}
+                    </span>
                 </div>
             </div>
 
@@ -538,3 +510,4 @@ export default function Wallets() {
         </div>
     );
 }
+

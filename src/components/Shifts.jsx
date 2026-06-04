@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useCallback } from 'react';
+﻿import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useData } from '../context/DataContext';
 import { shiftsAPI, employeesAPI } from '../services/api';
 import { supabase } from '../lib/supabase';
@@ -173,54 +173,30 @@ export default function Shifts() {
         <div className="space-y-5 animate-fade-in pb-24 font-sans text-slate-800">
 
             {/* ── Header ── */}
-            <div className="bg-gradient-to-r from-indigo-700 to-blue-700 rounded-2xl p-6 md:p-8 text-white relative overflow-hidden shadow-xl">
-                <div className="absolute -left-8 -bottom-10 text-[130px] opacity-[0.05]"><i className="fa-solid fa-clock"></i></div>
-                <div className="relative z-10">
-                    <div className="flex items-center gap-3 mb-4">
-                        <div className="bg-white/20 p-3 rounded-xl"><i className="fa-solid fa-clock-rotate-left text-2xl"></i></div>
-                        <div>
-                            <h2 className="text-xl md:text-2xl font-extrabold">إدارة الورديات</h2>
-                            <p className="text-indigo-200 text-xs mt-0.5">ربط الموظفين بالشيفتات • تتبع أداء كل وردية</p>
-                        </div>
-                    </div>
-                    <div className="flex flex-wrap gap-3 mt-2">
-                        <div className="bg-white/15 backdrop-blur-sm rounded-2xl px-4 py-2.5 border border-white/20">
-                            <p className="text-indigo-200 text-[10px] font-bold">الشيفتات</p>
-                            <p className="text-2xl font-black">{shifts.length}</p>
-                        </div>
-                        <div className="bg-white/15 backdrop-blur-sm rounded-2xl px-4 py-2.5 border border-white/20">
-                            <p className="text-indigo-200 text-[10px] font-bold">أوردرات اليوم</p>
-                            <p className="text-2xl font-black">{totalStats.orders}</p>
-                        </div>
-                        <div className="bg-white/15 backdrop-blur-sm rounded-2xl px-4 py-2.5 border border-white/20">
-                            <p className="text-indigo-200 text-[10px] font-bold">إيراد اليوم</p>
-                            <p className="text-2xl font-black dir-ltr">{totalStats.revenue.toLocaleString()} <span className="text-sm opacity-60">ج.م</span></p>
-                        </div>
+            <div className="ph-bar">
+                <div className="flex items-center gap-3">
+                    <div className="ph-icon"><i className="fa-solid fa-clock-rotate-left text-sm"></i></div>
+                    <div>
+                        <h1 className="ph-title">إدارة الورديات</h1>
+                        <p className="ph-sub">ربط الموظفين بالشيفتات • تتبع أداء كل وردية</p>
                     </div>
                 </div>
+                <div className="flex items-center gap-2">
+                    <span className="ds-badge ds-info">{shifts.length} شيفت</span>
+                    <span className="ds-badge ds-ok">{totalStats.orders} أوردر</span>
+                    <span className="ds-badge ds-emerald dir-ltr">{totalStats.revenue.toLocaleString()} ج.م</span>
+                </div>
             </div>
-
-            {/* ── Toolbar ── */}
-            <div className="bg-white/95 backdrop-blur-xl p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col sm:flex-row gap-3 items-center justify-between sticky top-2 z-30">
-                <div className="flex items-center gap-2 bg-slate-50 p-1.5 rounded-xl border border-slate-200 w-full sm:w-auto">
-                    <span className="text-xs font-bold text-slate-500 px-2">📅 التاريخ:</span>
-                    <input
-                        type="date"
-                        value={selectedDate}
-                        onChange={e => setSelectedDate(e.target.value)}
-                        className="bg-white border border-slate-200 text-slate-800 text-sm rounded-lg p-2 outline-none font-bold shadow-sm focus:border-indigo-400"
-                    />
-                    <button
-                        onClick={() => setSelectedDate(new Date().toISOString().split('T')[0])}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${selectedDate === new Date().toISOString().split('T')[0] ? 'bg-indigo-600 text-white' : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'}`}
-                    >
+            <div className="ds-toolbar">
+                <div className="flex items-center gap-2">
+                    <i className="fa-solid fa-calendar text-slate-400 text-xs"></i>
+                    <input type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)} className="ds-inp" style={{width:'auto'}} />
+                    <button onClick={() => setSelectedDate(new Date().toISOString().split('T')[0])}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${selectedDate === new Date().toISOString().split('T')[0] ? 'bg-indigo-600 text-white' : 'btn-s'}`}>
                         اليوم
                     </button>
                 </div>
-                <button
-                    onClick={openAdd}
-                    className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl px-6 py-2.5 text-sm shadow-lg shadow-indigo-200 transition-all flex items-center gap-2 w-full sm:w-auto justify-center"
-                >
+                <button onClick={openAdd} className="btn-p">
                     <i className="fa-solid fa-plus"></i> شيفت جديد
                 </button>
             </div>
@@ -329,15 +305,10 @@ export default function Shifts() {
 
             {/* ── Summary Table ── */}
             {shifts.length > 0 && (
-                <div className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
-                    <div className="p-5 border-b border-slate-100 bg-slate-50/60 flex items-center justify-between">
-                        <h3 className="font-bold text-slate-800 text-base flex items-center gap-2">
-                            <i className="fa-solid fa-chart-bar text-indigo-500"></i>
-                            مقارنة الورديات
-                        </h3>
-                        <span className="text-xs font-bold text-slate-400 bg-white border border-slate-200 px-3 py-1 rounded-full">
-                            {new Date(selectedDate).toLocaleDateString('ar-EG', { day: '2-digit', month: 'long', year: 'numeric' })}
-                        </span>
+                <div className="sect-card">
+                    <div className="sect-card-header">
+                        <span className="sect-card-title flex items-center gap-2"><i className="fa-solid fa-chart-bar text-indigo-500 text-sm"></i>مقارنة الورديات</span>
+                        <span className="ds-badge ds-mute">{new Date(selectedDate).toLocaleDateString('ar-EG', { day: '2-digit', month: 'long' })}</span>
                     </div>
                     <div className="overflow-x-auto">
                         <table className="w-full text-sm">

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+﻿import { useState, useEffect, useCallback } from 'react';
 import telegram from '../services/telegram';
 
 // ── Notification types per group ─────────
@@ -165,47 +165,20 @@ export default function BotSettings() {
         <div className="space-y-5 animate-fade-in pb-24 font-sans text-slate-800">
 
             {/* ── Header ── */}
-            <div className="bg-gradient-to-r from-slate-900 to-slate-800 rounded-2xl p-6 md:p-8 text-white relative overflow-hidden shadow-2xl">
-                <div className="absolute -left-8 -bottom-8 text-[110px] opacity-[0.04]">
-                    <i className="fa-brands fa-telegram" />
+            <div className="ph-bar">
+                <div className="flex items-center gap-3">
+                    <div className="ph-icon" style={{backgroundColor:'#0088cc'}}><i className="fa-brands fa-telegram text-sm"></i></div>
+                    <div>
+                        <h1 className="ph-title">إعدادات بوت تليجرام</h1>
+                        <p className="ph-sub">4 جروبات متخصصة — كل إشعار في مكانه الصح</p>
+                    </div>
                 </div>
-                <div className="absolute right-6 top-6 opacity-10 text-6xl">
-                    <i className="fa-solid fa-robot" />
-                </div>
-                <div className="relative z-10">
-                    <div className="flex items-center gap-3 mb-5">
-                        <div className="bg-blue-500/20 p-3 rounded-xl border border-blue-400/20 backdrop-blur-sm">
-                            <i className="fa-brands fa-telegram text-2xl text-blue-400" />
-                        </div>
-                        <div>
-                            <h2 className="text-xl md:text-2xl font-extrabold">إعدادات بوت تليجرام</h2>
-                            <p className="text-slate-400 text-xs font-medium mt-0.5">4 جروبات متخصصة — كل إشعار في مكانه الصح</p>
-                        </div>
-                    </div>
-
-                    {/* Stats row */}
-                    <div className="flex flex-wrap gap-3">
-                        {[
-                            { label: 'الإشعارات النشطة', value: `${totalActive} / ${totalKeys}` },
-                            { label: 'الجروبات', value: '4 جروبات' },
-                            { label: 'الحالة', value: '🟢 متصل' },
-                        ].map(s => (
-                            <div key={s.label} className="bg-white/10 backdrop-blur-sm rounded-xl px-4 py-2.5 border border-white/10">
-                                <p className="text-slate-400 text-[10px] font-bold mb-0.5">{s.label}</p>
-                                <p className="text-lg font-black">{s.value}</p>
-                            </div>
-                        ))}
-                    </div>
-
-                    {/* Test All */}
-                    <div className="mt-4 flex gap-2 flex-wrap">
-                        <button
-                            onClick={testAll}
-                            className="bg-blue-500 hover:bg-blue-400 text-white font-bold px-5 py-2.5 rounded-xl text-sm transition-all flex items-center gap-2 shadow-lg shadow-blue-900/40"
-                        >
-                            <i className="fa-solid fa-satellite-dish" /> اختبار كل الجروبات
-                        </button>
-                    </div>
+                <div className="flex items-center gap-2 flex-wrap">
+                    <span className="ds-badge ds-info">{totalActive}/{totalKeys} نشط</span>
+                    <span className="ds-badge ds-ok"><i className="fa-solid fa-circle text-[8px]"></i> متصل</span>
+                    <button onClick={testAll} className="btn-s text-xs flex items-center gap-1.5">
+                        <i className="fa-solid fa-satellite-dish"></i> اختبار الكل
+                    </button>
                 </div>
             </div>
 
@@ -532,3 +505,4 @@ export default function BotSettings() {
         </div>
     );
 }
+

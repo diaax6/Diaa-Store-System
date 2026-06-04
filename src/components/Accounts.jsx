@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+﻿import { useState, useMemo, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { accountsAPI, sectionsAPI, quickLinksAPI, inventoryLogsAPI } from '../services/api';
@@ -431,50 +431,42 @@ export default function Accounts() {
                 <>
                     {/* ============ OVERVIEW ============ */}
                     {/* Global Stats */}
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4">
-                        <div className="bg-gradient-to-br from-purple-600 to-indigo-700 rounded-2xl p-3 md:p-5 text-white shadow-lg relative overflow-hidden">
-                            <div className="absolute -left-4 -bottom-4 text-7xl opacity-10"><i className="fa-solid fa-boxes-stacked"></i></div>
-                            <p className="text-purple-200 text-[10px] md:text-xs font-bold mb-1">إجمالي المخزون</p>
-                            <h3 className="text-2xl md:text-3xl font-extrabold">{globalStats.total}</h3>
+                    <div className="ph-bar">
+                        <div className="flex items-center gap-3">
+                            <div className="ph-icon" style={{backgroundColor:'#7c3aed'}}><i className="fa-solid fa-boxes-stacked text-sm"></i></div>
+                            <div>
+                                <h1 className="ph-title">المخزون والأكواد</h1>
+                                <p className="ph-sub">إدارة الحسابات والأكواد والسجلات</p>
+                            </div>
                         </div>
-                        <div className="bg-white rounded-2xl p-3 md:p-5 border border-slate-200 shadow-sm relative overflow-hidden">
-                            <div className="absolute top-0 left-0 w-1 md:w-1.5 h-full bg-emerald-500"></div>
-                            <p className="text-slate-500 text-[10px] md:text-xs font-bold mb-1 flex items-center gap-1"><i className="fa-solid fa-check-circle text-emerald-500 text-[10px]"></i> متاح</p>
-                            <h3 className="text-2xl md:text-3xl font-extrabold text-emerald-600">{globalStats.available}</h3>
-                        </div>
-                        <div className="bg-white rounded-2xl p-3 md:p-5 border border-slate-200 shadow-sm relative overflow-hidden">
-                            <div className="absolute top-0 left-0 w-1 md:w-1.5 h-full bg-orange-500"></div>
-                            <p className="text-slate-500 text-[10px] md:text-xs font-bold mb-1 flex items-center gap-1"><i className="fa-solid fa-circle-dot text-orange-500 text-[10px]"></i> مستخدم</p>
-                            <h3 className="text-2xl md:text-3xl font-extrabold text-orange-600">{globalStats.used}</h3>
-                        </div>
-                        <div className="bg-white rounded-2xl p-3 md:p-5 border border-slate-200 shadow-sm relative overflow-hidden">
-                            <div className="absolute top-0 left-0 w-1 md:w-1.5 h-full bg-slate-400"></div>
-                            <p className="text-slate-500 text-[10px] md:text-xs font-bold mb-1 flex items-center gap-1"><i className="fa-solid fa-circle-check text-slate-400 text-[10px]"></i> مكتمل</p>
-                            <h3 className="text-2xl md:text-3xl font-extrabold text-slate-400">{globalStats.full}</h3>
+                        <div className="flex items-center gap-2 flex-wrap">
+                            <span className="ds-badge ds-purple">{globalStats.total} إجمالي</span>
+                            <span className="ds-badge ds-ok">{globalStats.available} متاح</span>
+                            <span className="ds-badge ds-warn">{globalStats.used} مستخدم</span>
+                            <span className="ds-badge ds-mute">{globalStats.full} مكتمل</span>
                         </div>
                     </div>
 
                     {/* Quick Pull Bar */}
                     {sections.length > 0 && (
-                        <div className="bg-gradient-to-r from-emerald-600 to-teal-600 rounded-2xl p-3 md:p-5 shadow-lg">
-                            <div className="flex items-center gap-2 text-white mb-2 md:mb-3">
-                                <i className="fa-solid fa-bolt text-base md:text-lg"></i>
-                                <h3 className="text-sm md:text-lg font-extrabold">سحب سريع</h3>
-                                <span className="text-emerald-200 text-[10px] md:text-xs font-medium mr-2 hidden sm:inline">اسحب من أي سجل بدون ما تدخله</span>
+                        <div className="sect-card">
+                            <div className="sect-card-header">
+                                <span className="sect-card-title flex items-center gap-2"><i className="fa-solid fa-bolt text-emerald-500 text-sm"></i>سحب سريع</span>
+                                <span className="text-xs text-slate-400">اسحب من أي سجل بدون ما تدخله</span>
                             </div>
-                            <div className="flex flex-wrap gap-1.5 md:gap-2">
+                            <div className="flex flex-wrap gap-1.5 p-3">
                                 {sections.map(sec => {
                                     const avail = sectionAvailable[sec.name] || 0;
                                     const isCodes = sec.type === 'codes';
                                     return (
                                         <button key={sec.id} onClick={() => handlePullNext(sec.name)}
                                             disabled={avail === 0}
-                                            className={`flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-2 md:py-2.5 rounded-xl text-xs md:text-sm font-bold transition-all border ${avail > 0
-                                                ? 'bg-white/15 text-white border-white/20 hover:bg-white/25 active:scale-95'
-                                                : 'bg-white/5 text-white/30 border-white/10 cursor-not-allowed'}`}>
-                                            <i className={`fa-solid ${isCodes ? 'fa-key' : 'fa-user-shield'} text-[10px] md:text-xs`}></i>
+                                            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all border ${avail > 0
+                                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100 active:scale-95'
+                                                : 'bg-slate-50 text-slate-300 border-slate-100 cursor-not-allowed'}`}>
+                                            <i className={`fa-solid ${isCodes ? 'fa-key' : 'fa-user-shield'} text-[10px]`}></i>
                                             <span className="truncate max-w-[80px] md:max-w-none">{sec.name}</span>
-                                            <span className={`text-[9px] md:text-[10px] px-1.5 py-0.5 rounded-full font-black ${avail > 0 ? 'bg-white/20' : 'bg-white/5'}`}>{avail}</span>
+                                            <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-black ${avail > 0 ? 'bg-emerald-200 text-emerald-800' : 'bg-slate-100'}`}>{avail}</span>
                                         </button>
                                     );
                                 })}

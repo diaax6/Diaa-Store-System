@@ -27,8 +27,9 @@ export default defineConfig({
         rollupOptions: {
             output: {
                 manualChunks: {
-                    react: ['react', 'react-dom'], // يفصل React في ملف لوحده
-                    vendor: ['swiper', 'lucide-react'], // يفصل المكتبات التقيلة
+                    react:   ['react', 'react-dom'],                      // React core — changes rarely
+                    charts:  ['chart.js', 'react-chartjs-2'],             // Charting — heavy, lazy-load worthy
+                    vendor:  ['lucide-react', 'sweetalert2', 'xlsx'],     // Utility libs
                 },
             },
         },

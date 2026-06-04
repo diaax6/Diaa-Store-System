@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+﻿import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { problemsAPI } from '../services/api';
@@ -133,69 +133,44 @@ export default function Problems () {
     return (
         <div className="space-y-6 animate-fade-in pb-20 font-sans text-slate-800">
 
-            {/* Stats */}
-            <div className="grid grid-cols-3 gap-4">
-                <div className="bg-gradient-to-br from-red-600 to-rose-700 rounded-2xl p-5 text-white shadow-lg relative overflow-hidden">
-                    <div className="absolute -left-4 -bottom-4 text-7xl opacity-10"><i className="fa-solid fa-triangle-exclamation"></i></div>
-                    <p className="text-red-200 text-xs font-bold mb-1">إجمالي المشاكل</p>
-                    <h3 className="text-3xl font-extrabold">{stats.total}</h3>
-                </div>
-                <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm relative overflow-hidden">
-                    <div className="absolute top-0 left-0 w-1.5 h-full bg-orange-500"></div>
-                    <p className="text-slate-500 text-xs font-bold mb-1 flex items-center gap-1"><i className="fa-solid fa-clock text-orange-500"></i> قيد المتابعة</p>
-                    <h3 className="text-3xl font-extrabold text-orange-600">{stats.open}</h3>
-                </div>
-                <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm relative overflow-hidden">
-                    <div className="absolute top-0 left-0 w-1.5 h-full bg-emerald-500"></div>
-                    <p className="text-slate-500 text-xs font-bold mb-1 flex items-center gap-1"><i className="fa-solid fa-check-circle text-emerald-500"></i> تم الحل</p>
-                    <h3 className="text-3xl font-extrabold text-emerald-600">{stats.resolved}</h3>
-                </div>
-            </div>
-
             {/* Header */}
-            <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-                <div>
-                    <h2 className="text-2xl font-extrabold text-slate-800">سجل المشاكل</h2>
-                    <p className="text-slate-500 text-sm font-medium mt-1">متابعة وحل مشكلات العملاء</p>
-                </div>
-                <div className="flex gap-3 w-full md:w-auto flex-wrap">
-                    <div className="relative w-full md:w-64">
-                        <input
-                            type="text"
-                            placeholder="بحث في المشاكل..."
-                            className="w-full bg-slate-50 border border-slate-200 p-3 pr-10 rounded-xl outline-none focus:ring-2 focus:ring-red-100 focus:border-red-500 transition-all font-medium"
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                        />
-                        <i className="fa-solid fa-search absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+            <div className="ph-bar">
+                <div className="flex items-center gap-3">
+                    <div className="ph-icon" style={{backgroundColor:'#dc2626'}}><i className="fa-solid fa-triangle-exclamation text-sm"></i></div>
+                    <div>
+                        <h1 className="ph-title">سجل المشاكل</h1>
+                        <p className="ph-sub">متابعة وحل مشكلات العملاء</p>
                     </div>
-                    <button
-                        onClick={() => {
-                            setSelectedSaleId('');
-                            setReplacementAccountId('');
-                            setDescription('');
-                            setShowModal(true);
-                        }}
-                        className="bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl text-sm px-6 py-3 shadow-lg shadow-red-200 transition-all flex items-center gap-2 whitespace-nowrap"
-                    >
-                        <i className="fa-solid fa-triangle-exclamation"></i> تسجيل مشكلة
+                </div>
+                <div className="flex items-center gap-2 flex-wrap">
+                    <span className="stat-card-pill pill-red">{stats.total} مشكلة</span>
+                    <span className="stat-card-pill pill-amber">{stats.open} مفتوحة</span>
+                    <span className="stat-card-pill pill-green">{stats.resolved} محلولة</span>
+                    <button onClick={() => { setSelectedSaleId(''); setReplacementAccountId(''); setDescription(''); setShowModal(true); }} className="btn-d text-xs">
+                        <i className="fa-solid fa-plus"></i> تسجيل مشكلة
                     </button>
                 </div>
             </div>
 
-            {/* Status Filters */}
-            <div className="flex bg-white p-1.5 rounded-xl border border-slate-200 shadow-sm w-full md:w-auto">
-                {[
-                    { id: 'all', label: 'الكل', icon: 'fa-layer-group', count: stats.total },
-                    { id: 'open', label: 'قيد المتابعة', icon: 'fa-clock', count: stats.open },
-                    { id: 'resolved', label: 'تم الحل', icon: 'fa-check-circle', count: stats.resolved },
-                ].map(f => (
-                    <button key={f.id} onClick={() => setStatusFilter(f.id)}
-                        className={`px-4 py-2.5 rounded-lg text-sm font-bold transition-all flex items-center gap-2 flex-1 justify-center ${statusFilter === f.id ? 'bg-red-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}>
-                        <i className={`fa-solid ${f.icon} text-xs`}></i>{f.label}
-                        <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-black ${statusFilter === f.id ? 'bg-white/20' : 'bg-slate-100'}`}>{f.count}</span>
-                    </button>
-                ))}
+            {/* Toolbar */}
+            <div className="ds-toolbar flex-wrap">
+                <div className="relative flex-1 min-w-[200px]">
+                    <i className="fa-solid fa-search absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                    <input type="text" placeholder="بحث في المشاكل..." className="ds-inp pr-8" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+                </div>
+                <div className="flex gap-1 bg-slate-100 p-1 rounded-lg">
+                    {[
+                        { id: 'all', label: 'الكل', count: stats.total },
+                        { id: 'open', label: 'مفتوحة', count: stats.open },
+                        { id: 'resolved', label: 'محلولة', count: stats.resolved },
+                    ].map(f => (
+                        <button key={f.id} onClick={() => setStatusFilter(f.id)}
+                            className={`px-3 py-1 rounded-md text-xs font-semibold transition flex items-center gap-1.5 ${statusFilter === f.id ? 'bg-white text-red-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
+                            {f.label}
+                            <span className="text-[10px] bg-slate-200 px-1.5 py-0.5 rounded-full font-bold">{f.count}</span>
+                        </button>
+                    ))}
+                </div>
             </div>
 
             {/* Problems Grid */}
@@ -368,3 +343,4 @@ export default function Problems () {
         </div>
     );
 }
+

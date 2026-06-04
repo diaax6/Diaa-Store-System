@@ -225,55 +225,41 @@ export default function Clients() {
     };
 
     return (
-        <div className="space-y-6 animate-fade-in pb-20 font-sans text-slate-800">
+        <div className="space-y-5 animate-fade-in pb-20">
 
             {/* Header */}
-            <div className="bg-gradient-to-r from-indigo-700 to-blue-600 rounded-2xl p-8 text-white relative overflow-hidden shadow-xl">
-                <div className="absolute -left-10 -bottom-10 text-[150px] opacity-10"><i className="fa-solid fa-users"></i></div>
-                <div className="relative z-10">
-                    <div className="flex items-center gap-3 mb-4">
-                        <div className="bg-white/20 p-3 rounded-xl backdrop-blur-sm"><i className="fa-solid fa-users text-2xl"></i></div>
-                        <div>
-                            <h2 className="text-2xl font-extrabold">قائمة العملاء</h2>
-                            <p className="text-blue-100 text-sm font-medium">إدارة ومتابعة بيانات العملاء</p>
-                        </div>
+            <div className="ph-bar">
+                <div className="flex items-center gap-3">
+                    <div className="ph-icon"><i className="fa-solid fa-users text-sm"></i></div>
+                    <div>
+                        <h1 className="ph-title">قائمة العملاء</h1>
+                        <p className="ph-sub">إدارة ومتابعة بيانات العملاء</p>
                     </div>
-                    <div className="flex flex-wrap gap-4 mt-4">
-                        <div className="bg-white/15 backdrop-blur-sm rounded-2xl px-6 py-3 border border-white/20">
-                            <p className="text-blue-100 text-xs font-bold mb-1">إجمالي العملاء</p>
-                            <p className="text-2xl font-black">{customers.length}</p>
-                        </div>
-                        <div className="bg-white/15 backdrop-blur-sm rounded-2xl px-6 py-3 border border-white/20">
-                            <p className="text-blue-100 text-xs font-bold mb-1">إجمالي الأوردرات</p>
-                            <p className="text-2xl font-black">{sales.length}</p>
-                        </div>
-                        <div className="bg-white/15 backdrop-blur-sm rounded-2xl px-6 py-3 border border-white/20">
-                            <p className="text-blue-100 text-xs font-bold mb-1">إجمالي الإيرادات</p>
-                            <p className="text-2xl font-black dir-ltr">{clientsList.reduce((s, c) => s + c.totalSpent, 0).toLocaleString()} <span className="text-sm opacity-80">ج.م</span></p>
-                        </div>
-                    </div>
+                </div>
+                <div className="flex items-center gap-2">
+                    <span className="ds-badge ds-info"><i className="fa-solid fa-users"></i> {customers.length} عميل</span>
+                    <span className="ds-badge ds-mute">{sales.length} أوردر</span>
+                    <span className="ds-badge ds-ok dir-ltr">{clientsList.reduce((s, c) => s + c.totalSpent, 0).toLocaleString()} ج.م</span>
                 </div>
             </div>
 
             {/* Toolbar */}
-            <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col md:flex-row gap-4 items-center justify-between sticky top-2 z-30 bg-white/95 backdrop-blur-md">
-                <div className="relative w-full md:w-96">
-                    <i className="fa-solid fa-search absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
-                    <input type="text" className="w-full bg-white border-2 border-slate-200 text-slate-900 text-sm font-semibold rounded-xl pr-10 p-3 focus:ring-4 focus:ring-indigo-100 focus:border-indigo-600 outline-none transition-all placeholder-slate-400" placeholder="بحث بالاسم أو الرقم أو الإيميل أو ID..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+            <div className="ds-toolbar flex-wrap">
+                <div className="relative flex-1 min-w-[200px]">
+                    <i className="fa-solid fa-search absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                    <input type="text" className="ds-inp pr-8" placeholder="بحث بالاسم أو الرقم أو الإيميل أو ID..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
                 </div>
-                <div className="flex gap-2 md:gap-3 w-full md:w-auto flex-wrap">
-                    <button onClick={() => setShowDuplicatesOnly(!showDuplicatesOnly)}
-                        className={`px-4 py-2.5 rounded-xl text-xs md:text-sm font-bold transition-all flex items-center gap-2 border ${showDuplicatesOnly ? 'bg-red-600 text-white border-red-600 shadow-md' : 'bg-white text-slate-600 border-slate-200 hover:bg-red-50 hover:text-red-600 hover:border-red-200'}`}>
-                        <i className="fa-solid fa-clone"></i> المكرر ({duplicateClientIds.size})
-                    </button>
-                    <select value={sortOption} onChange={e => setSortOption(e.target.value)} className="bg-white border-2 border-slate-200 text-slate-700 text-sm font-bold rounded-xl p-3 focus:ring-4 focus:ring-indigo-100 focus:border-indigo-600 outline-none transition-all">
-                        <option value="ordersCount">🔥 الأكثر طلباً</option>
-                        <option value="totalSpent">💰 الأكثر إنفاقاً</option>
-                        <option value="name">🔤 حسب الاسم</option>
-                        <option value="newest">🆕 الأحدث</option>
-                        <option value="expiringSoon">⏳ قرب الانتهاء</option>
-                    </select>
-                </div>
+                <button onClick={() => setShowDuplicatesOnly(!showDuplicatesOnly)}
+                    className={`ds-badge text-xs px-3 py-1.5 cursor-pointer transition-all ${showDuplicatesOnly ? 'ds-err font-bold' : 'ds-mute hover:ds-err'}`}>
+                    <i className="fa-solid fa-clone"></i> مكرر ({duplicateClientIds.size})
+                </button>
+                <select value={sortOption} onChange={e => setSortOption(e.target.value)} className="ds-inp" style={{width:'auto'}}>
+                    <option value="ordersCount">الأكثر طلباً</option>
+                    <option value="totalSpent">الأكثر إنفاقاً</option>
+                    <option value="name">حسب الاسم</option>
+                    <option value="newest">الأحدث</option>
+                    <option value="expiringSoon">قرب الانتهاء</option>
+                </select>
             </div>
 
             {/* ============ TABLE VIEW ============ */}

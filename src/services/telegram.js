@@ -11,14 +11,20 @@
 
 import { supabase } from '../lib/supabase';
 
-const BOT_TOKEN = import.meta.env.VITE_TELEGRAM_BOT_TOKEN || '';
+// NOTE: The bot token is NO LONGER stored in the browser bundle.
+// It is stored as a Supabase secret (TELEGRAM_BOT_TOKEN) called through
+// the telegram-send Edge Function. See supabase/functions/telegram-send/.
+// VITE_TELEGRAM_BOT_TOKEN in .env is kept as reference — not read by the app.
 
 // ── Group Chat IDs ────────────────────────
+// IDs are loaded from environment variables ONLY.
+// No hardcoded fallbacks — if a var is missing, that channel is silently skipped.
+// Set these in your .env file (see .env.example).
 const CHAT_IDS = {
-    notice : import.meta.env.VITE_TELEGRAM_NOTICE_ID  || '-1003976824578',
-    stock  : import.meta.env.VITE_TELEGRAM_STOCK_ID   || '-1003797989252',
-    sales  : import.meta.env.VITE_TELEGRAM_SALES_ID   || '-5062101433',
-    report : import.meta.env.VITE_TELEGRAM_REPORT_ID  || '-5158093362',
+    notice : import.meta.env.VITE_TELEGRAM_NOTICE_ID  || '',
+    stock  : import.meta.env.VITE_TELEGRAM_STOCK_ID   || '',
+    sales  : import.meta.env.VITE_TELEGRAM_SALES_ID   || '',
+    report : import.meta.env.VITE_TELEGRAM_REPORT_ID  || '',
 };
 
 // ── LocalStorage Keys ─────────────────────
@@ -33,6 +39,7 @@ const DEFAULT_PREFS = {
     newSale         : true,
     saleProcessing  : true,
     saleActivated   : true,
+    saleDeactivated : true,
     debtPaid        : true,
     saleRenewed     : true,
     newProblem      : true,
@@ -96,7 +103,8 @@ const getReportTimes  = () => { try { return JSON.parse(localStorage.getItem(REP
 const saveReportTime  = (key, val) => { const t = getReportTimes(); t[key] = val; localStorage.setItem(REPORT_TIMES_KEY, JSON.stringify(t)); };
 
 // ── Helpers ───────────────────────────────
-const isConfigured = () => BOT_TOKEN && BOT_TOKEN.length > 10;
+// isConfigured: true if at least one group chatId is set (bot token is now server-side)
+const isConfigured = () => !!(CHAT_IDS.notice || CHAT_IDS.sales || CHAT_IDS.stock || CHAT_IDS.report);
 const fmt  = (n) => Number(n || 0).toLocaleString('en-US');
 const dateOnly = () => new Date().toLocaleDateString('ar-EG', { day: '2-digit', month: 'long', year: 'numeric' });
 const timeOnly = () => new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: true });
@@ -134,52 +142,42 @@ const HDR = {
 const footer = () => `\n${FOOT}\n   💎  <i>Diaa Store</i>  •  <code>${dateOnly()}  ${timeOnly()}</code>`;
 
 // ── Core API ──────────────────────────────
+// All three functions proxy through the telegram-send Edge Function.
+// The bot token lives in Supabase secrets — never in the browser bundle.
+// x-user-token header is auto-injected by src/lib/supabase.js.
 const sendToChat = async (chatId, text) => {
-    if (!isConfigured()) return false;
-    const url     = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
-    const payload = { chat_id: String(chatId), text, parse_mode: 'HTML', disable_web_page_preview: true };
-
+    if (!chatId || !isConfigured()) return false;
     try {
-        const res = await Promise.race([
-            fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }),
-            new Promise((_, r) => setTimeout(() => r(new Error('timeout')), 9000)),
-        ]);
-        if (res.ok) { const d = await res.json(); return d?.result?.message_id || true; }
-    } catch { /* try XHR */ }
-
-    try {
-        return await new Promise((resolve, reject) => {
-            const xhr = new XMLHttpRequest();
-            xhr.open('POST', url, true);
-            xhr.setRequestHeader('Content-Type', 'application/json');
-            xhr.timeout  = 9000;
-            xhr.onload   = () => { try { resolve(JSON.parse(xhr.responseText)?.result?.message_id || true); } catch { resolve(true); } };
-            xhr.onerror  = () => reject(new Error('xhr'));
-            xhr.ontimeout= () => reject(new Error('xhr-timeout'));
-            xhr.send(JSON.stringify(payload));
+        const { data, error } = await supabase.functions.invoke('telegram-send', {
+            body: { action: 'send', chatId: String(chatId), text }
         });
-    } catch { return false; }
+        if (error) { console.warn('telegram-send invoke error:', error); return false; }
+        return data?.result?.message_id || true;
+    } catch (e) {
+        console.warn('telegram-send exception:', e);
+        return false;
+    }
 };
 
 const deleteMessage = async (chatId, msgId) => {
-    if (!msgId || !isConfigured()) return false;
+    if (!msgId || !chatId) return false;
     try {
-        const res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/deleteMessage`, {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ chat_id: String(chatId), message_id: msgId }),
+        const { data, error } = await supabase.functions.invoke('telegram-send', {
+            body: { action: 'delete', chatId: String(chatId), messageId: msgId }
         });
-        return (await res.json()).ok;
+        if (error) return false;
+        return data?.ok === true;
     } catch { return false; }
 };
 
 const editMessage = async (chatId, msgId, text) => {
-    if (!msgId || !isConfigured()) return false;
+    if (!msgId || !chatId) return false;
     try {
-        const res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/editMessageText`, {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ chat_id: String(chatId), message_id: msgId, text, parse_mode: 'HTML', disable_web_page_preview: true }),
+        const { data, error } = await supabase.functions.invoke('telegram-send', {
+            body: { action: 'edit', chatId: String(chatId), messageId: msgId, text }
         });
-        return (await res.json()).ok;
+        if (error) return false;
+        return data?.ok === true;
     } catch { return false; }
 };
 
@@ -241,11 +239,11 @@ const buildDailyReport = async (dateStr) => {
 
     const [{ data: sales }, { data: expenses }] = await Promise.all([
         supabase.from('sales').select('*').gte('date', dayStart).lte('date', dayEnd),
-        supabase.from('expenses').select('*').gte('date', day).lte('date', day + 'Z'),
+        supabase.from('expenses').select('*').gte('date', dayStart).lte('date', dayEnd),
     ]);
 
     const salesList  = sales    || [];
-    const expList    = expenses || [];
+    const expList    = (expenses || []).filter(e => e.approval_status === 'paid');
     const revenue    = salesList.reduce((s, x) => s + Number(x.final_price || 0), 0);
     const totalExp   = expList.reduce((s, x) => s + Number(x.amount || 0), 0);
     const netProfit  = revenue - totalExp;
@@ -287,7 +285,7 @@ const buildWeeklyReport = async () => {
     ]);
 
     const salesList = sales    || [];
-    const expList   = expenses || [];
+    const expList   = (expenses || []).filter(e => e.approval_status === 'paid');
     const revenue   = salesList.reduce((s, x) => s + Number(x.final_price || 0), 0);
     const totalExp  = expList.reduce((s, x) => s + Number(x.amount || 0), 0);
     const netProfit = revenue - totalExp;
@@ -327,7 +325,7 @@ const buildMonthlyReport = async () => {
     ]);
 
     const salesList = sales    || [];
-    const expList   = expenses || [];
+    const expList   = (expenses || []).filter(e => e.approval_status === 'paid');
     const revenue   = salesList.reduce((s, x) => s + Number(x.final_price || 0), 0);
     const totalExp  = expList.reduce((s, x) => s + Number(x.amount || 0), 0);
     const netProfit = revenue - totalExp;
@@ -567,7 +565,7 @@ const telegram = {
             footer();
 
         const prefs = getPrefs();
-        if (prefs.saleActivated === false) return;
+        if (prefs.saleDeactivated === false) return;
         const msgId = await sendToChat(CHAT_IDS.notice, text);
         if (saleKey && msgId && typeof msgId === 'number') saveMsgId(saleKey, msgId);
     },
@@ -689,13 +687,17 @@ const telegram = {
 
     // 🔴 New Problem
     newProblem: (problem, actionBy) => {
-        const by = actionBy || 'Admin';
+        const by   = actionBy || 'Admin';
+        const name = problem.customerName || problem.accountEmail || '-';
 
         const text =
             `${HDR.problem}\n` +
             `🚨  <b>مشكلة جديدة</b>  •  <code>NEW PROBLEM</code>\n` +
             `${SEP}\n\n` +
-            `   👤  العميل:  <b>${problem.accountEmail || '-'}</b>\n` +
+            `   👤  العميل:  <b>${name}</b>\n` +
+            (problem.accountEmail && problem.accountEmail !== name
+                ? `   📧  الحساب:  <code>${problem.accountEmail}</code>\n`
+                : '') +
             `   📝  الوصف:  ${problem.description || '-'}\n` +
             `\n${SEP}\n\n` +
             `   🔴  <b>الحالة:  ▸ قيد المعالجة ◂</b>\n` +
@@ -707,13 +709,17 @@ const telegram = {
 
     // 🟢 Problem Resolved
     problemResolved: (problem, actionBy) => {
-        const by = actionBy || 'Admin';
+        const by   = actionBy || 'Admin';
+        const name = problem.customerName || problem.accountEmail || '-';
 
         const text =
             `${HDR.resolved}\n` +
             `✅  <b>تم حل المشكلة</b>  •  <code>RESOLVED</code>\n` +
             `${SEP}\n\n` +
-            `   👤  العميل:  <b>${problem.accountEmail || '-'}</b>\n` +
+            `   👤  العميل:  <b>${name}</b>\n` +
+            (problem.accountEmail && problem.accountEmail !== name
+                ? `   📧  الحساب:  <code>${problem.accountEmail}</code>\n`
+                : '') +
             `   📝  الوصف:  ${problem.description || '-'}\n` +
             `\n${SEP}\n\n` +
             `   🟢  <b>الحالة:  ▸ تم الحل ✓ ◂</b>\n` +

@@ -204,35 +204,25 @@ export default function Expenses () {
 
             {/* ══ Pending Banner ══ */}
             {pendingExpenses.length > 0 && (
-                <div className="bg-gradient-to-r from-amber-500 to-orange-500 rounded-2xl p-4 md:p-5 shadow-lg text-white relative overflow-hidden">
-                    <div className="absolute -left-6 -bottom-6 text-[100px] opacity-10"><i className="fa-solid fa-hourglass-half"></i></div>
-                    <div className="relative z-10">
-                        <div className="flex items-center justify-between mb-3">
-                            <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 bg-white/15 rounded-xl flex items-center justify-center"><i className="fa-solid fa-hourglass-half text-lg"></i></div>
-                                <div>
-                                    <h3 className="font-extrabold text-sm">مصروفات معلقة — تحتاج تأكيد</h3>
-                                    <p className="text-amber-100 text-[10px] font-medium">{pendingExpenses.length} مصروف بإجمالي {pendingTotal.toLocaleString()} ج.م</p>
-                                </div>
-                            </div>
-                            <button onClick={() => setStatusFilter(statusFilter === 'pending' ? 'all' : 'pending')}
-                                className="bg-white/15 hover:bg-white/25 px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5">
-                                <i className="fa-solid fa-filter"></i> {statusFilter === 'pending' ? 'عرض الكل' : 'عرض المعلقات'}
-                            </button>
-                        </div>
-
-                        {/* Pending by employee */}
-                        {pendingByEmployee.length > 0 && (
-                            <div className="flex flex-wrap gap-2 mt-2">
-                                {pendingByEmployee.map(([name, info]) => (
-                                    <div key={name} className="bg-white/10 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2">
-                                        <i className="fa-solid fa-user text-[10px]"></i>
-                                        <span>{name}</span>
-                                        <span className="bg-white/20 px-2 py-0.5 rounded-full font-black">{info.amount.toLocaleString()} ج.م</span>
+                <div className="sect-card border-r-4 border-amber-400">
+                    <div className="flex items-center justify-between p-4">
+                        <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-lg bg-amber-50 flex items-center justify-center flex-shrink-0"><i className="fa-solid fa-hourglass-half text-amber-500"></i></div>
+                            <div>
+                                <p className="font-semibold text-sm text-slate-700">مصروفات معلقة — تحتاج تأكيد</p>
+                                <p className="text-xs text-slate-400 mt-0.5">{pendingExpenses.length} مصروف · إجمالي {pendingTotal.toLocaleString()} ج.م</p>
+                                {pendingByEmployee.length > 0 && (
+                                    <div className="flex flex-wrap gap-1.5 mt-1.5">
+                                        {pendingByEmployee.map(([name, info]) => (
+                                            <span key={name} className="ds-badge ds-warn">{name} · {info.amount.toLocaleString()}</span>
+                                        ))}
                                     </div>
-                                ))}
+                                )}
                             </div>
-                        )}
+                        </div>
+                        <button onClick={() => setStatusFilter(statusFilter === 'pending' ? 'all' : 'pending')} className="btn-s text-xs">
+                            <i className="fa-solid fa-filter"></i> {statusFilter === 'pending' ? 'عرض الكل' : 'المعلقات'}
+                        </button>
                     </div>
                 </div>
             )}
@@ -254,162 +244,123 @@ export default function Expenses () {
             )}
 
             {/* Stats Cards */}
-            <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-                {/* إجمالي المدفوع */}
-                <div className="bg-gradient-to-br from-rose-600 to-pink-700 rounded-2xl p-5 text-white shadow-lg relative overflow-hidden">
-                    <div className="absolute -left-4 -bottom-4 text-7xl opacity-10"><i className="fa-solid fa-money-bill-transfer"></i></div>
-                    <p className="text-rose-200 text-xs font-bold mb-1">مدفوع (مؤكد)</p>
-                    <h3 className="text-2xl font-extrabold dir-ltr">{stats.totalPaid.toLocaleString()} <span className="text-sm opacity-70">ج.م</span></h3>
-                    {stats.totalSalary > 0 && <p className="text-[10px] text-rose-200 mt-1">منها رواتب: {stats.totalSalary.toLocaleString()} ج.م</p>}
+            <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+                <div className="stat-card stat-red">
+                    <span className="stat-card-lbl">مدفوع (مؤكد)</span>
+                    <span className="stat-card-val dir-ltr">{stats.totalPaid.toLocaleString()}</span>
+                    <span className="stat-card-sub">ج.م{stats.totalSalary > 0 ? ` · رواتب ${stats.totalSalary.toLocaleString()}` : ''}</span>
                 </div>
-
-                {/* معلق */}
-                <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm relative overflow-hidden">
-                    <div className="absolute top-0 left-0 w-1.5 h-full bg-amber-500"></div>
-                    <p className="text-slate-500 text-xs font-bold mb-1 flex items-center gap-1"><i className="fa-solid fa-hourglass-half text-amber-500"></i> معلق</p>
-                    <h3 className="text-2xl font-extrabold text-amber-600 dir-ltr">{stats.totalPending.toLocaleString()} <span className="text-sm text-amber-400">ج.م</span></h3>
+                <div className="stat-card stat-amber">
+                    <span className="stat-card-lbl">معلق</span>
+                    <span className="stat-card-val dir-ltr">{stats.totalPending.toLocaleString()}</span>
+                    <span className="stat-card-sub">ج.م · لم يتم تأكيده</span>
                 </div>
-
-                {/* مصروفات يومية */}
-                <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm relative overflow-hidden">
-                    <div className="absolute top-0 left-0 w-1.5 h-full bg-sky-500"></div>
-                    <p className="text-slate-500 text-xs font-bold mb-1 flex items-center gap-1"><i className="fa-solid fa-clock text-sky-500"></i> يومي (مؤكد)</p>
-                    <h3 className="text-2xl font-extrabold text-sky-600 dir-ltr">{stats.totalDaily.toLocaleString()} <span className="text-sm text-sky-400">ج.م</span></h3>
+                <div className="stat-card stat-blue">
+                    <span className="stat-card-lbl">يومي (مؤكد)</span>
+                    <span className="stat-card-val dir-ltr">{stats.totalDaily.toLocaleString()}</span>
+                    <span className="stat-card-sub">ج.م</span>
                 </div>
-
-                {/* مخزون + رواتب */}
-                <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm relative overflow-hidden">
-                    <div className="absolute top-0 left-0 w-1.5 h-full bg-purple-500"></div>
-                    <p className="text-slate-500 text-xs font-bold mb-1 flex items-center gap-1"><i className="fa-solid fa-boxes-stacked text-purple-500"></i> مخزون+رواتب</p>
-                    <h3 className="text-2xl font-extrabold text-purple-600 dir-ltr">{(stats.totalStock + stats.totalSalary).toLocaleString()} <span className="text-sm text-purple-400">ج.م</span></h3>
+                <div className="stat-card stat-violet">
+                    <span className="stat-card-lbl">مخزون + رواتب</span>
+                    <span className="stat-card-val dir-ltr">{(stats.totalStock + stats.totalSalary).toLocaleString()}</span>
+                    <span className="stat-card-sub">ج.م</span>
                 </div>
-
-                {/* صافي الربح */}
-                <div className={`rounded-2xl p-5 shadow-lg relative overflow-hidden col-span-2 lg:col-span-1 ${stats.todayProfit >= 0 ? 'bg-gradient-to-br from-emerald-600 to-green-700 text-white' : 'bg-gradient-to-br from-red-600 to-red-800 text-white'}`}>
-                    <div className="absolute -left-4 -bottom-4 text-7xl opacity-10"><i className="fa-solid fa-chart-line"></i></div>
-                    <p className={`text-xs font-bold mb-1 ${stats.todayProfit >= 0 ? 'text-emerald-200' : 'text-red-200'}`}>{dateFilter ? 'صافي ربح اليوم' : 'صافي ربح اليوم'}</p>
-                    <h3 className="text-2xl font-extrabold dir-ltr">{stats.todayProfit.toLocaleString()} <span className="text-sm opacity-70">ج.م</span></h3>
-                    <p className="text-[10px] opacity-80 font-bold mt-1">إيرادات ({stats.todayRevenue.toLocaleString()}) — مدفوع ({stats.todayDailyTotal.toLocaleString()})</p>
+                <div className={`stat-card col-span-2 lg:col-span-1 ${stats.todayProfit >= 0 ? 'stat-emerald' : 'stat-red'}`}>
+                    <span className="stat-card-lbl">ربح اليوم</span>
+                    <span className={`stat-card-val dir-ltr ${stats.todayProfit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>{stats.todayProfit.toLocaleString()}</span>
+                    <span className="stat-card-sub dir-ltr">{stats.todayRevenue.toLocaleString()} - {stats.todayDailyTotal.toLocaleString()}</span>
                 </div>
             </div>
 
-            {/* Header + Filters */}
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-                <div>
-                    <h2 className="text-xl font-extrabold text-slate-800">سجل المصروفات</h2>
-                    <p className="text-slate-500 text-xs font-medium mt-0.5">المصروفات المعلقة لا تُحسب في صافي الربح حتى يتم تأكيد دفعها</p>
+            {/* Header + Filters Toolbar */}
+            <div className="ph-bar">
+                <div className="flex items-center gap-3">
+                    <div className="ph-icon" style={{backgroundColor:'#dc2626'}}><i className="fa-solid fa-money-bill-wave text-sm"></i></div>
+                    <div>
+                        <h1 className="ph-title">سجل المصروفات</h1>
+                        <p className="ph-sub">المعلق لا يُحسب في الربح حتى تأكيد الدفع</p>
+                    </div>
                 </div>
-                <div className="flex items-center gap-2 flex-wrap w-full md:w-auto">
-                    {/* Date picker */}
-                    <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl p-1.5">
-                        <i className="fa-solid fa-calendar text-slate-400 text-xs px-1"></i>
-                        <input
-                            type="date"
-                            value={dateFilter}
-                            onChange={e => setDateFilter(e.target.value)}
-                            className="bg-transparent text-sm font-bold text-slate-700 outline-none"
-                        />
-                        {dateFilter && (
-                            <button onClick={() => setDateFilter('')} className="text-slate-400 hover:text-rose-500 transition px-1">
-                                <i className="fa-solid fa-xmark text-xs"></i>
-                            </button>
-                        )}
-                    </div>
-                    {/* Category Filter */}
-                    <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200">
-                        {[
-                            { id: 'all', label: 'الكل', icon: 'fa-layer-group' },
-                            { id: 'daily', label: 'يومي', icon: 'fa-clock' },
-                            { id: 'stock', label: 'مخزون', icon: 'fa-boxes-stacked' },
-                            { id: 'salary', label: 'رواتب', icon: 'fa-users' },
-                        ].map(f => (
-                            <button key={f.id} onClick={() => setCategoryFilter(f.id)}
-                                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1 ${categoryFilter === f.id ? 'bg-white text-indigo-700 shadow-md' : 'text-slate-500 hover:bg-white/50'}`}>
-                                <i className={`fa-solid ${f.icon} text-[10px]`}></i>{f.label}
-                            </button>
-                        ))}
-                    </div>
-                    {/* Status Filter */}
-                    <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200">
-                        {[
-                            { id: 'all', label: 'الكل' },
-                            { id: 'pending', label: '🟡 معلق' },
-                            { id: 'paid', label: '✅ مدفوع' },
-                        ].map(f => (
-                            <button key={f.id} onClick={() => setStatusFilter(f.id)}
-                                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${statusFilter === f.id ? 'bg-white text-indigo-700 shadow-md' : 'text-slate-500 hover:bg-white/50'}`}>
-                                {f.label}
-                            </button>
-                        ))}
-                    </div>
-                    <button onClick={() => setShowAddModal(true)} className="bg-rose-600 text-white px-5 py-2.5 rounded-xl font-bold shadow-lg shadow-rose-200 hover:bg-rose-700 transition-all flex items-center gap-2 text-sm">
-                        <i className="fa-solid fa-plus"></i> إضافة مصروف
-                    </button>
+                <button onClick={() => setShowAddModal(true)} className="btn-d">
+                    <i className="fa-solid fa-plus"></i> إضافة مصروف
+                </button>
+            </div>
+            <div className="ds-toolbar flex-wrap">
+                <div className="flex items-center gap-1.5 border border-slate-200 rounded-lg px-2 py-1.5 bg-white">
+                    <i className="fa-solid fa-calendar text-slate-400 text-xs"></i>
+                    <input type="date" value={dateFilter} onChange={e => setDateFilter(e.target.value)} className="text-sm font-medium outline-none bg-transparent" />
+                    {dateFilter && <button onClick={() => setDateFilter('')} className="text-slate-400 hover:text-rose-500 transition"><i className="fa-solid fa-xmark text-xs"></i></button>}
+                </div>
+                <div className="flex gap-1 bg-slate-100 p-1 rounded-lg">
+                    {[{id:'all',label:'الكل'},{id:'daily',label:'يومي'},{id:'stock',label:'مخزون'},{id:'salary',label:'رواتب'}].map(f => (
+                        <button key={f.id} onClick={() => setCategoryFilter(f.id)}
+                            className={`px-3 py-1 rounded-md text-xs font-semibold transition ${categoryFilter === f.id ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>{f.label}</button>
+                    ))}
+                </div>
+                <div className="flex gap-1 bg-slate-100 p-1 rounded-lg">
+                    {[{id:'all',label:'الكل'},{id:'pending',label:'معلق'},{id:'paid',label:'مدفوع'}].map(f => (
+                        <button key={f.id} onClick={() => setStatusFilter(f.id)}
+                            className={`px-3 py-1 rounded-md text-xs font-semibold transition ${statusFilter === f.id ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>{f.label}</button>
+                    ))}
                 </div>
             </div>
 
             {/* Table */}
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+            <div className="sect-card">
                 <div className="overflow-x-auto custom-scrollbar">
-                    <table className="w-full text-sm text-right whitespace-nowrap">
-                        <thead className="bg-slate-50 text-slate-700 font-bold border-b border-slate-200 uppercase text-xs tracking-wider">
+                    <table className="ds-table whitespace-nowrap">
+                        <thead className="ds-thead">
                             <tr>
-                                <th className="p-5">الحالة</th>
-                                <th className="p-5">التاريخ</th>
-                                <th className="p-5">التصنيف</th>
-                                <th className="p-5">النوع</th>
-                                <th className="p-5">المحفظة</th>
-                                <th className="p-5">الوصف</th>
-                                <th className="p-5 text-left pl-8">المبلغ</th>
-                                <th className="p-5 text-center">إجراءات</th>
+                                <th className="ds-th">الحالة</th>
+                                <th className="ds-th">التاريخ</th>
+                                <th className="ds-th">التصنيف</th>
+                                <th className="ds-th">النوع</th>
+                                <th className="ds-th">المحفظة</th>
+                                <th className="ds-th">الوصف</th>
+                                <th className="ds-th">المبلغ</th>
+                                <th className="ds-th tc">إجراءات</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-100">
+                        <tbody>
                             {filteredExpenses.length === 0 ? (
-                                <tr><td colSpan="8" className="p-12 text-center text-slate-400 font-bold border-2 border-dashed border-slate-100 rounded-xl m-4 block">لا توجد مصروفات مسجلة</td></tr>
+                                <tr><td colSpan="8"><div className="empty-state"><div className="empty-icon"><i className="fa-solid fa-money-bill"></i></div><p className="empty-title">لا توجد مصروفات مسجلة</p></div></td></tr>
                             ) : (
                                 filteredExpenses.map(exp => {
                                     const catBadge = getCategoryBadge(exp.expenseCategory);
-                                    const statusBadge = getStatusBadge(exp.approvalStatus);
                                     const isPending = (exp.approvalStatus || 'pending') === 'pending';
                                     return (
-                                        <tr key={exp.id} className={`hover:bg-slate-50/80 transition duration-150 group ${isPending ? 'bg-amber-50/30' : ''}`}>
-                                            <td className="p-5">
-                                                <span className={`px-2.5 py-1 rounded-lg text-xs font-bold border flex items-center gap-1 w-fit ${statusBadge.color}`}>
-                                                    <i className={`fa-solid ${statusBadge.icon} text-[10px]`}></i>{statusBadge.label}
+                                        <tr key={exp.id} className={`ds-tr group ${isPending ? 'bg-amber-50/20' : ''}`}>
+                                            <td className="ds-td">
+                                                <span className={`ds-badge ${isPending ? 'ds-warn' : 'ds-ok'}`}>
+                                                    <i className={`fa-solid ${isPending ? 'fa-clock' : 'fa-check-circle'}`}></i>
+                                                    {isPending ? 'معلق' : 'مدفوع'}
                                                 </span>
                                             </td>
-                                            <td className="p-5 font-mono text-slate-500 font-bold text-xs">{new Date(exp.date).toLocaleDateString('en-GB')}</td>
-                                            <td className="p-5">
-                                                <span className={`px-3 py-1 rounded-lg text-xs font-bold border flex items-center gap-1.5 w-fit ${catBadge.color}`}>
-                                                    <i className={`fa-solid ${catBadge.icon} text-[10px]`}></i>{catBadge.label}
+                                            <td className="ds-td font-mono text-slate-500 text-xs">{new Date(exp.date).toLocaleDateString('en-GB')}</td>
+                                            <td className="ds-td">
+                                                <span className={`ds-badge ${exp.expenseCategory === 'stock' ? 'ds-purple' : exp.expenseCategory === 'salary' ? 'ds-info' : 'ds-warn'}`}>
+                                                    <i className={`fa-solid ${catBadge.icon}`}></i>{catBadge.label}
                                                 </span>
                                             </td>
-                                            <td className="p-5">
-                                                <span className="bg-slate-100 text-slate-700 px-3 py-1 rounded-lg text-xs font-bold border border-slate-200">{exp.type}</span>
+                                            <td className="ds-td">
+                                                <span className="ds-badge ds-mute">{exp.type}</span>
                                             </td>
-                                            <td className="p-5">
+                                            <td className="ds-td">
                                                 {(exp.walletId || exp.wallet_id) ? (
-                                                    <span className="bg-emerald-50 text-emerald-700 px-3 py-1 rounded-lg text-xs font-bold border border-emerald-200">
-                                                        <i className="fa-solid fa-wallet ml-1 text-[10px]"></i>{exp.walletName || exp.wallet_name || getWalletName(exp.walletId || exp.wallet_id)}
-                                                    </span>
-                                                ) : (
-                                                    <span className="text-slate-300 text-xs">-</span>
-                                                )}
+                                                    <span className="ds-badge ds-ok"><i className="fa-solid fa-wallet"></i>{exp.walletName || exp.wallet_name || getWalletName(exp.walletId || exp.wallet_id)}</span>
+                                                ) : <span className="text-slate-300 text-xs">-</span>}
                                             </td>
-                                            <td className="p-5 text-slate-600 font-medium max-w-xs truncate">{exp.description || '-'}</td>
-                                            <td className="p-5 text-left pl-8 font-black text-rose-600 dir-ltr text-base">-{Number(exp.amount).toLocaleString()} <span className="text-xs text-rose-400 font-bold">EGP</span></td>
-                                            <td className="p-5 text-center">
-                                                <div className="flex justify-center gap-2">
+                                            <td className="ds-td text-slate-500 max-w-xs truncate text-xs">{exp.description || '-'}</td>
+                                            <td className="ds-td font-semibold text-red-600 dir-ltr">-{Number(exp.amount).toLocaleString()} <span className="text-xs text-red-300">ج.م</span></td>
+                                            <td className="ds-td tc">
+                                                <div className="flex justify-center gap-1">
                                                     {isPending && (
-                                                        <button onClick={() => { setPayModal(exp); setPayWalletId(''); }}
-                                                            className="text-emerald-600 bg-emerald-50 hover:bg-emerald-100 p-2.5 rounded-xl transition border border-emerald-100 shadow-sm font-bold text-xs flex items-center gap-1"
-                                                            title="تأكيد الدفع">
-                                                            <i className="fa-solid fa-check-circle"></i> تأكيد
+                                                        <button onClick={() => { setPayModal(exp); setPayWalletId(''); }} className="btn-ic text-emerald-600 hover:bg-emerald-50" title="تأكيد الدفع">
+                                                            <i className="fa-solid fa-check-circle"></i>
                                                         </button>
                                                     )}
-                                                    <button onClick={() => setEditingExpense(exp)} className="text-blue-600 bg-blue-50 hover:bg-blue-100 p-2.5 rounded-xl transition border border-blue-100 shadow-sm opacity-0 group-hover:opacity-100" title="تعديل"><i className="fa-solid fa-pen"></i></button>
-                                                    <button onClick={() => handleDelete(exp.id)} className="text-rose-600 bg-rose-50 hover:bg-rose-100 p-2.5 rounded-xl transition border border-rose-100 shadow-sm opacity-0 group-hover:opacity-100" title="حذف"><i className="fa-solid fa-trash"></i></button>
+                                                    <button onClick={() => setEditingExpense(exp)} className="btn-ic opacity-0 group-hover:opacity-100" title="تعديل"><i className="fa-solid fa-pen"></i></button>
+                                                    <button onClick={() => handleDelete(exp.id)} className="btn-ic hover:text-red-600 hover:bg-red-50 opacity-0 group-hover:opacity-100" title="حذف"><i className="fa-solid fa-trash"></i></button>
                                                 </div>
                                             </td>
                                         </tr>

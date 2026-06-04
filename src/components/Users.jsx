@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+﻿import { useState, useEffect, useMemo } from 'react';
 import { usersAPI, salesAPI, accountsAPI } from '../services/api';
 import { useData } from '../context/DataContext';
 import { useConfirm } from './ConfirmDialog';
@@ -160,40 +160,22 @@ export default function Users () {
         <div className="space-y-8 animate-fade-in pb-20 font-sans text-slate-800">
 
             {/* Header */}
-            <div className="flex justify-between items-center bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-                <div>
-                    <h2 className="text-2xl font-extrabold text-slate-800">المستخدمين والصلاحيات</h2>
-                    <p className="text-slate-500 text-sm font-medium mt-1">إدارة فريق العمل وتحديد أدوارهم وصلاحياتهم</p>
+            <div className="ph-bar">
+                <div className="flex items-center gap-3">
+                    <div className="ph-icon"><i className="fa-solid fa-user-shield text-sm"></i></div>
+                    <div>
+                        <h1 className="ph-title">المستخدمين والصلاحيات</h1>
+                        <p className="ph-sub">إدارة فريق العمل وتحديد أدوارهم وصلاحياتهم</p>
+                    </div>
                 </div>
-                <button
-                    onClick={() => { setCurrentUser(null); setShowModal(true); }}
-                    className="bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold shadow-lg shadow-indigo-200 hover:bg-indigo-700 hover:-translate-y-0.5 transition-all flex items-center gap-2"
-                >
-                    <i className="fa-solid fa-user-plus text-lg"></i> إضافة مستخدم
-                </button>
-            </div>
-
-            {/* Quick Stats */}
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm text-center">
-                    <p className="text-3xl font-black text-indigo-600">{users.length}</p>
-                    <p className="text-xs font-bold text-slate-400 mt-1">إجمالي المستخدمين</p>
-                </div>
-                <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm text-center">
-                    <p className="text-3xl font-black text-purple-600">{users.filter(u => u.role === 'admin').length}</p>
-                    <p className="text-xs font-bold text-slate-400 mt-1">أدمن</p>
-                </div>
-                <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm text-center">
-                    <p className="text-3xl font-black text-amber-600">{users.filter(u => u.role === 'director').length}</p>
-                    <p className="text-xs font-bold text-slate-400 mt-1">دايركتور</p>
-                </div>
-                <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm text-center">
-                    <p className="text-3xl font-black text-blue-600">{users.filter(u => u.role === 'moderator').length}</p>
-                    <p className="text-xs font-bold text-slate-400 mt-1">مودريتور</p>
-                </div>
-                <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm text-center">
-                    <p className="text-3xl font-black text-emerald-600">{sales.length}</p>
-                    <p className="text-xs font-bold text-slate-400 mt-1">إجمالي الأوردرات</p>
+                <div className="flex items-center gap-2 flex-wrap">
+                    <span className="ds-badge ds-info">{users.length} مستخدم</span>
+                    <span className="ds-badge ds-purple">{users.filter(u => u.role === 'admin').length} أدمن</span>
+                    <span className="ds-badge ds-warn">{users.filter(u => u.role === 'director').length} دايركتور</span>
+                    <span className="ds-badge ds-mute">{users.filter(u => u.role === 'moderator').length} مودريتور</span>
+                    <button onClick={() => { setCurrentUser(null); setShowModal(true); }} className="btn-p text-xs">
+                        <i className="fa-solid fa-user-plus"></i> إضافة مستخدم
+                    </button>
                 </div>
             </div>
 

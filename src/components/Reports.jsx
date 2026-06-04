@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+﻿import { useState, useMemo, useEffect } from 'react';
 import { useData } from '../context/DataContext';
 import {
     Chart as ChartJS,
@@ -44,7 +44,9 @@ export default function Reports () {
             if (!dataMap[key]) dataMap[key] = { revenue: 0, expense: 0 };
             dataMap[key].revenue += Number(sale.finalPrice || sale.sellingPrice || 0);
         });
-        expenses.forEach(exp => {
+        // Only count confirmed (paid) expenses to match profit calculation logic
+        const paidExpenses = expenses.filter(e => (e.approvalStatus || e.approval_status || 'pending') === 'paid');
+        paidExpenses.forEach(exp => {
             const date = new Date(exp.date);
             const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
             if (!dataMap[key]) dataMap[key] = { revenue: 0, expense: 0 };
@@ -55,7 +57,7 @@ export default function Reports () {
             labels: sortedKeys,
             datasets: [
                 { label: 'الدخل', data: sortedKeys.map(k => dataMap[k].revenue), borderColor: '#4f46e5', backgroundColor: 'rgba(79, 70, 229, 0.5)', tension: 0.3 },
-                { label: 'المصروفات', data: sortedKeys.map(k => dataMap[k].expense), borderColor: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.5)', tension: 0.3 },
+                { label: 'المصروفات (مؤكدة)', data: sortedKeys.map(k => dataMap[k].expense), borderColor: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.5)', tension: 0.3 },
                 { label: 'صافي الربح', data: sortedKeys.map(k => dataMap[k].revenue - dataMap[k].expense), borderColor: '#10b981', backgroundColor: 'rgba(16, 185, 129, 0.5)', tension: 0.3 }
             ]
         };
@@ -78,7 +80,9 @@ export default function Reports () {
     // Doughnut Chart Data
     const expensesTypeData = useMemo(() => {
         const typeMap = {};
-        expenses.forEach(exp => {
+        // Only show paid expenses in the doughnut chart to match profit figures
+        const paidExpenses = expenses.filter(e => (e.approvalStatus || e.approval_status || 'pending') === 'paid');
+        paidExpenses.forEach(exp => {
             const type = exp.type || 'أخرى';
             typeMap[type] = (typeMap[type] || 0) + Number(exp.amount);
         });
@@ -114,13 +118,17 @@ export default function Reports () {
         <div className="space-y-8 animate-fade-in pb-20 font-sans">
 
             {/* --- Header --- */}
-            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+            <div className="ph-bar">
                 <div className="flex items-center gap-3">
-                    <div className="bg-indigo-50 p-3 rounded-xl text-indigo-600 border border-indigo-100"><i className="fa-solid fa-chart-line text-xl"></i></div>
+                    <div className="ph-icon"><i className="fa-solid fa-chart-line text-sm"></i></div>
                     <div>
-                        <h2 className="text-2xl font-extrabold text-slate-800">التقارير</h2>
-                        <p className="text-slate-500 text-sm font-medium mt-0.5">تحليل شامل للأداء والمبيعات</p>
+                        <h1 className="ph-title">التقارير</h1>
+                        <p className="ph-sub">تحليل شامل للأداء والمبيعات</p>
                     </div>
+                </div>
+                <div className="flex items-center gap-2">
+                    <span className="ds-badge ds-info">{products.length} منتج</span>
+                    <span className="ds-badge ds-ok">{sales.length} أوردر</span>
                 </div>
             </div>
 

@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from 'react';
+﻿import { useState, useMemo, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
@@ -606,46 +606,35 @@ export default function Sales() {
     return (
         <div className="space-y-5 animate-fade-in pb-24 font-sans text-slate-800">
 
-            {/* Stats Cards */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                <div className="bg-gradient-to-br from-indigo-600 to-blue-700 rounded-2xl p-4 text-white shadow-lg shadow-indigo-200/50">
-                    <div className="flex items-center gap-2 mb-2"><div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center"><i className="fa-solid fa-receipt text-sm"></i></div></div>
-                    <h3 className="text-2xl font-black">{stats.count}</h3>
-                    <p className="text-indigo-200 text-[11px] font-bold mt-0.5">إجمالي الأوردرات</p>
+            {/* Stats Header */}
+            <div className="ph-bar">
+                <div className="flex items-center gap-3">
+                    <div className="ph-icon"><i className="fa-solid fa-receipt text-sm"></i></div>
+                    <div>
+                        <h1 className="ph-title">المبيعات والأوردرات</h1>
+                        <p className="ph-sub">إدارة جميع المبيعات والأوردرات</p>
+                    </div>
                 </div>
-                <div className="bg-gradient-to-br from-emerald-600 to-teal-700 rounded-2xl p-4 text-white shadow-lg shadow-emerald-200/50">
-                    <div className="flex items-center gap-2 mb-2"><div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center"><i className="fa-solid fa-coins text-sm"></i></div></div>
-                    <h3 className="text-2xl font-black dir-ltr">{stats.dailyRevenue.toLocaleString()}<span className="text-emerald-200 text-xs"> ج.م</span></h3>
-                    <p className="text-emerald-200 text-[11px] font-bold mt-0.5">إيراد اليوم ({stats.dailyCount})</p>
-                </div>
-                <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm relative overflow-hidden">
-                    <div className="absolute top-0 left-0 w-1 h-full bg-orange-500"></div>
-                    <div className="flex items-center gap-2 mb-2"><div className="w-8 h-8 bg-orange-50 rounded-lg flex items-center justify-center"><i className="fa-solid fa-bell text-orange-500 text-sm"></i></div></div>
-                    <h3 className="text-2xl font-black text-orange-600">{stats.renewalAlerts}</h3>
-                    <p className="text-slate-400 text-[11px] font-bold mt-0.5">تنبيهات التجديد</p>
-                </div>
-                <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm relative overflow-hidden">
-                    <div className="absolute top-0 left-0 w-1 h-full bg-red-500"></div>
-                    <div className="flex items-center gap-2 mb-2"><div className="w-8 h-8 bg-red-50 rounded-lg flex items-center justify-center"><i className="fa-solid fa-hand-holding-dollar text-red-500 text-sm"></i></div></div>
-                    <h3 className="text-xl font-black text-red-600 dir-ltr">{stats.totalRemaining.toLocaleString()}<span className="text-red-300 text-xs"> ج.م</span></h3>
-                    <p className="text-slate-400 text-[11px] font-bold mt-0.5">مديونيات ({stats.totalDebtCount})</p>
+                <div className="flex items-center gap-2 flex-wrap">
+                    <span className="ds-badge ds-info">{stats.count} أوردر</span>
+                    <span className="ds-badge ds-ok dir-ltr">{stats.dailyRevenue.toLocaleString()} ج.م اليوم ({stats.dailyCount})</span>
+                    {stats.renewalAlerts > 0 && <span className="ds-badge ds-warn">{stats.renewalAlerts} تجديد</span>}
+                    {stats.totalDebtCount > 0 && <span className="ds-badge ds-err dir-ltr">{stats.totalRemaining.toLocaleString()} ج.م مديونية</span>}
                 </div>
             </div>
 
             {/* ============ SALES LIST ============ */}
                 <div className="space-y-5">
                     {/* Toolbar */}
-                    <div className="bg-white/95 backdrop-blur-xl p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col md:flex-row gap-3 items-center justify-between sticky top-2 z-30">
-                        <div className="relative w-full md:w-80">
-                            <i className="fa-solid fa-search absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
-                            <input type="text" className="w-full border-2 border-slate-200 text-slate-900 text-sm font-semibold rounded-xl pr-10 p-3 focus:ring-4 focus:ring-indigo-100 focus:border-indigo-600 outline-none transition-all placeholder-slate-400" placeholder="بحث بالاسم أو الرقم أو الإيميل أو المنتج..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+                    <div className="ds-toolbar flex-wrap">
+                        <div className="relative flex-1 min-w-[200px]">
+                            <i className="fa-solid fa-search absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                            <input type="text" className="ds-inp pr-8" placeholder="بحث بالاسم أو الرقم أو الإيميل أو المنتج..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
                         </div>
-                        <div className="flex gap-3 w-full md:w-auto">
-                            <button onClick={exportExcel} className="bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 font-bold rounded-xl text-sm px-4 py-3 transition-all" title="تصدير Excel"><i className="fa-solid fa-file-excel"></i></button>
-                            <button onClick={openAddSale} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-sm px-8 py-3 shadow-lg shadow-indigo-200 transition-all flex items-center gap-2">
-                                <i className="fa-solid fa-plus"></i> بيع جديد
-                            </button>
-                        </div>
+                        <button onClick={exportExcel} className="btn-s" title="تصدير Excel"><i className="fa-solid fa-file-excel text-emerald-600"></i></button>
+                        <button onClick={openAddSale} className="btn-p">
+                            <i className="fa-solid fa-plus"></i> بيع جديد
+                        </button>
                     </div>
 
                     {/* Filters */}

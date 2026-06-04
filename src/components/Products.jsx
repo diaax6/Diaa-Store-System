@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { productsAPI, accountsAPI } from '../services/api';
@@ -124,56 +124,36 @@ export default function Products() {
         <div className="space-y-6 animate-fade-in pb-24 font-sans text-slate-800">
 
             {/* Header */}
-            <div className="bg-gradient-to-r from-violet-700 to-purple-600 rounded-2xl p-8 text-white relative overflow-hidden shadow-xl">
-                <div className="absolute -left-10 -bottom-10 text-[150px] opacity-10"><i className="fa-solid fa-boxes-stacked"></i></div>
-                <div className="relative z-10">
-                    <div className="flex items-center gap-3 mb-4">
-                        <div className="bg-white/20 p-3 rounded-xl backdrop-blur-sm"><i className="fa-solid fa-boxes-stacked text-2xl"></i></div>
-                        <div>
-                            <h2 className="text-2xl font-extrabold">إدارة المنتجات</h2>
-                            <p className="text-purple-100 text-sm font-medium">إضافة وتعديل وإدارة جميع المنتجات المتاحة</p>
-                        </div>
+            <div className="ph-bar">
+                <div className="flex items-center gap-3">
+                    <div className="ph-icon" style={{backgroundColor:'#7c3aed'}}><i className="fa-solid fa-boxes-stacked text-sm"></i></div>
+                    <div>
+                        <h1 className="ph-title">إدارة المنتجات</h1>
+                        <p className="ph-sub">إضافة وتعديل وإدارة جميع المنتجات المتاحة</p>
                     </div>
-                    <div className="flex flex-wrap gap-4 mt-6">
-                        <div className="bg-white/15 backdrop-blur-sm rounded-2xl px-6 py-3 border border-white/20">
-                            <p className="text-purple-100 text-xs font-bold mb-1">إجمالي المنتجات</p>
-                            <p className="text-2xl font-black">{stats.total}</p>
-                        </div>
-                        <div className="bg-white/15 backdrop-blur-sm rounded-2xl px-6 py-3 border border-white/20">
-                            <p className="text-purple-100 text-xs font-bold mb-1">مربوط بالمخزون</p>
-                            <p className="text-2xl font-black">{stats.linked}</p>
-                        </div>
-                        <div className="bg-white/15 backdrop-blur-sm rounded-2xl px-6 py-3 border border-white/20">
-                            <p className="text-purple-100 text-xs font-bold mb-1">التصنيفات</p>
-                            <p className="text-2xl font-black">{stats.categories}</p>
-                        </div>
-                        <div className="bg-white/15 backdrop-blur-sm rounded-2xl px-6 py-3 border border-white/20">
-                            <p className="text-purple-100 text-xs font-bold mb-1">متوسط السعر</p>
-                            <p className="text-2xl font-black dir-ltr">{stats.avgPrice.toLocaleString()} <span className="text-sm opacity-80">ج.م</span></p>
-                        </div>
-                    </div>
+                </div>
+                <div className="flex items-center gap-2">
+                    <span className="ds-badge ds-purple">{stats.total} منتج</span>
+                    <span className="ds-badge ds-mute">{stats.categories} تصنيف</span>
+                    <span className="ds-badge ds-info dir-ltr">متوسط {stats.avgPrice.toLocaleString()} ج.م</span>
                 </div>
             </div>
-
-            {/* Toolbar */}
-            <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col md:flex-row gap-4 items-center justify-between sticky top-2 z-30 bg-white/95 backdrop-blur-md">
-                <div className="relative w-full md:w-80">
-                    <i className="fa-solid fa-search absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
-                    <input type="text" className="w-full bg-white border-2 border-slate-200 text-slate-900 text-sm font-semibold rounded-xl pr-10 p-3 focus:ring-4 focus:ring-purple-100 focus:border-purple-600 outline-none transition-all placeholder-slate-400" placeholder="بحث بالاسم أو الوصف..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+            <div className="ds-toolbar">
+                <div className="relative flex-1 min-w-[200px]">
+                    <i className="fa-solid fa-search absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                    <input type="text" className="ds-inp pr-8" placeholder="بحث بالاسم أو الوصف..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
                 </div>
-                <div className="flex gap-3 w-full md:w-auto">
-                    {categories.length > 0 && (
-                        <select value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)} className="bg-white border-2 border-slate-200 text-slate-700 text-sm font-bold rounded-xl p-3 focus:ring-4 focus:ring-purple-100 focus:border-purple-600 outline-none transition-all">
-                            <option value="all">كل التصنيفات</option>
-                            {categories.map(c => <option key={c} value={c}>{c}</option>)}
-                        </select>
-                    )}
-                    {(isAdmin || isAddOnly) && (
-                        <button onClick={openAddProduct} className="bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl text-sm px-6 py-3 shadow-lg shadow-purple-200 transition-all flex items-center gap-2 whitespace-nowrap">
-                            <i className="fa-solid fa-plus"></i> إضافة منتج
-                        </button>
-                    )}
-                </div>
+                {categories.length > 0 && (
+                    <select value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)} className="ds-inp" style={{width:'auto'}}>
+                        <option value="all">كل التصنيفات</option>
+                        {categories.map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                )}
+                {(isAdmin || isAddOnly) && (
+                    <button onClick={openAddProduct} className="btn-p">
+                        <i className="fa-solid fa-plus"></i> إضافة منتج
+                    </button>
+                )}
             </div>
 
             {/* Products Grid */}
@@ -368,3 +348,4 @@ export default function Products() {
         </div>
     );
 }
+

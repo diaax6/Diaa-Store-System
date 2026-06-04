@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+﻿import { useState, useMemo, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { salesAPI, walletsAPI } from '../services/api';
@@ -219,20 +219,19 @@ export default function Renewals() {
         <div className="space-y-4 md:space-y-6 animate-fade-in pb-20 font-sans text-slate-800">
 
             {/* Header */}
-            <div className="bg-white p-4 md:p-6 rounded-2xl border border-slate-200 shadow-sm">
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <div className="bg-red-50 p-2.5 md:p-3 rounded-xl text-red-600 border border-red-100"><i className="fa-solid fa-bell text-lg md:text-xl"></i></div>
-                        <div>
-                            <h2 className="text-lg md:text-2xl font-extrabold text-slate-800">التنبيهات</h2>
-                            <p className="text-slate-500 text-xs md:text-sm">متابعة التجديدات والمديونيات</p>
-                        </div>
+            <div className="ph-bar">
+                <div className="flex items-center gap-3">
+                    <div className="ph-icon" style={{backgroundColor:'#dc2626'}}><i className="fa-solid fa-bell text-sm"></i></div>
+                    <div>
+                        <h1 className="ph-title">التنبيهات</h1>
+                        <p className="ph-sub">متابعة التجديدات والمديونيات</p>
                     </div>
-                    {totalAlerts > 0 && (
-                        <div className="bg-red-500 text-white text-sm font-black px-3 py-1.5 rounded-full animate-pulse">
-                            {totalAlerts}
-                        </div>
-                    )}
+                </div>
+                <div className="flex items-center gap-2">
+                    {alerts.renewals.length > 0 && <span className="ds-badge ds-warn"><i className="fa-solid fa-clock"></i> {alerts.renewals.length} قرب التجديد</span>}
+                    {alerts.expiring.length > 0 && <span className="ds-badge ds-err"><i className="fa-solid fa-calendar-xmark"></i> {alerts.expiring.length} منتهية</span>}
+                    {alerts.unpaid.length > 0 && <span className="ds-badge ds-purple"><i className="fa-solid fa-hand-holding-dollar"></i> {alerts.unpaid.length} مديونية</span>}
+                    {totalAlerts === 0 && <span className="ds-badge ds-ok"><i className="fa-solid fa-check-circle"></i> كل شيء تمام</span>}
                 </div>
             </div>
 
