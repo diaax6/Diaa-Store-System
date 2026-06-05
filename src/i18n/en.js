@@ -4,6 +4,7 @@
  */
 const en = {
   // ── Sidebar nav ──────────────────────────────────────────────────
+  nav_subtitle:             'Subscription Manager',
   nav_dashboard:     'Dashboard',
   nav_sales:         'Sales',
   nav_products:      'Products',

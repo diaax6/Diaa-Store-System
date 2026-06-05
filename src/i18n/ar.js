@@ -4,6 +4,7 @@
  */
 const ar = {
   // ── Sidebar nav ──────────────────────────────────────────────────
+  nav_subtitle:             '????? ??????????',
   nav_dashboard:     'الرئيسية',
   nav_sales:         'المبيعات',
   nav_products:      'المنتجات',

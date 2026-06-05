@@ -4,7 +4,7 @@ import ErrorBoundary from './components/ErrorBoundary';
 import { DataProvider, useData } from './context/DataContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ConfirmProvider } from './components/ConfirmDialog';
-import { LangProvider, getStoredLang, SUPPORTED_LANGS } from './i18n/index';
+import { LangProvider, useLang, getStoredLang, SUPPORTED_LANGS } from './i18n/index';
 import Login from './components/Login';
 import Sidebar from './components/Sidebar';
 
@@ -28,6 +28,20 @@ import MyAccount    from './components/MyAccount';
 function RootRedirect() {
     const lang = getStoredLang();
     return <Navigate to={`/${lang}/dashboard`} replace />;
+}
+
+// —— Mobile language switcher (used in mobile header) ———————————
+function LangSwitcherMobile() {
+    const { lang, switchLang, t } = useLang();
+    return (
+        <button
+            onClick={switchLang}
+            className="px-3 py-2 rounded-lg bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-700 text-xs font-black transition-all"
+            title={t('lang_switch_to')}
+        >
+            {lang === 'ar' ? 'EN' : 'عر'}
+        </button>
+    );
 }
 
 // ── Unknown lang redirect: /xx/... → /:storedLang/... ────────────
@@ -75,12 +89,16 @@ const MainLayout = () => {
                             </div>
                             <h2 className="text-lg font-black text-slate-800">Diaa Store</h2>
                         </div>
-                        <button
-                            onClick={() => setSidebarOpen(true)}
-                            className="p-2.5 bg-slate-100 text-slate-600 rounded-lg border border-slate-200 hover:bg-slate-200 transition"
-                        >
-                            <i className="fa-solid fa-bars text-xl"></i>
-                        </button>
+                        <div className="flex items-center gap-2">
+                            {/* Mobile lang switcher */}
+                            <LangSwitcherMobile />
+                            <button
+                                onClick={() => setSidebarOpen(true)}
+                                className="p-2.5 bg-slate-100 text-slate-600 rounded-lg border border-slate-200 hover:bg-slate-200 transition"
+                            >
+                                <i className="fa-solid fa-bars text-xl"></i>
+                            </button>
+                        </div>
                     </div>
 
                     {/* Page components */}

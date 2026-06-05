@@ -127,10 +127,18 @@ export default function Sidebar ({ isOpen, onClose }) {
                         <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/50 flex-shrink-0">
                             <i className="fa-solid fa-layer-group text-xl"></i>
                         </div>
-                        <div className="overflow-hidden">
+                        <div className="overflow-hidden flex-1">
                             <h1 className="text-lg font-black tracking-tight truncate">Diaa Store</h1>
-                            <p className="text-[10px] text-slate-400 font-bold">إدارة الاشتراكات</p>
+                            <p className="text-[10px] text-slate-400 font-bold">{t('nav_subtitle') || 'إدارة الاشتراكات'}</p>
                         </div>
+                        {/* Language switcher — always visible */}
+                        <button
+                            onClick={(e) => { e.stopPropagation(); switchLang(); }}
+                            className="flex-shrink-0 px-2.5 py-1.5 rounded-lg bg-indigo-500/20 hover:bg-indigo-500/40 border border-indigo-500/30 text-indigo-300 hover:text-white transition-all text-xs font-black tracking-wide"
+                            title={t('lang_switch_to')}
+                        >
+                            {lang === 'ar' ? 'EN' : 'ع'}
+                        </button>
                     </div>
                 </div>
 
